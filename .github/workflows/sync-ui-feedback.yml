@@ -1,0 +1,36 @@
+name: Sync UI Feedback Tool
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'src/ui-feedback.js'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  notify-projects:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify LuxRoom and Atelier
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.SYNC_TOKEN }}
+          script: |
+            const projects = ['LuxRoom', 'Atelier'];
+            const sourceSha = context.sha;
+
+            for (const repo of projects) {
+              await github.rest.repos.createDispatchEvent({
+                owner: 'Ngh1aa',
+                repo,
+                event_type: 'ui-feedback-updated',
+                client_payload: {
+                  source_sha: sourceSha,
+                  source_repo: 'Ngh1aa/ui-feedback-tool'
+                }
+              });
+              core.info(`Dispatched ui-feedback-updated to Ngh1aa/${repo} at ${sourceSha}`);
+            }
