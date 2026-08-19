@@ -4,7 +4,9 @@ Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web. Công cụ �
 
 ## Tính năng
 
-Công cụ có một thanh nút nổi ở bên phải màn hình, gồm danh sách feedback, thêm comment, sửa nội dung UI và chỉnh CSS. Khi chọn thao tác, người dùng đưa chuột lên phần tử cần xử lý rồi bấm chọn. Dữ liệu feedback được lưu trong `localStorage` theo `storageKey`, vì vậy có thể refresh trang mà không mất feedback trong cùng project và cùng origin.
+Công cụ có một thanh nút nổi ở bên phải màn hình, gồm danh sách feedback, thêm comment, sửa nội dung UI, **Bộ giao diện** và **Thay ảnh**. Khi chọn thao tác, người dùng đưa chuột lên phần tử cần xử lý rồi bấm chọn. Dữ liệu feedback được lưu trong `localStorage` theo `storageKey`, vì vậy có thể refresh trang mà không mất feedback trong cùng project và cùng origin.
+
+Chế độ **Bộ giao diện** thay thế CSS color grid + CSS inline cũ bằng panel có tab `Bộ có sẵn` và `Nâng cao`, các ô màu HEX, font Google Fonts, border radius, preset và nút khôi phục mặc định. Chế độ **Thay ảnh** áp dụng được cho cả thẻ `<img>` và phần tử có `background-image`, nhận URL website hoặc file `image/*` từ máy tính, có preview, khôi phục và undo. File upload được giới hạn 1 MB để tránh làm đầy `localStorage`.
 
 Phiên bản hiện tại hỗ trợ marker trên trang, undo, filter, resolve/unresolve, xuất Markdown và tạo GitHub Issue.
 
@@ -38,9 +40,9 @@ Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên n
 ## Luồng sử dụng
 
 1. Trên trang preview, nhấn Q + W + E để bật công cụ.
-2. Bấm Comment, Edit hoặc CSS rồi chọn phần tử cần xử lý.
-3. Nhập feedback hoặc thay đổi nội dung tạm thời trên bản preview.
-4. Mở Clipboard để xem, sửa, xóa, resolve hoặc xuất feedback.
+2. Bấm Comment, Edit, Bộ giao diện hoặc Thay ảnh rồi chọn phần tử cần xử lý.
+3. Nhập feedback, chỉnh các control của Bộ giao diện, hoặc nhập URL/chọn file trong Thay ảnh. Các thay đổi chỉ tác động lên bản preview hiện tại cho đến khi bấm Lưu.
+4. Mở Clipboard để xem, xóa, resolve hoặc xuất feedback. Nút Undo hoàn tác cả edit, Bộ giao diện và thay ảnh.
 5. Bấm nút tải xuống trong panel để tạo file `ui-feedback-YYYY-MM-DD.md`.
 
 ## Đồng bộ tự động giữa các repository
@@ -105,7 +107,7 @@ Hướng dẫn đầy đủ nằm tại [docs/ADD-REPOSITORY.md](docs/ADD-REPOSI
 
 ## Cấu trúc Markdown xuất ra
 
-Mỗi file có URL, ngày xuất, số lượng feedback, selector CSS, nội dung phần tử, mức độ ưu tiên và trạng thái xử lý. Phần chỉnh sửa nội dung và CSS được ghi ở các section riêng trong file Markdown.
+Mỗi file có URL, ngày xuất, số lượng feedback, selector CSS, nội dung phần tử, mức độ ưu tiên và trạng thái xử lý. Phần sửa nội dung, Bộ giao diện và thay ảnh được ghi ở các section riêng; image item nêu rõ ảnh cũ, ảnh mới và nguồn là URL website hay upload từ máy.
 
 ## Lưu ý triển khai
 

@@ -170,6 +170,8 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/></svg>',
   paintbrush:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/><path d="M9 11l-4 4s-1.5 2 1 4.5 4.5 1 4.5 1l4-4"/></svg>',
+  image:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>',
   github:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>',
 };
@@ -739,65 +741,149 @@ button { cursor: pointer; }
   color: #ede9fe;
 }
 
-/* ── color picker ── */
-.ui-feedback-color-grid {
+/* ── advanced CSS editor ── */
+.ui-feedback-css-tabs {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 6px;
-  margin: 10px 0;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  margin: -4px -4px 14px;
+  border-radius: 8px;
+  background: var(--_bg-alt);
 }
-.ui-feedback-color-swatch {
-  width: 100%;
-  aspect-ratio: 1;
+.ui-feedback-css-tab {
+  border: 0;
   border-radius: 6px;
-  border: 2px solid transparent;
-  cursor: pointer;
-  transition: transform .1s, border-color .1s, box-shadow .1s;
-  box-shadow: 0 1px 3px rgba(0,0,0,.12);
-}
-.ui-feedback-color-swatch:hover {
-  transform: scale(1.18);
-  box-shadow: 0 3px 10px rgba(0,0,0,.2);
-}
-.ui-feedback-color-swatch.is-selected {
-  border-color: var(--_text);
-  transform: scale(1.1);
-}
-.ui-feedback-css-section {
-  margin-top: 12px;
-}
-.ui-feedback-css-section__title {
+  padding: 8px 6px;
+  color: var(--_text-secondary);
+  background: transparent;
   font-size: 11px;
   font-weight: 700;
-  color: var(--_text-secondary);
-  margin-bottom: 6px;
 }
-.ui-feedback-css-prop-row {
+.ui-feedback-css-tab.is-active {
+  color: var(--_text);
+  background: var(--_bg-panel);
+  box-shadow: 0 1px 4px var(--_shadow);
+}
+.ui-feedback-css-section { margin-top: 15px; }
+.ui-feedback-css-section:first-child { margin-top: 0; }
+.ui-feedback-css-section__title {
+  margin-bottom: 7px;
+  color: var(--_text-secondary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.ui-feedback-theme-card {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 47px;
+  margin-bottom: 6px;
+  padding: 8px 9px;
+  border: 1px solid var(--_border);
+  border-radius: 8px;
+  background: var(--_bg-item);
+}
+.ui-feedback-theme-card__swatch {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 26px;
+  border: 1px solid var(--_border);
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.06);
+}
+.ui-feedback-theme-card__copy { min-width: 0; flex: 1; }
+.ui-feedback-theme-card__label { display: block; color: var(--_text); font-size: 11px; font-weight: 700; }
+.ui-feedback-theme-card__hint { display: block; margin-top: 2px; color: var(--_text-muted); font-size: 10px; }
+.ui-feedback-theme-card input[type=color] {
+  width: 31px;
+  height: 29px;
+  padding: 1px;
+  border: 1px solid var(--_border);
+  border-radius: 5px;
+  background: transparent;
+  cursor: pointer;
+}
+.ui-feedback-theme-card input[type=text] {
+  width: 71px;
+  border: 0;
+  border-bottom: 1px solid var(--_border);
+  padding: 4px 2px;
+  color: var(--_text-secondary);
+  background: transparent;
+  font: 10px ui-monospace, SFMono-Regular, Menlo, monospace;
+  outline: none;
+}
+.ui-feedback-theme-card input[type=text]:focus { border-bottom-color: var(--ui-feedback-accent); color: var(--_text); }
+.ui-feedback-more-colors { margin-top: 6px; }
+.ui-feedback-more-colors > summary {
+  padding: 8px;
+  border: 1px solid var(--_border);
+  border-radius: 7px;
+  color: var(--_text-secondary);
+  font-size: 11px;
+  text-align: center;
+  cursor: pointer;
+  list-style: none;
+}
+.ui-feedback-more-colors > summary::-webkit-details-marker { display: none; }
+.ui-feedback-font-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  min-height: 45px;
+  padding: 7px 9px;
+  border: 1px solid var(--_border);
+  border-radius: 8px;
+  background: var(--_bg-item);
 }
-.ui-feedback-css-prop-label {
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--_text-secondary);
-  min-width: 80px;
-}
-.ui-feedback-css-inline {
-  width: 100%;
-  border: 0;
-  border-bottom: 2px solid var(--_border);
-  padding: 6px 0;
+.ui-feedback-font-row + .ui-feedback-font-row { margin-top: 6px; }
+.ui-feedback-font-row__copy { flex: 1; min-width: 0; }
+.ui-feedback-font-row__label { display: block; color: var(--_text-muted); font-size: 9px; font-weight: 800; letter-spacing: .08em; }
+.ui-feedback-font-row__value { display: block; overflow: hidden; margin-top: 2px; color: var(--_text); font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ui-feedback-font-row select {
+  max-width: 124px;
+  border: 1px solid var(--_border);
+  border-radius: 5px;
+  padding: 5px 4px;
   color: var(--_text);
-  background: transparent;
-  outline: none;
-  font-size: 12px;
-  font-family: monospace;
+  background: var(--_bg-panel);
+  font-size: 10px;
 }
-.ui-feedback-css-inline:focus {
-  border-bottom-color: var(--ui-feedback-accent);
+.ui-feedback-range-row { padding: 10px 9px 5px; border: 1px solid var(--_border); border-radius: 8px; background: var(--_bg-item); }
+.ui-feedback-range-row__head { display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--_text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.ui-feedback-range-row input[type=range] { width: 100%; accent-color: var(--ui-feedback-accent); }
+.ui-feedback-css-presets { display: grid; gap: 7px; }
+.ui-feedback-css-preset {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  border: 1px solid var(--_border);
+  border-radius: 8px;
+  padding: 11px;
+  color: var(--_text);
+  background: var(--_bg-item);
+  text-align: left;
 }
+.ui-feedback-css-preset:hover { border-color: var(--ui-feedback-accent); background: var(--_bg-hover); }
+.ui-feedback-css-reset { width: 100%; margin-top: 14px; }
+.ui-feedback-image-block { display: grid; gap: 10px; }
+.ui-feedback-image-heading { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
+.ui-feedback-image-heading strong { color: var(--_text); font-size: 12px; }
+.ui-feedback-image-heading small { display: block; margin-top: 3px; color: var(--_text-muted); font-size: 10px; }
+.ui-feedback-image-state { flex-shrink: 0; border-radius: 99px; padding: 3px 7px; color: #166534; background: #dcfce7; font-size: 9px; font-weight: 800; }
+.ui-feedback-image-preview { display: flex; align-items: center; justify-content: center; min-height: 105px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; }
+.ui-feedback-image-preview img { display: block; width: 100%; max-height: 150px; object-fit: contain; }
+.ui-feedback-image-preview span { padding: 20px; color: var(--_text-muted); font-size: 11px; text-align: center; }
+.ui-feedback-image-url { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 9px 10px; color: var(--_text); background: var(--_bg-input); outline: none; font-size: 11px; }
+.ui-feedback-image-url:focus { border-color: var(--ui-feedback-accent); }
+.ui-feedback-image-upload { width: 100%; border: 1px dashed var(--_border); border-radius: 6px; padding: 8px; color: var(--_text-secondary); background: var(--_bg-alt); font-size: 11px; }
+.ui-feedback-image-original { display: block; overflow: hidden; color: var(--_text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.ui-feedback-marker.is-image { background: #fcd34d; border-color: #b45309; color: #78350f; font-size: 11px; line-height: 1; }
+.ui-feedback-root.is-dark .ui-feedback-marker.is-image { background: #92400e; border-color: #fcd34d; color: #fef3c7; }
 
 /* ── picker ── */
 .ui-feedback-picking,
@@ -854,6 +940,10 @@ export function createUIFeedback(options = {}) {
     // again with the same value when the interrupt clears.
     _modeBeforePickingStop: null,
     _resumeTimer: null,
+    modalSnapshot: null,
+    modalCommitted: false,
+    modalImageSource: '',
+    cssTab: 'advanced',
   };
 
   // Marker tracking
@@ -932,7 +1022,8 @@ export function createUIFeedback(options = {}) {
       <button class="ui-feedback-tool ${state.panelOpen ? 'is-active' : ''}" data-action="list" aria-label="Mở danh sách feedback" title="Danh sách feedback">${ICONS.clipboard}<span class="ui-feedback-badge" ${state.comments.length ? '' : 'hidden'}>${state.comments.length}</span></button>
       <button class="ui-feedback-tool ${state.picking && state.mode === 'comment' ? 'is-active' : ''}" data-action="comment" aria-label="Thêm comment" title="Thêm comment">${ICONS.comment}</button>
       <button class="ui-feedback-tool ${state.picking && state.mode === 'edit' ? 'is-active' : ''}" data-action="edit" aria-label="Sửa nội dung UI" title="Sửa nội dung UI">${ICONS.pencil}</button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'css' ? 'is-active' : ''}" data-action="css" aria-label="Tinh chỉnh CSS" title="Tinh chỉnh CSS">${ICONS.paintbrush}</button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === 'css' ? 'is-active' : ''}" data-action="css" aria-label="Bộ giao diện" title="Bộ giao diện">${ICONS.paintbrush}</button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === 'image' ? 'is-active' : ''}" data-action="image" aria-label="Thay ảnh" title="Thay ảnh">${ICONS.image}</button>
       ${undoButton}
     </div>
     <div data-ui-feedback-panel></div>
@@ -953,6 +1044,7 @@ export function createUIFeedback(options = {}) {
     if (action === 'comment') toggleMode('comment');
     if (action === 'edit') toggleMode('edit');
     if (action === 'css') toggleMode('css');
+    if (action === 'image') toggleMode('image');
   }
 
   // Toggling behavior: clicking the same picking mode again turns it off.
@@ -1004,7 +1096,8 @@ export function createUIFeedback(options = {}) {
           (c.comment || '').toLowerCase().includes(q) ||
           (c.selector || '').toLowerCase().includes(q) ||
           (c.tag || '').toLowerCase().includes(q) ||
-          (c.targetText || '').toLowerCase().includes(q),
+          (c.targetText || '').toLowerCase().includes(q) ||
+          (c.value || '').toLowerCase().includes(q),
       );
     }
     return items;
@@ -1020,8 +1113,8 @@ export function createUIFeedback(options = {}) {
       return groups;
     }, {});
     const resolvedCount = state.comments.filter((c) => c.resolved).length;
-    const openCount = state.comments.filter((c) => !c.resolved && c.type !== 'edit' && c.type !== 'css').length;
-    const editCount = state.comments.filter((c) => c.type === 'edit' || c.type === 'css').length;
+    const openCount = state.comments.filter((c) => !c.resolved && !['edit', 'css', 'image'].includes(c.type)).length;
+    const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
     const content = Object.entries(grouped)
       .map(
         ([page, items]) =>
@@ -1106,10 +1199,10 @@ export function createUIFeedback(options = {}) {
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map(t => `<span class="ui-feedback-context-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       ${timeStr ? `<div class="ui-feedback-item__time">${escapeHtml(timeStr)}</div>` : ''}
       <p class="ui-feedback-item__target">${escapeHtml(item.tag)} · ${escapeHtml(item.targetText || 'Không có nội dung xem trước')}</p>
-      ${item.type === 'edit' ? `<p class="ui-feedback-item__comment">✏️ Thay đổi text: <code>${escapeHtml(item.value)}</code></p>` : item.type === 'css' ? `<p class="ui-feedback-item__comment">🎨 Thay đổi CSS: <code>${escapeHtml(item.value)}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`}
+      ${item.type === 'edit' ? `<p class="ui-feedback-item__comment">✏️ Thay đổi text: <code>${escapeHtml(item.value)}</code></p>` : item.type === 'css' ? `<p class="ui-feedback-item__comment">✦ Bộ giao diện: <code>${escapeHtml(item.value)}</code></p>` : item.type === 'image' ? `<p class="ui-feedback-item__comment">▧ Thay ảnh (${item.imageSourceType === 'upload' ? 'upload' : 'URL'}): <code>${escapeHtml(item.value)}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`}
       <div class="ui-feedback-item__actions">
         <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${item.id}" title="${resolved ? 'Mở lại' : 'Đánh dấu xong'}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? 'Mở lại' : 'Xong'}</button>
-        ${item.type !== 'edit' && item.type !== 'css' ? `<button class="ui-feedback-mini" data-edit-comment="${item.id}">${ICONS.edit} Sửa</button>` : ''}
+        ${!['edit', 'css', 'image'].includes(item.type) ? `<button class="ui-feedback-mini" data-edit-comment="${item.id}">${ICONS.edit} Sửa</button>` : ''}
         <button class="ui-feedback-mini" data-delete-comment="${item.id}">${ICONS.trash} Xóa</button>
       </div>
     </article>`;
@@ -1135,7 +1228,7 @@ export function createUIFeedback(options = {}) {
     root.classList.add('ui-feedback-picking');
     renderToolbar();
     if (!opts.silent) {
-      showToast(mode === 'comment' ? 'Chọn phần tử để ghi comment' : mode === 'edit' ? 'Chọn phần tử để sửa nội dung' : 'Chọn phần tử để tinh chỉnh CSS');
+      showToast(mode === 'comment' ? 'Chọn phần tử để ghi comment' : mode === 'edit' ? 'Chọn phần tử để sửa nội dung' : mode === 'image' ? 'Chọn phần tử ảnh để thay ảnh' : 'Chọn phần tử để mở Bộ giao diện');
     }
   }
 
@@ -1200,19 +1293,24 @@ export function createUIFeedback(options = {}) {
         ? ' is-edit'
         : comment.type === 'css'
           ? ' is-css'
-          : '';
+          : comment.type === 'image'
+            ? ' is-image'
+            : '';
       const resolvedClass = comment.resolved ? ' is-resolved' : '';
       marker.className = `ui-feedback-marker${typeClass}${resolvedClass}`;
       // Use a glyph for edit/css so they read as "touched", comment items
       // keep their numeric index for ordering.
       if (comment.type === 'edit') marker.textContent = '✎';
       else if (comment.type === 'css') marker.textContent = '✦';
+      else if (comment.type === 'image') marker.textContent = '▧';
       else marker.textContent = index + 1;
       marker.title = comment.type === 'edit'
         ? `Đã sửa text: ${safeText(comment.value, 80)}`
         : comment.type === 'css'
           ? `Đã sửa CSS: ${safeText(comment.value, 80)}`
-          : `Feedback #${index + 1}`;
+          : comment.type === 'image'
+            ? `Đã thay ảnh: ${safeText(comment.value, 80)}`
+            : `Feedback #${index + 1}`;
       marker.style.position = 'absolute';
       // position relative to the element
       positionMarker(el, marker);
@@ -1245,85 +1343,266 @@ export function createUIFeedback(options = {}) {
     stopPicking();
     state.target = element;
     state.mode = mode;
+    state.modalSnapshot = mode === 'css' ? { styleCssText: element?.style?.cssText || '' } : mode === 'image' ? captureImageState(element) : null;
+    state.modalImageSource = mode === 'image' ? (state.modalSnapshot?.src || '') : '';
+    state.modalCommitted = false;
+    state.cssTab = 'advanced';
     state.modalOpen = true;
     renderToolbar();
     renderModal(existing);
     setTimeout(() => root.querySelector('[data-feedback-input]')?.focus(), 0);
   }
 
-  // Color palette for CSS mode
-  const COLOR_PALETTE = [
-    '#000000','#333333','#666666','#999999','#cccccc','#ffffff','#f5f5f5','#e0e0e0',
-    '#ef4444','#f97316','#f59e0b','#eab308','#84cc16','#22c55e','#14b8a6','#06b6d4',
-    '#0ea5e9','#3b82f6','#6366f1','#8b5cf6','#a855f7','#d946ef','#ec4899','#f43f5e',
-    '#fecaca','#fed7aa','#fef08a','#d9f99d','#bbf7d0','#a7f3d0','#a5f3fc','#bfdbfe',
-    '#7f1d1d','#9a3412','#78350f','#365314','#14532d','#134e4a','#0c4a6e','#1e3a5f',
+  const CSS_COLOR_FIELDS = [
+    { key: 'primary', label: 'Màu chính', prop: 'backgroundColor', fallback: '#cb0236', hint: 'background-color' },
+    { key: 'primaryText', label: 'Chữ trên màu chính', prop: 'color', fallback: '#ffffff', hint: 'color' },
+    { key: 'pageBackground', label: 'Nền trang', prop: 'backgroundColor', fallback: '#f4f8f8', hint: 'background-color' },
+    { key: 'text', label: 'Màu chữ', prop: 'color', fallback: '#1b212b', hint: 'color' },
   ];
+  const EXTRA_COLOR_FIELDS = [
+    { key: 'border', label: 'Viền', prop: 'borderColor', fallback: '#d1d5db', hint: 'border-color' },
+    { key: 'outline', label: 'Outline', prop: 'outlineColor', fallback: '#f5a623', hint: 'outline-color' },
+    { key: 'decoration', label: 'Gạch chân', prop: 'textDecorationColor', fallback: '#f5a623', hint: 'text-decoration-color' },
+    { key: 'caret', label: 'Caret', prop: 'caretColor', fallback: '#f5a623', hint: 'caret-color' },
+    { key: 'accent', label: 'Accent', prop: 'accentColor', fallback: '#f5a623', hint: 'accent-color' },
+    { key: 'columnRule', label: 'Column rule', prop: 'columnRuleColor', fallback: '#d1d5db', hint: 'column-rule-color' },
+    { key: 'marker', label: 'Marker', prop: 'markerColor', fallback: '#f5a623', hint: 'marker-color' },
+    { key: 'fill', label: 'SVG fill', prop: 'fill', fallback: '#f5a623', hint: 'fill' },
+  ];
+  const FONT_OPTIONS = [
+    { value: '', label: 'Mặc định website' },
+    { value: 'Inter', label: 'Inter' },
+    { value: 'DM Sans', label: 'DM Sans' },
+    { value: 'Montserrat', label: 'Montserrat' },
+    { value: 'Roboto', label: 'Roboto' },
+    { value: 'Playfair Display', label: 'Playfair Display' },
+    { value: 'Lora', label: 'Lora' },
+  ];
+
+  function ensureGoogleFont(fontName) {
+    if (!fontName || fontName === 'inherit') return;
+    const id = `ui-feedback-font-${fontName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
+    if (document.getElementById(id)) return;
+    const link = document.createElement('link');
+    link.id = id;
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName).replace(/%20/g, '+')}:wght@400;500;600;700&display=swap`;
+    document.head.appendChild(link);
+  }
+
+  function normalizeColor(value, fallback = '#ffffff') {
+    const raw = String(value || '').trim();
+    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(raw)) return raw.toLowerCase().replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3');
+    const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (match) return `#${[match[1], match[2], match[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`;
+    return fallback;
+  }
+
+  function readCssValue(prop, fallback = '') {
+    if (!state.target) return fallback;
+    const inline = state.target.style?.[prop];
+    if (inline) return inline;
+    try { return getComputedStyle(state.target)[prop] || fallback; } catch { return fallback; }
+  }
+
+  function applyCssProperty(prop, value) {
+    if (!state.target || !prop) return;
+    state.target.style[prop] = value;
+  }
+
+  function imageBackgroundSource(value) {
+    const raw = String(value || '').trim();
+    const match = raw.match(/url\((?:"|')?(.*?)(?:"|')?\)/i);
+    return match ? match[1] : '';
+  }
+
+  function captureImageState(element) {
+    if (!(element instanceof Element)) return { kind: 'background', src: '', srcset: '', backgroundImage: '' };
+    const isImg = element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img';
+    if (isImg) return { kind: 'src', src: element.currentSrc || element.getAttribute('src') || '', srcset: element.getAttribute('srcset') || '', backgroundImage: '' };
+    const backgroundImage = element.style.backgroundImage || (() => { try { return getComputedStyle(element).backgroundImage || ''; } catch { return ''; } })();
+    return { kind: 'background', src: imageBackgroundSource(backgroundImage), srcset: '', backgroundImage: element.style.backgroundImage || '' };
+  }
+
+  function applyImageSource(element, source) {
+    if (!(element instanceof Element)) return;
+    const safeSource = String(source || '').trim();
+    const isImg = element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img';
+    if (isImg) {
+      element.setAttribute('src', safeSource);
+      if (element.hasAttribute('srcset')) element.removeAttribute('srcset');
+      return;
+    }
+    element.style.backgroundImage = safeSource ? `url("${safeSource.replace(/"/g, '\\"')}")` : '';
+  }
+
+  function restoreImageState(element, snapshot) {
+    if (!(element instanceof Element) || !snapshot) return;
+    const isImg = snapshot.kind === 'src';
+    if (isImg) {
+      if (snapshot.src) element.setAttribute('src', snapshot.src); else element.removeAttribute('src');
+      if (snapshot.srcset) element.setAttribute('srcset', snapshot.srcset); else element.removeAttribute('srcset');
+    } else {
+      element.style.backgroundImage = snapshot.backgroundImage || '';
+    }
+  }
+
+  function validateImageSource(source) {
+    const value = String(source || '').trim();
+    if (!value) return false;
+    if (value.startsWith('data:image/')) return value.length <= 1000000;
+    try {
+      const url = new URL(value, location.href);
+      return ['http:', 'https:'].includes(url.protocol);
+    } catch { return false; }
+  }
+
+  function renderCssColorCard(field) {
+    const current = normalizeColor(readCssValue(field.prop), field.fallback);
+    return `<div class="ui-feedback-theme-card" data-css-card="${field.key}"><span class="ui-feedback-theme-card__swatch" style="background:${current}"></span><div class="ui-feedback-theme-card__copy"><span class="ui-feedback-theme-card__label">${field.label}</span><span class="ui-feedback-theme-card__hint">${field.hint}</span></div><input type="color" data-css-color="${field.prop}" data-css-key="${field.key}" value="${current}" aria-label="${field.label}" /><input type="text" data-css-hex="${field.prop}" data-css-key="${field.key}" value="${current}" maxlength="7" aria-label="Mã màu ${field.label}" /></div>`;
+  }
+
+  function renderFontRow(label, prop) {
+    const current = String(readCssValue(prop, '') || '').replace(/^['"]|['"]$/g, '');
+    const selected = FONT_OPTIONS.find((font) => current.toLowerCase().includes(font.value.toLowerCase()) && font.value);
+    const value = selected?.value || '';
+    return `<div class="ui-feedback-font-row"><div class="ui-feedback-font-row__copy"><span class="ui-feedback-font-row__label">${label}</span><span class="ui-feedback-font-row__value">${escapeHtml(value || 'Mặc định của website')}</span></div><select data-css-font="${prop}" aria-label="Font ${label}">${FONT_OPTIONS.map((font) => `<option value="${escapeAttribute(font.value)}" ${font.value === value ? 'selected' : ''}>${font.label}</option>`).join('')}</select></div>`;
+  }
+
+  function renderCssContent() {
+    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font chữ (Google Fonts)</div>${renderFontRow('Tiêu đề', 'fontFamily')} ${renderFontRow('Nội dung', 'fontFamily')}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo góc</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue('borderRadius', '0'), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue('borderRadius', '0'), 10) || 0))}" /></div></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
+    const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bộ có sẵn</div><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>Gọn gàng</span><small>Không bóng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, đổ bóng nhẹ</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Viền accent nổi bật</small></button></div></div>`;
+    return `<div class="ui-feedback-css-tabs"><button class="ui-feedback-css-tab ${state.cssTab === 'preset' ? 'is-active' : ''}" data-css-tab="preset" type="button">✦ Bộ có sẵn</button><button class="ui-feedback-css-tab ${state.cssTab === 'advanced' ? 'is-active' : ''}" data-css-tab="advanced" type="button">☷ Nâng cao</button></div>${state.cssTab === 'preset' ? presets : advanced}`;
+  }
+
+  function renderImageContent() {
+    const snapshot = state.modalSnapshot || captureImageState(state.target);
+    const source = state.modalImageSource || snapshot.src || '';
+    const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" />` : '<span data-image-preview>Phần tử này chưa có ảnh URL trực tiếp. Hãy nhập URL hoặc chọn file.</span>';
+    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview">${preview}</div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
+  }
 
   function renderModal(existing = null) {
     const mount = root.querySelector('[data-ui-feedback-modal]');
     if (!mount || !state.modalOpen) return;
     const isEdit = state.mode === 'edit';
     const isCss = state.mode === 'css';
+    const isImage = state.mode === 'image';
     const currentText = existing?.comment || (isEdit ? safeText(state.target?.textContent, 500) : '');
     const priorityValue = existing?.priority || 'medium';
-    const title = isEdit ? 'Sửa nội dung UI' : isCss ? 'Tinh chỉnh CSS' : 'Ghi chú feedback';
-
-    let cssContent = '';
-    if (isCss) {
-      const currentColor = state.target?.style.color || '';
-      const currentBg = state.target?.style.backgroundColor || '';
-      cssContent = `
-        <div class="ui-feedback-css-section">
-          <div class="ui-feedback-css-section__title">Màu chữ (Color)</div>
-          <div class="ui-feedback-color-grid" data-css-target="color">
-            ${COLOR_PALETTE.map(c => `<div class="ui-feedback-color-swatch" data-swatch-color="${c}" data-css-prop="color" style="background:${c}" title="${c}"></div>`).join('')}
-          </div>
-        </div>
-        <div class="ui-feedback-css-section">
-          <div class="ui-feedback-css-section__title">Màu nền (Background)</div>
-          <div class="ui-feedback-color-grid" data-css-target="backgroundColor">
-            ${COLOR_PALETTE.map(c => `<div class="ui-feedback-color-swatch" data-swatch-color="${c}" data-css-prop="backgroundColor" style="background:${c}" title="${c}"></div>`).join('')}
-          </div>
-        </div>
-        <div class="ui-feedback-css-section">
-          <div class="ui-feedback-css-section__title">CSS tùy chỉnh</div>
-          <input class="ui-feedback-css-inline" data-feedback-input placeholder="vd: font-size: 16px; padding: 10px;" value="${escapeAttribute(state.target?.style.cssText || '')}" />
-        </div>
-      `;
-    }
-
+    const title = isEdit ? 'Sửa nội dung UI' : isCss ? 'Bộ giao diện' : isImage ? 'Thay ảnh' : 'Ghi chú feedback';
     const commentContent = isEdit
       ? `<label class="ui-feedback-label" for="ui-feedback-input">Nội dung hiển thị</label><input class="ui-feedback-field" data-feedback-input value="${escapeAttribute(currentText)}" />`
       : isCss
-        ? cssContent
-        : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div></div></div>`;
-
-    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="ui-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer"><button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button></footer></section>`;
-    // Bind via delegation on mount
+        ? renderCssContent()
+        : isImage
+          ? renderImageContent()
+          : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div></div></div>`;
+    const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
+    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="ui-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
     mount.addEventListener('click', handleModalClick);
+    mount.addEventListener('input', handleModalInput);
+    mount.addEventListener('change', handleModalChange);
     mount.addEventListener('keydown', handleModalKeydown);
   }
 
-  function handleModalClick(event) {
-    // Color swatch click
-    const swatch = event.target.closest('[data-swatch-color]');
-    if (swatch && state.target) {
-      event.stopPropagation();
-      const color = swatch.dataset.swatchColor;
-      const prop = swatch.dataset.cssProp; // 'color' or 'backgroundColor'
-      state.target.style[prop] = color;
-      // highlight selected
-      const grid = swatch.closest('.ui-feedback-color-grid');
-      grid?.querySelectorAll('.ui-feedback-color-swatch').forEach(s => s.classList.remove('is-selected'));
-      swatch.classList.add('is-selected');
-      return;
+  function previewImageSource(source) {
+    const preview = root.querySelector('[data-image-preview]');
+    if (!preview) return;
+    if (!source) { preview.outerHTML = '<span data-image-preview>Hãy nhập URL hoặc chọn file để xem preview.</span>'; return; }
+    if (preview.tagName?.toLowerCase() === 'img') preview.src = source;
+    else preview.outerHTML = `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" />`;
+  }
+
+  function applyCssPreset(name) {
+    if (!state.target) return;
+    if (name === 'clean') {
+      applyCssProperty('borderRadius', '4px');
+      applyCssProperty('boxShadow', 'none');
+      applyCssProperty('borderWidth', '1px');
+    } else if (name === 'soft') {
+      applyCssProperty('borderRadius', '14px');
+      applyCssProperty('boxShadow', '0 10px 30px rgba(0,0,0,.12)');
+    } else if (name === 'focus') {
+      applyCssProperty('borderColor', config.accent);
+      applyCssProperty('outlineColor', config.accent);
+      applyCssProperty('outlineStyle', 'solid');
+      applyCssProperty('outlineWidth', '2px');
+      applyCssProperty('outlineOffset', '2px');
     }
+    renderModal();
+  }
+
+  function handleModalClick(event) {
+    const tab = event.target.closest('[data-css-tab]');
+    if (tab) { event.stopPropagation(); state.cssTab = tab.dataset.cssTab; renderModal(); return; }
+    const preset = event.target.closest('[data-css-preset]');
+    if (preset) { event.stopPropagation(); applyCssPreset(preset.dataset.cssPreset); return; }
+    const reset = event.target.closest('[data-css-reset]');
+    if (reset && state.target && state.modalSnapshot) { event.stopPropagation(); state.target.style.cssText = state.modalSnapshot.styleCssText || ''; renderModal(); return; }
+    const restore = event.target.closest('[data-image-restore]');
+    if (restore && state.target && state.modalSnapshot) { event.stopPropagation(); restoreImageState(state.target, state.modalSnapshot); state.modalImageSource = state.modalSnapshot.src || ''; renderModal(); return; }
     const target = event.target.closest('[data-modal-action]');
     if (!target) return;
     event.stopPropagation();
-    if (target.dataset.modalAction === 'cancel') closeModal(true); // true to resume picking mode
+    if (target.dataset.modalAction === 'cancel') closeModal(true);
     else if (target.dataset.modalAction === 'save') saveModal();
+  }
+
+  function handleModalInput(event) {
+    const target = event.target;
+    if (target.matches('[data-css-color]')) {
+      applyCssProperty(target.dataset.cssColor, target.value);
+      const card = target.closest('[data-css-card]');
+      const hex = card?.querySelector('[data-css-hex]');
+      const swatch = card?.querySelector('.ui-feedback-theme-card__swatch');
+      if (hex) hex.value = target.value;
+      if (swatch) swatch.style.background = target.value;
+    } else if (target.matches('[data-css-hex]')) {
+      const value = target.value.trim();
+      if (/^#[0-9a-f]{6}$/i.test(value)) {
+        applyCssProperty(target.dataset.cssHex, value);
+        const card = target.closest('[data-css-card]');
+        const color = card?.querySelector('[data-css-color]');
+        const swatch = card?.querySelector('.ui-feedback-theme-card__swatch');
+        if (color) color.value = value;
+        if (swatch) swatch.style.background = value;
+      }
+    } else if (target.matches('[data-css-radius]')) {
+      applyCssProperty('borderRadius', `${target.value}px`);
+      const output = root.querySelector('[data-css-radius-output]');
+      if (output) output.value = `${target.value}px`;
+      if (output) output.textContent = `${target.value}px`;
+    } else if (target.matches('[data-image-url]')) {
+      state.modalImageSource = target.value.trim();
+      previewImageSource(state.modalImageSource);
+    }
+  }
+
+  function handleModalChange(event) {
+    const target = event.target;
+    if (target.matches('[data-css-font]')) {
+      const value = target.value;
+      if (value) { ensureGoogleFont(value); applyCssProperty(target.dataset.cssFont, `'${value}', sans-serif`); }
+      else applyCssProperty(target.dataset.cssFont, '');
+      renderModal();
+      return;
+    }
+    if (target.matches('[data-image-file]') && target.files?.[0]) {
+      const file = target.files[0];
+      if (!file.type.startsWith('image/')) { showToast('Vui lòng chọn file ảnh'); return; }
+      const reader = new FileReader();
+      reader.onload = () => {
+        const source = String(reader.result || '');
+        if (!validateImageSource(source)) { showToast('Ảnh upload vượt giới hạn 1 MB'); return; }
+        state.modalImageSource = source;
+        const urlInput = root.querySelector('[data-image-url]');
+        if (urlInput) urlInput.value = source;
+        previewImageSource(source);
+      };
+      reader.readAsDataURL(file);
+    }
   }
 
   function handleModalKeydown(event) {
@@ -1348,24 +1627,43 @@ export function createUIFeedback(options = {}) {
   function saveModal() {
     const input = root.querySelector('[data-feedback-input]');
     const value = input?.value?.trim() || '';
-    if (!value) {
+    const existing = editingExisting;
+    const modeUsed = state.mode;
+    if (modeUsed === 'image') {
+      const source = state.modalImageSource || value;
+      if (!validateImageSource(source)) {
+        input?.focus();
+        showToast('URL ảnh không hợp lệ hoặc ảnh upload vượt giới hạn 1 MB');
+        return;
+      }
+      const oldImageState = state.modalSnapshot || captureImageState(state.target);
+      applyImageSource(state.target, source);
+      const item = {
+        id: generateId(), type: 'image', selector: cssPath(state.target), tag: targetLabel(state.target),
+        targetText: oldImageState.src || oldImageState.backgroundImage || '', value: source,
+        imageSourceType: source.startsWith('data:image/') ? 'upload' : 'url',
+        oldImageState, newImageState: captureImageState(state.target), page: location.pathname || '/',
+        viewport: `${window.innerWidth}x${window.innerHeight}`, scrollY: Math.round(window.scrollY),
+        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+      };
+      state.comments.push(item);
+      state.undoStack.push({ type: 'image', id: item.id, selector: item.selector, oldImageState });
+      persist();
+      state.modalCommitted = true;
+      showToast('Đã thay ảnh trên trang', { undo: true });
+      editingExisting = null;
+      closeModal(true);
+      return;
+    }
+    if (modeUsed !== 'css' && !value) {
       input?.focus();
       showToast('Vui lòng nhập nội dung trước khi lưu');
       return;
     }
-    const existing = editingExisting;
-    const modeUsed = state.mode;
     if (modeUsed === 'edit' || modeUsed === 'css') {
       if (state.target) {
-        const oldValue = modeUsed === 'edit' ? state.target.textContent : state.target.style.cssText;
+        const oldValue = modeUsed === 'edit' ? state.target.textContent : (state.modalSnapshot?.styleCssText || state.target.style.cssText);
         if (modeUsed === 'edit') state.target.textContent = value;
-        if (modeUsed === 'css') {
-          // Apply the inline input CSS on top of color swatch changes
-          const inlineInput = root.querySelector('.ui-feedback-css-inline');
-          if (inlineInput?.value?.trim()) {
-            state.target.style.cssText = state.target.style.cssText + '; ' + inlineInput.value.trim();
-          }
-        }
         const newValue = modeUsed === 'edit' ? value : state.target.style.cssText;
         
         const item = {
@@ -1391,7 +1689,8 @@ export function createUIFeedback(options = {}) {
         });
       }
       persist();
-      showToast(modeUsed === 'edit' ? 'Đã cập nhật nội dung trên trang' : 'Đã apply CSS', { undo: true });
+      state.modalCommitted = true;
+      showToast(modeUsed === 'edit' ? 'Đã cập nhật nội dung trên trang' : 'Đã apply Bộ giao diện', { undo: true });
     } else {
       const item = existing || { id: generateId(), createdAt: new Date().toISOString(), type: 'comment' };
       item.comment = value;
@@ -1405,6 +1704,7 @@ export function createUIFeedback(options = {}) {
       item.updatedAt = new Date().toISOString();
       if (!existing) state.comments.push(item);
       persist();
+      state.modalCommitted = true;
       showToast(existing ? 'Đã cập nhật feedback' : 'Đã lưu feedback');
       // Pulse the badge
       setTimeout(() => {
@@ -1421,8 +1721,14 @@ export function createUIFeedback(options = {}) {
   }
 
   function closeModal(resumePicking = false) {
+    if (!state.modalCommitted && state.mode === 'css' && state.target && state.modalSnapshot) {
+      state.target.style.cssText = state.modalSnapshot.styleCssText || '';
+    }
     state.modalOpen = false;
     state.target = null;
+    state.modalSnapshot = null;
+    state.modalImageSource = '';
+    state.modalCommitted = false;
     editingExisting = null;
     renderToolbar();
     // Place markers after comment save
@@ -1441,7 +1747,7 @@ export function createUIFeedback(options = {}) {
     try {
       target = document.querySelector(item.selector);
     } catch { /* selector may have changed */ }
-    openModalWithExisting(target || document.body, 'comment', item);
+    openModalWithExisting(target || document.body, item.type === 'css' || item.type === 'image' ? item.type : 'comment', item);
   }
 
   function deleteComment(id) {
@@ -1467,12 +1773,13 @@ export function createUIFeedback(options = {}) {
       state.panelOpen = true;
       renderPanel();
       showToast('Đã hoàn tác xóa');
-    } else if (entry.type === 'edit' || entry.type === 'css') {
+    } else if (entry.type === 'edit' || entry.type === 'css' || entry.type === 'image') {
       try {
         const el = document.querySelector(entry.selector);
         if (el) {
           if (entry.type === 'edit') el.textContent = entry.oldValue;
           if (entry.type === 'css') el.style.cssText = entry.oldValue;
+          if (entry.type === 'image') restoreImageState(el, entry.oldImageState);
         }
       } catch (e) { console.error('Undo DOM error', e); }
       const idx = state.comments.findIndex(c => c.id === entry.id);
@@ -1499,8 +1806,8 @@ export function createUIFeedback(options = {}) {
   function renderItemMarkdown(item, index) {
     const lines = [];
     const status = item.resolved ? '✅ Đã xử lý' : '⏳ Chưa xử lý';
-    const typeLabel = item.type === 'edit' ? '✏️ Edit' : item.type === 'css' ? '🎨 CSS' : '💬 Feedback';
-    const title = item.type === 'edit' ? 'Sửa text' : item.type === 'css' ? 'Sửa CSS' : 'Feedback';
+    const typeLabel = item.type === 'edit' ? '✏️ Edit' : item.type === 'css' ? '✦ Bộ giao diện' : item.type === 'image' ? '▧ Image' : '💬 Feedback';
+    const title = item.type === 'edit' ? 'Sửa text' : item.type === 'css' ? 'Bộ giao diện' : item.type === 'image' ? 'Thay ảnh' : 'Feedback';
     lines.push(`### ${index + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`, '', `- **Tiêu đề:** ${title}`);
     if (item.type === 'edit') {
       lines.push(`- **Text hiện tại:** ${escapeMarkdown(item.targetText || '')}`);
@@ -1508,6 +1815,10 @@ export function createUIFeedback(options = {}) {
     } else if (item.type === 'css') {
       lines.push(`- **CSS cũ:** \`${escapeMarkdown(item.targetText || '')}\``);
       lines.push(`- **CSS mới:** \`${escapeMarkdown(item.value || '')}\``);
+    } else if (item.type === 'image') {
+      lines.push(`- **Ảnh cũ:** ${escapeMarkdown(item.targetText || 'Không có')}`);
+      lines.push(`- **Ảnh mới:** ${escapeMarkdown(item.value || '')}`);
+      lines.push(`- **Nguồn:** ${item.imageSourceType === 'upload' ? 'Upload từ máy' : 'URL website'}`);
     } else {
       lines.push(`- **Ưu tiên:** ${item.priority || 'medium'}`);
       lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
@@ -1524,7 +1835,7 @@ export function createUIFeedback(options = {}) {
   function exportMarkdown() {
     const resolvedCount = state.comments.filter((c) => c.resolved).length;
     const openCount = state.comments.length - resolvedCount;
-    const editCount = state.comments.filter((c) => c.type === 'edit' || c.type === 'css').length;
+    const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
     const feedbackCount = state.comments.length - editCount;
     const lines = [
       `# UI/UX Feedback`,
@@ -1551,13 +1862,14 @@ export function createUIFeedback(options = {}) {
     lines.push(`|------|----------|`);
     lines.push(`| 💬 Feedback (ghi chú) | ${feedbackCount} |`);
     lines.push(`| ✏️ Edit (sửa text) | ${state.comments.filter((c) => c.type === 'edit').length} |`);
-    lines.push(`| 🎨 CSS (sửa CSS) | ${state.comments.filter((c) => c.type === 'css').length} |`);
+    lines.push(`| 🎨 CSS (Bộ giao diện) | ${state.comments.filter((c) => c.type === 'css').length} |`);
+    lines.push(`| ▧ Image (thay ảnh) | ${state.comments.filter((c) => c.type === 'image').length} |`);
     lines.push('');
     lines.push(`### Theo mức độ (chỉ feedback)`);
     lines.push(`| Mức độ | Mở | Xong | Tổng |`);
     lines.push(`|--------|-----|------|------|`);
     ['high', 'medium', 'low'].forEach((p) => {
-      const all = state.comments.filter((c) => c.type === 'comment' && (c.priority || 'medium') === p);
+      const all = state.comments.filter((c) => !['edit', 'css', 'image'].includes(c.type) && (c.priority || 'medium') === p);
       const res = all.filter((c) => c.resolved).length;
       const label = p === 'high' ? 'Cao' : p === 'medium' ? 'Trung bình' : 'Thấp';
       lines.push(`| ${label} | ${all.length - res} | ${res} | ${all.length} |`);
@@ -1614,7 +1926,7 @@ export function createUIFeedback(options = {}) {
       '',
     ];
     unresolved.forEach((item, i) => {
-      const typeLabel = item.type === 'edit' ? '✏️ Edit' : item.type === 'css' ? '🎨 CSS' : '💬 Feedback';
+      const typeLabel = item.type === 'edit' ? '✏️ Edit' : item.type === 'css' ? '✦ Bộ giao diện' : item.type === 'image' ? '▧ Image' : '💬 Feedback';
       lines.push(`### ${i + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`);
       if (item.type === 'edit') {
         lines.push(`- **Current text:** ${escapeMarkdown(item.targetText || '')}`);
@@ -1622,6 +1934,10 @@ export function createUIFeedback(options = {}) {
       } else if (item.type === 'css') {
         lines.push(`- **Old CSS:** \`${escapeMarkdown(item.targetText || '')}\``);
         lines.push(`- **New CSS:** \`${escapeMarkdown(item.value || '')}\``);
+      } else if (item.type === 'image') {
+        lines.push(`- **Old image:** ${escapeMarkdown(item.targetText || 'N/A')}`);
+        lines.push(`- **New image:** ${escapeMarkdown(item.value || '')}`);
+        lines.push(`- **Source:** ${item.imageSourceType === 'upload' ? 'Local upload' : 'Website URL'}`);
       } else {
         lines.push(`- **Priority:** ${item.priority || 'medium'}`);
         lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
