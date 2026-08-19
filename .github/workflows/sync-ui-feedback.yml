@@ -14,12 +14,12 @@ jobs:
   notify-projects:
     runs-on: ubuntu-latest
     steps:
-      - name: Notify LuxRoom and Atelier
+      - name: Notify LuxRoom, Atelier, and StudioOS
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.SYNC_TOKEN }}
           script: |
-            const projects = ['LuxRoom', 'Atelier'];
+            const projects = ['LuxRoom', 'Atelier', 'StudioOS'];
             const sourceSha = context.sha;
 
             for (const repo of projects) {
