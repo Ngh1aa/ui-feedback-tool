@@ -1,0 +1,53 @@
+name: Sync UI Feedback Tool
+
+on:
+  repository_dispatch:
+    types: [ui-feedback-updated]
+
+permissions:
+  contents: write
+
+jobs:
+  sync:
+    name: Sync canonical UI Feedback file
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout target repository
+        uses: actions/checkout@v4
+
+      - name: Checkout canonical UI Feedback source
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.client_payload.source_repo || 'Ngh1aa/ui-feedback-tool' }}
+          ref: ${{ github.event.client_payload.source_sha }}
+          token: ${{ secrets.SYNC_TOKEN }}
+          path: .ui-feedback-source
+
+      - name: Copy files declared by registration
+        env:
+          SOURCE_SHA: ${{ github.event.client_payload.source_sha }}
+        run: |
+          set -euo pipefail
+          source_file=".ui-feedback-source/src/ui-feedback.js"
+          jq -e '.enabled == true' .github/ui-feedback-sync.json >/dev/null
+          jq -r '.targetPaths[]' .github/ui-feedback-sync.json | while IFS= read -r target; do
+            mkdir -p "$(dirname "$target")"
+            cp "$source_file" "$target"
+            echo "Updated $target from $SOURCE_SHA"
+          done
+
+      - name: Commit and push synchronized files
+        env:
+          SOURCE_SHA: ${{ github.event.client_payload.source_sha }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          mapfile -t target_files < <(jq -r '.targetPaths[]' .github/ui-feedback-sync.json)
+          git add .github/ui-feedback-sync.json "${target_files[@]}"
+          if git diff --cached --quiet; then
+            echo "UI Feedback is already synchronized at ${SOURCE_SHA}."
+            exit 0
+          fi
+          git commit -m "chore: sync UI Feedback tool ${SOURCE_SHA}"
+          git push
