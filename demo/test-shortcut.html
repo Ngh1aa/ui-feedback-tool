@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>shortcut-test</title></head><body><p>shortcut test</p><script type="module">
+  import { createUIFeedback } from '../src/ui-feedback.js';
+  const instance = createUIFeedback({ storageKey: 'ui-feedback-shortcut-test' });
+  setTimeout(() => {
+    for (const key of ['q', 'w', 'e']) {
+      window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+      window.dispatchEvent(new KeyboardEvent('keyup', { key, bubbles: true }));
+    }
+    document.title = `active:${Boolean(document.querySelector('#ui-feedback-host'))}:${Boolean(instance)}`;
+  }, 100);
+</script></body></html>
