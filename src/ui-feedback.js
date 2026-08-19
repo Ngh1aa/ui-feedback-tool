@@ -44,6 +44,7 @@ const DEFAULTS = {
   position: 'right',
   theme: 'auto', // 'light' | 'dark' | 'auto'
   githubRepo: 'Ngh1aa/StudioOS', // 'username/repo' cho GitHub Issue
+  persistActive: true, // giữ trạng thái bật trong cùng một tab khi chuyển trang
 };
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
@@ -824,18 +825,18 @@ export function createUIFeedback(options = {}) {
   if (typeof window === 'undefined' || typeof document === 'undefined') return null;
   if (window.__uiFeedbackInstance) return window.__uiFeedbackInstance;
 
-  const config = {
+    const config = {
     ...DEFAULTS,
     ...options,
     shortcut: (options.shortcut || DEFAULTS.shortcut).map((k) => k.toLowerCase()),
   };
-
+  const activeStorageKey = `${config.storageKey}:active`;
   const pressed = new Set();
   const recentShortcutKeys = [];
   let shortcutTimer;
 
   const state = {
-    active: false,
+    active: loadActive(),
     picking: false,
     pickingLocked: false, // guard against double-fire
     mode: 'comment',
@@ -896,10 +897,25 @@ export function createUIFeedback(options = {}) {
     }
   }
 
-  function persist() {
+    function persist() {
     localStorage.setItem(config.storageKey, JSON.stringify(state.comments));
   }
-
+  function loadActive() {
+    if (!config.persistActive) return false;
+    try {
+      return sessionStorage.getItem(activeStorageKey) === '1';
+    } catch {
+      return false;
+    }
+  }
+  function persistActive() {
+    if (!config.persistActive) return;
+    try {
+      sessionStorage.setItem(activeStorageKey, state.active ? '1' : '0');
+    } catch {
+      // Private browsing or a blocked storage API should not break the tool.
+    }
+  }
   /* ── rendering ── */
   function renderToolbar() {
     if (!state.active) {
@@ -1622,6 +1638,7 @@ export function createUIFeedback(options = {}) {
   /* ── toggle ── */
   function toggle() {
     state.active = !state.active;
+    persistActive();
     state.panelOpen = false;
     state.modalOpen = false;
     // Don't carry over picking context across a hard toggle on/off.
@@ -1879,6 +1896,7 @@ export function createUIFeedback(options = {}) {
     dispose,
   };
   renderToolbar();
+  if (state.active) placeMarkers();
   return window.__uiFeedbackInstance;
 }
 
