@@ -989,8 +989,17 @@ export function createUIFeedback(options = {}) {
   const recentShortcutKeys = [];
   let shortcutTimer;
 
+  const queryActivates = (() => {
+    try {
+      const value = new URLSearchParams(window.location.search).get('feedback');
+      return ['1', 'true', 'on'].includes(String(value || '').toLowerCase());
+    } catch {
+      return false;
+    }
+  })();
+
   const state = {
-    active: loadActive(),
+    active: Boolean(options.startActive) || queryActivates || loadActive(),
     picking: false,
     pickingLocked: false, // guard against double-fire
     mode: 'comment',
@@ -2183,8 +2192,16 @@ export function createUIFeedback(options = {}) {
   }
 
   /* ── toggle ── */
-  function toggle() {
-    state.active = !state.active;
+  function setActive(next, notify = true) {
+    const desired = Boolean(next);
+    if (state.active === desired) {
+      if (desired) {
+        renderToolbar();
+        placeMarkers();
+      }
+      return;
+    }
+    state.active = desired;
     persistActive();
     state.panelOpen = false;
     state.modalOpen = false;
@@ -2193,12 +2210,13 @@ export function createUIFeedback(options = {}) {
     clearResumeTimer();
     stopPicking();
     renderToolbar();
-    if (state.active) {
-      placeMarkers();
-    } else {
-      clearMarkers();
-    }
-    showToast(state.active ? 'UI Feedback đã bật' : 'UI Feedback đã tắt');
+    if (state.active) placeMarkers();
+    else clearMarkers();
+    if (notify) showToast(state.active ? 'UI Feedback đã bật' : 'UI Feedback đã tắt');
+  }
+
+  function toggle() {
+    setActive(!state.active);
   }
 
   /* ── keyboard shortcut ── */
@@ -2466,6 +2484,9 @@ export function createUIFeedback(options = {}) {
 
   window.__uiFeedbackInstance = {
     toggle,
+    activate: () => setActive(true),
+    deactivate: () => setActive(false),
+    isActive: () => state.active,
     exportMarkdown,
     getComments: () => [...state.comments],
     dispose,

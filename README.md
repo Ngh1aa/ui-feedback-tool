@@ -39,11 +39,20 @@ Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên n
 
 ## Luồng sử dụng
 
-1. Trên trang preview, nhấn Q + W + E để bật công cụ.
-2. Bấm Comment, Edit, Bộ giao diện hoặc Thay ảnh rồi chọn phần tử cần xử lý. Ở chế độ Thay ảnh, nếu click vào wrapper chứa duy nhất một ảnh, tool sẽ chọn đúng thẻ `<img>` bên trong.
-3. Nhập feedback và chọn phân loại, chỉnh các control của Bộ giao diện, hoặc nhập URL/chọn file trong Thay ảnh. Kéo trực tiếp trên preview để căn ảnh vào khung. Các thay đổi chỉ tác động lên bản preview hiện tại cho đến khi bấm Lưu.
-4. Mở Clipboard để xem, xóa, resolve hoặc xuất feedback. Nút Undo hoàn tác cả edit, Bộ giao diện và thay ảnh.
-5. Bấm nút tải xuống trong panel để tạo file `ui-feedback-YYYY-MM-DD.md`.
+1. Trên trang preview, nhấn lần lượt Q + W + E để bật công cụ. Tool chấp nhận chuỗi phím trong khoảng thời gian ngắn; không cần giữ cả ba phím cùng lúc.
+2. Khi cần mở nhanh trong môi trường preview hoặc GitHub Pages, thêm `?feedback=1` vào URL, ví dụ `https://example.github.io/project/?feedback=1`. Cách này hữu ích khi trang đang focus trong một trường nhập liệu hoặc khi cần xác nhận module đã khởi tạo.
+3. Khi tích hợp bằng JavaScript, có thể bật/tắt rõ ràng qua instance:
+
+```js
+const feedback = createUIFeedback({ startActive: true });
+feedback?.activate();
+feedback?.deactivate();
+```
+
+4. Bấm Comment, Edit, Bộ giao diện hoặc Thay ảnh rồi chọn phần tử cần xử lý. Ở chế độ Thay ảnh, nếu click vào wrapper chứa duy nhất một ảnh, tool sẽ chọn đúng thẻ `<img>` bên trong.
+5. Nhập feedback và chọn phân loại, chỉnh các control của Bộ giao diện, hoặc nhập URL/chọn file trong Thay ảnh. Kéo trực tiếp trên preview để căn ảnh vào khung. Các thay đổi chỉ tác động lên bản preview hiện tại cho đến khi bấm Lưu.
+6. Mở Clipboard để xem, xóa, resolve hoặc xuất feedback. Nút Undo hoàn tác cả edit, Bộ giao diện và thay ảnh.
+7. Bấm nút tải xuống trong panel để tạo file `ui-feedback-YYYY-MM-DD.md`.
 
 ## Đồng bộ tự động giữa các repository
 
