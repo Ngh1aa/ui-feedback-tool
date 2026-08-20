@@ -1,5 +1,5 @@
 /**
- * UI Feedback Tool v0.6.1
+ * UI Feedback Tool v0.7.0
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
@@ -54,7 +54,7 @@
  *   - New: Escape đóng modal/panel
  */
 
-const TOOL_VERSION = '0.6.1';
+const TOOL_VERSION = '0.7.0';
 
 const DEFAULTS = {
   version: TOOL_VERSION,
@@ -1121,6 +1121,91 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
+  /* ── v0.7 visual refresh: white accent + modern dark surfaces ── */
+  .ui-feedback-root { --ui-feedback-accent: #fff !important; }
+  .ui-feedback-root.is-dark { --ui-feedback-accent: #fff !important; }
+  .ui-feedback-panel,
+  .ui-feedback-modal {
+    border-color: rgba(255,255,255,.14);
+    border-radius: 18px;
+    background: #181818;
+    box-shadow: 0 26px 80px rgba(0,0,0,.48), 0 0 0 1px rgba(255,255,255,.03);
+  }
+  .ui-feedback-panel__header,
+  .ui-feedback-modal__top {
+    padding: 18px 18px 15px;
+    background: linear-gradient(180deg, #1d1d1d 0%, #181818 100%);
+    border-bottom-color: rgba(255,255,255,.10);
+  }
+  .ui-feedback-panel__header strong,
+  .ui-feedback-modal__top h2 { color: #fff; font-size: 16px; letter-spacing: -.02em; }
+  .ui-feedback-panel__header small,
+  .ui-feedback-modal__top p { color: #8f8f8f; }
+  .ui-feedback-window-grip {
+    border-color: rgba(255,255,255,.13);
+    border-radius: 9px;
+    color: #8f8f8f;
+    background: #222;
+  }
+  .ui-feedback-window-heading:hover .ui-feedback-window-grip,
+  .ui-feedback-modal__top:hover .ui-feedback-window-grip { color: #fff; border-color: rgba(255,255,255,.46); background: #2a2a2a; }
+  .ui-feedback-panel__tabs { gap: 2px; padding: 9px 14px 0; background: #181818; }
+  .ui-feedback-panel__tab { padding: 8px 9px 10px; color: #858585; }
+  .ui-feedback-panel__tab:hover,
+  .ui-feedback-panel__tab.is-active { color: #fff; border-bottom-color: #fff; }
+  .ui-feedback-panel__filter { gap: 8px; padding: 11px 14px 9px; background: #181818; border-bottom-color: rgba(255,255,255,.08); }
+  .ui-feedback-search-input,
+  .ui-feedback-filter-select {
+    min-height: 36px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    color: #f4f4f4;
+    background: #202020;
+  }
+  .ui-feedback-search-input:focus,
+  .ui-feedback-filter-select:focus { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.12); }
+  .ui-feedback-panel__body { padding: 10px 14px 14px; background: #121212; }
+  .ui-feedback-group__name { color: #b7b7b7; background: #2a2a2a; border-radius: 9px 9px 0 0; }
+  .ui-feedback-category-label { color: #d2d2d2; border-left-color: #fff; background: #181818; }
+  .ui-feedback-item { border-color: rgba(255,255,255,.10); background: #1b1b1b; }
+  .ui-feedback-item:hover { background: #242424; }
+  .ui-feedback-context-tag,
+  .ui-feedback-item__code,
+  .ui-feedback-category-chip { border-color: rgba(255,255,255,.10); background: #222; }
+  .ui-feedback-modal__content { padding: 20px; background: #181818; }
+  .ui-feedback-label { color: #bcbcbc; font-size: 11px; letter-spacing: .01em; }
+  .ui-feedback-field,
+  .ui-feedback-textarea,
+  .ui-feedback-select {
+    min-height: 40px;
+    border: 1px solid rgba(255,255,255,.12);
+    border-radius: 10px;
+    padding: 10px 12px;
+    color: #f4f4f4;
+    background: #222;
+  }
+  .ui-feedback-textarea { min-height: 104px; }
+  .ui-feedback-field:focus,
+  .ui-feedback-textarea:focus,
+  .ui-feedback-select:focus { border-color: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.12); }
+  .ui-feedback-modal__footer { padding: 0 20px 20px; background: #181818; }
+  .ui-feedback-button { min-height: 40px; border-color: rgba(255,255,255,.14); border-radius: 10px; color: #f4f4f4; background: #202020; }
+  .ui-feedback-button:hover { border-color: rgba(255,255,255,.34); background: #2a2a2a; }
+  .ui-feedback-button--primary { border-color: #fff; color: #111; background: #fff; }
+  .ui-feedback-button--primary:hover { background: #e7e7e7; }
+  .ui-feedback-css-tabs { background: #111; }
+  .ui-feedback-css-tab.is-active { color: #fff; background: #292929; box-shadow: none; }
+  .ui-feedback-theme-card,
+  .ui-feedback-font-row,
+  .ui-feedback-range-row,
+  .ui-feedback-css-preset { border-color: rgba(255,255,255,.11); border-radius: 11px; background: #202020; }
+  .ui-feedback-css-preset:hover { border-color: #fff; background: #292929; }
+  .ui-feedback-icon-button:hover,
+  .ui-feedback-icon-button:focus-visible { color: #fff; background: rgba(255,255,255,.10); }
+  @media (max-width: 560px) {
+    .ui-feedback-panel { right: 12px; width: min(420px, calc(100vw - 24px)); }
+    .ui-feedback-modal.is-inspector { right: 12px; width: calc(100vw - 24px); height: calc(100vh - 24px); }
+  }
 `;
 
 /* ── main factory ────────────────────────────────────────────────────── */
