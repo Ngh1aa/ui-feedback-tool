@@ -428,10 +428,12 @@ button { cursor: pointer; }
 
 /* ── panel ── */
 .ui-feedback-panel {
+  --ui-feedback-panel-x: 0px;
+  --ui-feedback-panel-y: 0px;
   position: fixed;
   right: 88px;
   top: 50%;
-  transform: translateY(-50%);
+  transform: translate(var(--ui-feedback-panel-x), calc(-50% + var(--ui-feedback-panel-y)));
   width: min(420px, calc(100vw - 112px));
   max-height: min(680px, calc(100vh - 32px));
   overflow: hidden;
@@ -447,6 +449,9 @@ button { cursor: pointer; }
   color: var(--_text);
   background: var(--_bg-panel);
   border-bottom: 1px solid var(--_border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -454,6 +459,7 @@ button { cursor: pointer; }
 }
 .ui-feedback-panel__header strong { display: block; font-size: 15px; }
 .ui-feedback-panel__header small { display: block; margin-top: 2px; color: var(--_text-muted); font-size: 10px; font-weight: 600; }
+.ui-feedback-panel__header:active { cursor: grabbing; }
 .ui-feedback-panel__actions { display: flex; gap: 5px; }
 .ui-feedback-panel__tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 12px 0; background: var(--_bg-panel); }
 .ui-feedback-panel__tab { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; padding: 7px 8px 8px; color: var(--_text-muted); background: transparent; font-size: 10px; font-weight: 800; white-space: nowrap; }
@@ -729,10 +735,12 @@ button { cursor: pointer; }
   to   { opacity: 1; }
 }
 .ui-feedback-modal {
+  --ui-feedback-modal-x: 0px;
+  --ui-feedback-modal-y: 0px;
   position: fixed;
   left: 50%;
   top: 50%;
-  transform: translate(-50%, -50%);
+  transform: translate(calc(-50% + var(--ui-feedback-modal-x)), calc(-50% + var(--ui-feedback-modal-y)));
   width: min(430px, calc(100vw - 32px));
   z-index: 2147483010;
   border: 1px solid var(--_border-modal);
@@ -745,11 +753,15 @@ button { cursor: pointer; }
 .ui-feedback-modal__top {
   padding: 18px 20px 12px;
   border-bottom: 1px solid var(--_border);
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
 }
+.ui-feedback-modal__top:active { cursor: grabbing; }
 .ui-feedback-modal__top h2 { margin: 0 0 7px; font-size: 16px; color: var(--_text); }
 .ui-feedback-modal__top p { overflow: hidden; margin: 0; color: var(--_text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .ui-feedback-modal__content { padding: 17px 20px; }
-.ui-feedback-modal.is-inspector { left: auto; right: 22px; top: 22px; transform: none; width: min(520px, calc(100vw - 32px)); height: calc(100vh - 44px); display: flex; flex-direction: column; animation: uiFeedbackSlideIn .25s cubic-bezier(.4,0,.2,1) both; }
+.ui-feedback-modal.is-inspector { left: auto; right: 22px; top: 22px; transform: translate(var(--ui-feedback-modal-x), var(--ui-feedback-modal-y)); width: min(520px, calc(100vw - 32px)); height: calc(100vh - 44px); display: flex; flex-direction: column; animation: uiFeedbackSlideIn .25s cubic-bezier(.4,0,.2,1) both; }
 .ui-feedback-modal.is-inspector .ui-feedback-modal__content { flex: 1; overflow: auto; }
 .ui-feedback-modal.is-mini { width: min(380px, calc(100vw - 32px)); }
 .ui-feedback-label { display: block; margin: 0 0 7px; color: var(--_text-secondary); font-size: 12px; font-weight: 700; }
@@ -994,8 +1006,12 @@ button { cursor: pointer; }
 .ui-feedback-css-preset:hover { border-color: var(--ui-feedback-accent); background: var(--_bg-hover); }
 .ui-feedback-css-reset { width: 100%; margin-top: 14px; }
 .ui-feedback-position-pad { position: relative; height: 132px; margin: 7px 0; border: 1px solid var(--_border); border-radius: 9px; background: linear-gradient(90deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), linear-gradient(0deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), var(--_bg-alt); cursor: crosshair; touch-action: none; }
-.ui-feedback-position-pad::after { content: ; position: absolute; left: calc(50% + var(--pad-x, 0px)); top: calc(50% + var(--pad-y, 0px)); width: 12px; height: 12px; border: 2px solid var(--ui-feedback-accent); border-radius: 50%; background: var(--_bg-panel); transform: translate(-50%, -50%); box-shadow: 0 1px 4px var(--_shadow); }
+.ui-feedback-position-pad::after { content: ""; position: absolute; left: calc(50% + var(--pad-x, 0px)); top: calc(50% + var(--pad-y, 0px)); width: 12px; height: 12px; border: 2px solid var(--ui-feedback-accent); border-radius: 50%; background: var(--_bg-panel); transform: translate(-50%, -50%); box-shadow: 0 1px 4px var(--_shadow); }
 .ui-feedback-position-sliders { display: grid; gap: 7px; }
+.ui-feedback-position-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+.ui-feedback-position-inputs label { display: grid; gap: 5px; color: var(--_text-secondary); font-size: 10px; font-weight: 700; }
+.ui-feedback-position-inputs input { width: 100%; box-sizing: border-box; border: 1px solid var(--_border); border-radius: 7px; padding: 7px 8px; color: var(--_text); background: var(--_bg-input); font: inherit; }
+.ui-feedback-position-inputs input:focus { border-color: var(--ui-feedback-accent); outline: 2px solid color-mix(in srgb, var(--ui-feedback-accent), transparent 75%); }
 .ui-feedback-position-sliders label { display: grid; grid-template-columns: 24px 1fr 40px; align-items: center; gap: 7px; color: var(--_text-secondary); font-size: 10px; }
 .ui-feedback-position-sliders input { width: 100%; accent-color: var(--ui-feedback-accent); }
 .ui-feedback-position-sliders output { text-align: right; font-variant-numeric: tabular-nums; }
@@ -1094,7 +1110,10 @@ export function createUIFeedback(options = {}) {
     collapsed: false,
     coachmarkVisible: false,
     cssPosition: { x: 0, y: 0 },
+    cssTransformBase: '',
     modalImageZoom: 100,
+    modalPosition: { x: 0, y: 0 },
+    panelPosition: { x: 0, y: 0 },
   };
 
   // Marker tracking
@@ -1318,7 +1337,7 @@ export function createUIFeedback(options = {}) {
     const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
     const content = renderGroupedComments(filtered);
     mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh sách feedback">
-      <header class="ui-feedback-panel__header"><div><strong>Feedback</strong><small>${openCount} đang mở · ${resolvedCount} đã xong · ${editCount} chỉnh sửa</small></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng">${ICONS.close}</button></span></header>
+      <header class="ui-feedback-panel__header" data-panel-drag-handle title="Kéo để di chuyển cửa sổ"><div><strong>Feedback</strong><small>${openCount} đang mở · ${resolvedCount} đã xong · ${editCount} chỉnh sửa</small></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng">${ICONS.close}</button></span></header>
       <div class="ui-feedback-panel__tabs" role="tablist"><button class="ui-feedback-panel__tab ${state.drawerTab === 'all' ? 'is-active' : ''}" data-panel-tab="all" role="tab">Tất cả <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'comment' ? 'is-active' : ''}" data-panel-tab="comment" role="tab">Ghi chú <span>${state.comments.filter((c) => c.type === 'comment').length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'edit' ? 'is-active' : ''}" data-panel-tab="edit" role="tab">Chỉnh sửa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'resolved' ? 'is-active' : ''}" data-panel-tab="resolved" role="tab">Đã xong <span>${resolvedCount}</span></button></div>
       <div class="ui-feedback-panel__filter">
         <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="Tìm feedback…" value="${escapeAttribute(state.searchQuery)}" /></div>
@@ -1332,9 +1351,45 @@ export function createUIFeedback(options = {}) {
       </div>
       <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' || state.filterCategory !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback. Chọn biểu tượng comment rồi bấm vào một phần tử trên trang.'}</div>`}</div>
     </aside>`;
+    applyPanelPosition();
     mount.onclick = handlePanelClick;
+    mount.onpointerdown = handlePanelPointerDown;
     mount.oninput = handlePanelInput;
     mount.onchange = handlePanelChange;
+  }
+
+  function applyPanelPosition() {
+    const panel = root.querySelector('.ui-feedback-panel');
+    if (!panel) return;
+    const position = state.panelPosition || { x: 0, y: 0 };
+    panel.style.setProperty('--ui-feedback-panel-x', `${position.x}px`);
+    panel.style.setProperty('--ui-feedback-panel-y', `${position.y}px`);
+  }
+
+  function handlePanelPointerDown(event) {
+    const handle = event.target.closest('[data-panel-drag-handle]');
+    if (!handle) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const position = state.panelPosition || { x: 0, y: 0 };
+    const drag = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y };
+    const onMove = (moveEvent) => {
+      const maxX = Math.max(0, window.innerWidth - 80);
+      const maxY = Math.max(0, window.innerHeight - 80);
+      state.panelPosition = {
+        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
+        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY)),
+      };
+      applyPanelPosition();
+    };
+    const onEnd = () => {
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onEnd, true);
+      document.removeEventListener('pointercancel', onEnd, true);
+    };
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onEnd, true);
+    document.addEventListener('pointercancel', onEnd, true);
   }
 
   function handlePanelClick(event) {
@@ -1567,8 +1622,10 @@ export function createUIFeedback(options = {}) {
     state.modalImagePosition = mode === 'image' ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
     state.modalCommitted = false;
     state.cssTab = 'advanced';
-    state.cssPosition = mode === 'css' ? parseTranslatePosition(element?.style?.translate || '') : { x: 0, y: 0 };
+    state.cssTransformBase = mode === 'css' ? (element?.style?.transform || '') : '';
+    state.cssPosition = mode === 'css' ? parseTranslatePosition(element?.style?.translate || element?.style?.transform || (element ? getComputedStyle(element).translate : '') || (element ? getComputedStyle(element).transform : '') || '') : { x: 0, y: 0 };
     state.modalImageZoom = 100;
+    state.modalPosition = { x: 0, y: 0 };
     state.modalOpen = true;
     renderToolbar();
     renderModal(existing);
@@ -1640,8 +1697,18 @@ export function createUIFeedback(options = {}) {
   }
 
   function parseTranslatePosition(value) {
-    const match = String(value || '').match(/(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px/);
-    return match ? { x: Number(match[1]), y: Number(match[2]) } : { x: 0, y: 0 };
+    const raw = String(value || '').trim();
+    const translate = raw.match(/translate\(\s*(-?\d+(?:\.\d+)?)px(?:\s*,\s*|\s+)(-?\d+(?:\.\d+)?)px\s*\)/i);
+    if (translate) return { x: Number(translate[1]), y: Number(translate[2]) };
+    const pair = raw.match(/^\s*(-?\d+(?:\.\d+)?)px[\s,]+(-?\d+(?:\.\d+)?)px\s*$/i);
+    if (pair) return { x: Number(pair[1]), y: Number(pair[2]) };
+    const matrix = raw.match(/matrix(?:3d)?\(([^)]+)\)/i);
+    if (matrix) {
+      const values = matrix[1].split(',').map(Number);
+      if (values.length === 6) return { x: values[4] || 0, y: values[5] || 0 };
+      if (values.length === 16) return { x: values[12] || 0, y: values[13] || 0 };
+    }
+    return { x: 0, y: 0 };
   }
 
   function applyCssPosition(position = state.cssPosition) {
@@ -1649,13 +1716,28 @@ export function createUIFeedback(options = {}) {
     const x = Math.max(-200, Math.min(200, Number(position.x) || 0));
     const y = Math.max(-200, Math.min(200, Number(position.y) || 0));
     state.cssPosition = { x, y };
-    state.target.style.translate = `${x}px ${y}px`;
+    if ('translate' in state.target.style || typeof CSS === 'undefined' || CSS.supports?.('translate', '0 0')) {
+      state.target.style.setProperty('translate', `${x}px ${y}px`);
+    } else {
+      const baseTransform = state.cssTransformBase && state.cssTransformBase !== 'none' ? state.cssTransformBase : '';
+      state.target.style.transform = `translate(${x}px, ${y}px)${baseTransform ? ` ${baseTransform}` : ''}`;
+    }
     const pad = root.querySelector('[data-css-position-pad]');
     if (pad) { pad.style.setProperty('--pad-x', `${x * 0.3}px`); pad.style.setProperty('--pad-y', `${y * 0.3}px`); }
+    root.querySelectorAll('[data-css-x], [data-css-x-number]').forEach((input) => { input.value = String(Math.round(x)); });
+    root.querySelectorAll('[data-css-y], [data-css-y-number]').forEach((input) => { input.value = String(Math.round(y)); });
     const xOutput = root.querySelector('[data-css-x-output]');
     const yOutput = root.querySelector('[data-css-y-output]');
     if (xOutput) xOutput.textContent = `${Math.round(x)}px`;
     if (yOutput) yOutput.textContent = `${Math.round(y)}px`;
+  }
+
+  function applyModalPosition() {
+    const modal = root.querySelector('.ui-feedback-modal');
+    if (!modal) return;
+    const position = state.modalPosition || { x: 0, y: 0 };
+    modal.style.setProperty('--ui-feedback-modal-x', `${position.x}px`);
+    modal.style.setProperty('--ui-feedback-modal-y', `${position.y}px`);
   }
 
   function updateCssPositionFromPointer(clientX, clientY) {
@@ -1664,10 +1746,6 @@ export function createUIFeedback(options = {}) {
     const rect = pad.getBoundingClientRect();
     state.cssPosition = { x: ((clientX - rect.left) / rect.width - 0.5) * 400, y: ((clientY - rect.top) / rect.height - 0.5) * 400 };
     applyCssPosition();
-    const xInput = root.querySelector('[data-css-x]');
-    const yInput = root.querySelector('[data-css-y]');
-    if (xInput) xInput.value = Math.round(state.cssPosition.x);
-    if (yInput) yInput.value = Math.round(state.cssPosition.y);
   }
 
   function parseImagePosition(value) {
@@ -1791,7 +1869,7 @@ export function createUIFeedback(options = {}) {
   }
 
   function renderCssContent() {
-    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font chữ (Google Fonts)</div>${renderFontRow('Tiêu đề', 'fontFamily')} ${renderFontRow('Nội dung', 'fontFamily')}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo góc & độ mờ</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue('borderRadius', '0'), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue('borderRadius', '0'), 10) || 0))}" /></div><div class="ui-feedback-range-row" style="margin-top:7px"><div class="ui-feedback-range-row__head"><span>Opacity</span><output data-css-opacity-output>${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}%</output></div><input type="range" min="0" max="100" step="1" data-css-opacity value="${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}" /></div></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Vị trí 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="Điều chỉnh vị trí X Y"></div><div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">Đặt lại (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
+    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font chữ (Google Fonts)</div>${renderFontRow('Tiêu đề', 'fontFamily')} ${renderFontRow('Nội dung', 'fontFamily')}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo góc & độ mờ</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue('borderRadius', '0'), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue('borderRadius', '0'), 10) || 0))}" /></div><div class="ui-feedback-range-row" style="margin-top:7px"><div class="ui-feedback-range-row__head"><span>Opacity</span><output data-css-opacity-output>${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}%</output></div><input type="range" min="0" max="100" step="1" data-css-opacity value="${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}" /></div></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Vị trí 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="Điều chỉnh vị trí X Y"></div>      <div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">Đặt lại (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
     const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bộ có sẵn</div><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>Gọn gàng</span><small>Không bóng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, đổ bóng nhẹ</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Viền accent nổi bật</small></button></div></div>`;
     return `<div class="ui-feedback-css-tabs"><button class="ui-feedback-css-tab ${state.cssTab === 'preset' ? 'is-active' : ''}" data-css-tab="preset" type="button">✦ Bộ có sẵn</button><button class="ui-feedback-css-tab ${state.cssTab === 'advanced' ? 'is-active' : ''}" data-css-tab="advanced" type="button">☷ Nâng cao</button></div>${state.cssTab === 'preset' ? presets : advanced}`;
   }
@@ -1824,7 +1902,8 @@ export function createUIFeedback(options = {}) {
           : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Phân loại</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || 'other')}</select></div></div>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
     const modalClass = isCss || isImage ? 'ui-feedback-modal is-inspector' : 'ui-feedback-modal is-mini';
-    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
+    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="Kéo để di chuyển cửa sổ"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
+    applyModalPosition();
     mount.onclick = handleModalClick;
     mount.onpointerdown = handleModalPointerDown;
     mount.oninput = handleModalInput;
@@ -1870,6 +1949,18 @@ export function createUIFeedback(options = {}) {
   }
 
   let imageDragState = null;
+  let modalDragState = null;
+
+  function updateModalPositionFromPointer(clientX, clientY) {
+    if (!modalDragState || !state.modalOpen) return;
+    const maxX = Math.max(0, window.innerWidth - 80);
+    const maxY = Math.max(0, window.innerHeight - 80);
+    state.modalPosition = {
+      x: Math.max(-maxX, Math.min(maxX, modalDragState.x + clientX - modalDragState.clientX)),
+      y: Math.max(-maxY, Math.min(maxY, modalDragState.y + clientY - modalDragState.clientY)),
+    };
+    applyModalPosition();
+  }
 
   function updateImagePositionFromPointer(clientX, clientY) {
     if (!imageDragState || !state.modalOpen || state.mode !== 'image') return;
@@ -1884,6 +1975,24 @@ export function createUIFeedback(options = {}) {
   }
 
   function handleModalPointerDown(event) {
+    const dragHandle = event.target.closest('[data-modal-drag-handle]');
+    if (dragHandle) {
+      event.preventDefault();
+      event.stopPropagation();
+      const position = state.modalPosition || { x: 0, y: 0 };
+      modalDragState = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y };
+      const onMove = (moveEvent) => updateModalPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+      const onEnd = () => {
+        modalDragState = null;
+        document.removeEventListener('pointermove', onMove, true);
+        document.removeEventListener('pointerup', onEnd, true);
+        document.removeEventListener('pointercancel', onEnd, true);
+      };
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onEnd, true);
+      document.addEventListener('pointercancel', onEnd, true);
+      return;
+    }
     const pad = event.target.closest('[data-css-position-pad]');
     if (pad && state.mode === 'css') {
       event.preventDefault();
@@ -1967,7 +2076,7 @@ export function createUIFeedback(options = {}) {
     const paste = event.target.closest('[data-image-paste]');
     if (paste) { event.stopPropagation(); pasteImageFromClipboard(); return; }
     const positionReset = event.target.closest('[data-css-position-reset]');
-    if (positionReset) { event.stopPropagation(); state.cssPosition = { x: 0, y: 0 }; applyCssPosition(); const x = root.querySelector('[data-css-x]'); const y = root.querySelector('[data-css-y]'); if (x) x.value = 0; if (y) y.value = 0; return; }
+    if (positionReset) { event.stopPropagation(); applyCssPosition({ x: 0, y: 0 }); return; }
     const tab = event.target.closest('[data-css-tab]');
     if (tab) { event.stopPropagation(); state.cssTab = tab.dataset.cssTab; renderModal(); return; }
     const preset = event.target.closest('[data-css-preset]');
@@ -2006,8 +2115,9 @@ export function createUIFeedback(options = {}) {
       applyCssProperty('opacity', String(Number(target.value) / 100));
       const output = root.querySelector('[data-css-opacity-output]');
       if (output) output.textContent = `${target.value}%`;
-    } else if (target.matches('[data-css-x]') || target.matches('[data-css-y]')) {
-      state.cssPosition[target.matches('[data-css-x]') ? 'x' : 'y'] = Number(target.value);
+    } else if (target.matches('[data-css-x], [data-css-y], [data-css-x-number], [data-css-y-number]')) {
+      const isX = target.matches('[data-css-x], [data-css-x-number]');
+      state.cssPosition[isX ? 'x' : 'y'] = Number(target.value);
       applyCssPosition();
     } else if (target.matches('[data-image-zoom]')) {
       state.modalImageZoom = Number(target.value);

@@ -6,7 +6,7 @@ Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web. Công cụ �
 
 Công cụ có một **floating action dock** dạng pill ở đáy màn hình, gồm danh sách feedback, thêm note, sửa nội dung UI, **Bộ CSS** và **Thay ảnh**. Dock có nhãn rõ ràng, trạng thái active, nút thu gọn thành bubble, hỗ trợ kéo để di chuyển và tự co gọn trên màn hình nhỏ. Khi chọn thao tác, người dùng đưa chuột lên phần tử cần xử lý rồi bấm chọn. Dữ liệu feedback được lưu trong `localStorage` theo `storageKey`, vì vậy có thể refresh trang mà không mất feedback trong cùng project và cùng origin.
 
-Chế độ **Bộ CSS** mở một inspector bên phải có preset, tab nâng cao, màu HEX, font Google Fonts, border radius, opacity và điều khiển vị trí 2D bằng pad/sliders. Chế độ **Thay ảnh** áp dụng được cho cả thẻ `<img>` và phần tử có `background-image`, nhận URL website, file `image/*` hoặc ảnh từ clipboard, có preview, kéo-thả căn vị trí, zoom 30–300%, khôi phục và undo. File upload được giới hạn 1 MB để tránh làm đầy `localStorage`.
+Chế độ **Bộ CSS** mở một inspector bên phải có preset, tab nâng cao, màu HEX, font Google Fonts, border radius, opacity và điều khiển vị trí 2D bằng pad/sliders. Inspector và drawer Feedback đều có thể kéo từ thanh tiêu đề; vị trí cửa sổ được giữ trong suốt các lần re-render. Tọa độ CSS X/Y có cả slider và ô nhập số px, hai cách điều khiển luôn đồng bộ và có fallback tương thích cho `translate`/`transform`. Chế độ **Thay ảnh** áp dụng được cho cả thẻ `<img>` và phần tử có `background-image`, nhận URL website, file `image/*` hoặc ảnh từ clipboard, có preview, kéo-thả căn vị trí, zoom 30–300%, khôi phục và undo. File upload được giới hạn 1 MB để tránh làm đầy `localStorage`.
 
 Phiên bản v0.5 hỗ trợ marker tương tác để focus lại phần tử, coachmark hướng dẫn lần đầu, drawer có tab Tất cả/Ghi chú/Chỉnh sửa/Đã xong, filter theo mức độ và phân loại, resolve/unresolve, copy selector, xuất Markdown và tạo GitHub Issue. Sau khi xuất Markdown, phiên làm việc được làm sạch để tránh lẫn feedback cũ vào vòng review mới. Mỗi thẻ feedback hiển thị selector, phân loại và dòng code đầu của component; các thay đổi edit/image/CSS được tự áp dụng lại khi quay lại tab hoặc khôi phục trang.
 
@@ -41,7 +41,7 @@ Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên n
 
 1. Trên trang preview, nhấn Q + W + E để bật công cụ.
 2. Bấm Comment, Edit, Bộ giao diện hoặc Thay ảnh rồi chọn phần tử cần xử lý. Ở chế độ Thay ảnh, nếu click vào wrapper chứa duy nhất một ảnh, tool sẽ chọn đúng thẻ `<img>` bên trong.
-3. Nhập feedback và chọn phân loại, chỉnh các control của Bộ CSS, hoặc nhập URL/chọn file/dán ảnh trong Thay ảnh. Kéo trực tiếp trên preview để căn ảnh vào khung; dùng zoom hoặc pad 2D khi cần tinh chỉnh. Các thay đổi chỉ tác động lên bản preview hiện tại cho đến khi bấm Lưu.
+3. Nhập feedback và chọn phân loại, chỉnh các control của Bộ CSS, hoặc nhập URL/chọn file/dán ảnh trong Thay ảnh. Kéo thanh tiêu đề để di chuyển drawer/inspector; trong Bộ CSS có thể kéo pad 2D, dùng slider hoặc nhập trực tiếp X/Y theo px. Kéo trực tiếp trên preview để căn ảnh vào khung; dùng zoom hoặc pad 2D khi cần tinh chỉnh. Các thay đổi chỉ tác động lên bản preview hiện tại cho đến khi bấm Lưu.
 4. Mở Clipboard để xem, xóa, resolve hoặc xuất feedback. Nút Undo hoàn tác cả edit, Bộ giao diện và thay ảnh.
 5. Bấm nút tải xuống trong panel để tạo file `ui-feedback-YYYY-MM-DD.md`; sau khi tải xong, danh sách feedback trong phiên hiện tại sẽ được reset.
 
