@@ -10,7 +10,7 @@ test('config keeps white accent and merges shortcut safely', () => {
   assert.equal(config.accent, '#ffffff');
   assert.deepEqual(config.shortcut, ['q', 'w', 'e']);
   assert.equal(config.storageKey, 'test');
-  assert.equal(DEFAULTS.version, '0.10.0');
+  assert.equal(DEFAULTS.version, '0.11.0');
 });
 
 test('category labels remain stable for feature types', () => {
@@ -41,6 +41,29 @@ test('text helpers escape HTML and Markdown safely', () => {
   assert.equal(escapeHtml('<script>"x"</script>'), '&lt;script&gt;&quot;x&quot;&lt;/script&gt;');
   assert.equal(escapeMarkdown('[feedback] *important*'), '\\[feedback\\] \\*important\\*');
   assert.equal(safeText('  one   two  '), 'one two');
+});
+
+test('Picker Inspector contracts keep selection, lock, breadcrumb and measurement isolated', () => {
+  const state = fs.readFileSync(new URL('../src/core/state.js', import.meta.url), 'utf8');
+  const inspector = fs.readFileSync(new URL('../src/features/picker-inspector.js', import.meta.url), 'utf8');
+  const measurement = fs.readFileSync(new URL('../src/features/measurement.js', import.meta.url), 'utf8');
+  const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(state.includes("phase: 'idle'"));
+  assert.ok(state.includes('candidate: null'));
+  assert.ok(state.includes('locked: false'));
+  assert.ok(state.includes("measurement: { enabled: false, mode: 'box', compareTarget: null }"));
+  assert.ok(inspector.includes('buildBreadcrumb'));
+  assert.ok(inspector.includes('data-breadcrumb-index'));
+  assert.ok(inspector.includes('lockTarget'));
+  assert.ok(inspector.includes('positionInspector'));
+  assert.ok(measurement.includes('getBoundingClientRect'));
+  assert.ok(measurement.includes('ResizeObserver'));
+  assert.ok(measurement.includes('requestAnimationFrame'));
+  assert.ok(measurement.includes('measureGap'));
+  assert.ok(index.includes('pickerInspector?.selectTarget(element)'));
+  assert.ok(index.includes("event.key.toLowerCase() === 'l'"));
+  assert.ok(index.includes("event.key.toLowerCase() === 'm'"));
+  assert.ok(index.includes('ArrowUp'));
 });
 
 test('feedback cards support progressive disclosure without losing core actions', () => {

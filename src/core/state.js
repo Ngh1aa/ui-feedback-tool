@@ -48,6 +48,14 @@ export function createFeedbackState(config) {
     modalImagePosition: { x: 50, y: 50 },
     modalPosition: { x: 0, y: 0 },
     panelPosition: { x: 0, y: 0 },
+    pickerInspector: {
+      phase: 'idle',
+      candidate: null,
+      selected: null,
+      locked: false,
+      breadcrumb: [],
+      measurement: { enabled: false, mode: 'box', compareTarget: null },
+    },
     updateBusy: false,
   };
 

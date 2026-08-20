@@ -3,7 +3,7 @@ import { ICONS } from './icons.js';
 export function renderToolbar(ctx) {
   const {
     state, root, getToolbarStyle, dismissCoachmark,
-    renderPanel, renderModal,
+    renderPanel, renderModal, renderInspector,
   } = ctx;
   if (!state.active) {
     root.innerHTML = '';
@@ -28,7 +28,7 @@ export function renderToolbar(ctx) {
       ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Hoàn tác thao tác gần nhất" title="Hoàn tác (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Undo</span>${undoBadge}</button>` : ''}
       <button class="ui-feedback-tool" data-action="collapse" aria-label="Thu gọn thanh công cụ" title="Thu gọn">${ICONS.collapse}</button>
     </div>`;
-  root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ''}${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div><div data-ui-feedback-toast></div>`;
+  root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ''}<div class="ui-feedback-measurement-layer" data-picker-measurement-layer aria-hidden="true"></div>${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div>${renderInspector ? renderInspector() : ''}<div data-ui-feedback-toast></div>`;
   if (state.panelOpen) renderPanel();
   if (state.modalOpen) renderModal();
 }

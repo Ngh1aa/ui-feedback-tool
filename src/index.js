@@ -1,8 +1,12 @@
 /**
- * UI Feedback Tool v0.10.0
+ * UI Feedback Tool v0.11.0
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
+ *
+ * Changelog v0.11.0:
+ *   - New: Picker Inspector với breadcrumb, lock selection và measurement overlay
+ *   - New: đo box/gap, keyboard navigation, focus và responsive bottom sheet
  *
  * Changelog v0.10.0:
  *   - New: tab Nâng cao cho CSS editor với Box-shadow trực quan
@@ -82,6 +86,8 @@ import { createGithubIssueController } from './features/github-issue.js';
 import { createCssEditor } from './features/css-editor.js';
 import { createImageEditor } from './features/image-editor.js';
 import { createPickerController } from './features/picker.js';
+import { createMeasurementController } from './features/measurement.js';
+import { createPickerInspector } from './features/picker-inspector.js';
 import { createPanelController } from './ui/panel.js';
 import { createModalController } from './ui/modal.js';
 import { renderToolbar as renderToolbarView } from './ui/toolbar.js';
@@ -111,6 +117,8 @@ export function createUIFeedback(options = {}) {
   let cssEditor;
   const imageEditor = createImageEditor();
   let pickerController;
+  let measurementController;
+  let pickerInspector;
 
   /* ── shadow DOM setup ── */
   const host = document.createElement('div');
@@ -170,6 +178,7 @@ export function createUIFeedback(options = {}) {
       getToolbarStyle,
       renderPanel,
       renderModal,
+      renderInspector: () => pickerInspector?.renderInspector?.() || '',
     });
   }
 
@@ -1146,7 +1155,56 @@ export function createUIFeedback(options = {}) {
     return (fromCode || event.key || '').toLowerCase();
   }
 
+  function navigateInspector(direction) {
+    const selected = state.pickerInspector?.selected?.element;
+    if (!selected || !selected.isConnected) return false;
+    let next = null;
+    if (direction === 'parent') next = selected.parentElement;
+    if (direction === 'child') next = [...selected.children].find((element) => !element.closest('#ui-feedback-host')) || null;
+    if (direction === 'prev') next = selected.previousElementSibling;
+    if (direction === 'next') next = selected.nextElementSibling;
+    if (!next || next === document.body || next === document.documentElement || next.closest('#ui-feedback-host')) return false;
+    if (state.pickerInspector.locked) pickerInspector?.unlockTarget();
+    return Boolean(pickerInspector?.selectTarget(next));
+  }
+
   function keydown(event) {
+    const inspector = state.pickerInspector;
+    const isFormControl = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement;
+    if (state.active && !state.modalOpen && !state.panelOpen) {
+      if (event.key === 'Enter' && state.picking && inspector?.candidate?.element) {
+        event.preventDefault();
+        pickerInspector?.selectTarget(inspector.candidate.element);
+        return;
+      }
+      if (event.key === 'Escape' && inspector?.phase && inspector.phase !== 'idle') {
+        event.preventDefault();
+        pickerInspector?.closeInspector();
+        stopPicking({ rerender: true });
+        return;
+      }
+      if (!isFormControl && inspector?.selected?.element) {
+        if (event.key.toLowerCase() === 'l') {
+          event.preventDefault();
+          if (inspector.locked) pickerInspector?.unlockTarget(); else pickerInspector?.lockTarget();
+          return;
+        }
+        if (event.key.toLowerCase() === 'm') {
+          event.preventDefault();
+          if (inspector.measurement.enabled) measurementController?.disable();
+          else measurementController?.enable(inspector.selected.element, 'box');
+          pickerInspector?.refresh();
+          return;
+        }
+        const navigation = { ArrowUp: 'parent', ArrowDown: 'child', ArrowLeft: 'prev', ArrowRight: 'next' };
+        if (navigation[event.key]) {
+          event.preventDefault();
+          navigateInspector(navigation[event.key]);
+          return;
+        }
+      }
+    }
+
     // Escape closes modal or panel when active
     if (event.key === 'Escape' && state.active) {
       if (state.modalOpen) { closeModal(true); event.preventDefault(); return; }
@@ -1257,9 +1315,18 @@ export function createUIFeedback(options = {}) {
   }
 
   function pointerMove(event) {
-    if (!state.picking) return;
+    if (!state.picking || event.composedPath?.().includes(host)) return;
     const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
-    if (element) highlight(element);
+    if (!element) return;
+    if (state.pickerInspector?.measurement?.mode === 'gap' && state.pickerInspector.selected?.element) {
+      if (element !== state.pickerInspector.selected.element) {
+        pickerInspector?.setCandidate(element);
+        highlight(element);
+      }
+      return;
+    }
+    pickerInspector?.setCandidate(element);
+    highlight(element);
   }
 
   /* ── unified host-level event delegation ── */
@@ -1280,7 +1347,33 @@ export function createUIFeedback(options = {}) {
       return;
     }
 
-    // 3) picker layer interactions
+    // 3) Picker Inspector controls
+    const inspectorControl = path.find((node) => node instanceof Element && node.matches?.('[data-inspector-action], [data-breadcrumb-index]'));
+    if (inspectorControl) {
+      if (event.type !== 'click') return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (inspectorControl.dataset.breadcrumbIndex !== undefined) {
+        pickerInspector?.selectBreadcrumb(inspectorControl.dataset.breadcrumbIndex);
+        return;
+      }
+      const action = inspectorControl.dataset.inspectorAction;
+      if (action === 'close') { pickerInspector?.closeInspector(); stopPicking({ rerender: true }); return; }
+      if (action === 'lock') {
+        if (state.pickerInspector?.locked) pickerInspector?.unlockTarget();
+        else pickerInspector?.lockTarget();
+        return;
+      }
+      if (action === 'copy') {
+        const selector = state.pickerInspector?.selected?.selector || '';
+        Promise.resolve(navigator.clipboard?.writeText?.(selector)).then(() => showToast('Đã copy selector')).catch(() => showToast('Không thể copy selector'));
+        return;
+      }
+      pickerInspector?.openAction(action);
+      return;
+    }
+
+    // 4) picker layer interactions
     if (!state.picking || state.pickingLocked) return;
     const picker = path.find(
       (node) => node instanceof Element && node.matches?.('[data-picker-layer]'),
@@ -1297,7 +1390,17 @@ export function createUIFeedback(options = {}) {
     state.pickingLocked = true;
     setTimeout(() => { state.pickingLocked = false; }, 600);
 
-    openModal(element, state.mode);
+    if (state.pickerInspector?.measurement?.mode === 'gap' && state.pickerInspector.selected?.element) {
+      if (element !== state.pickerInspector.selected.element) {
+        measurementController?.setCompareTarget(element);
+        stopPicking({ rerender: false });
+        pickerInspector?.refresh();
+        showToast('Đã đo khoảng cách giữa hai phần tử');
+      }
+      return;
+    }
+
+    pickerInspector?.selectTarget(element);
   }
 
   /* ── document-level picking fallback ── */
@@ -1313,7 +1416,16 @@ export function createUIFeedback(options = {}) {
     event.stopPropagation();
     state.pickingLocked = true;
     setTimeout(() => { state.pickingLocked = false; }, 600);
-    openModal(element, state.mode);
+    if (state.pickerInspector?.measurement?.mode === 'gap' && state.pickerInspector.selected?.element) {
+      if (element !== state.pickerInspector.selected.element) {
+        measurementController?.setCompareTarget(element);
+        stopPicking({ rerender: false });
+        pickerInspector?.refresh();
+        showToast('Đã đo khoảng cách giữa hai phần tử');
+      }
+      return;
+    }
+    pickerInspector?.selectTarget(element);
   }
 
   /* ── drag & drop toolbar ── */
@@ -1391,7 +1503,35 @@ export function createUIFeedback(options = {}) {
   panelController = createPanelController({ state, root, showToast });
   modalController = createModalController({ state, root, showToast });
   cssEditor = createCssEditor({ state, root });
-  pickerController = createPickerController({ state, root, config, renderToolbar, showToast });
+  measurementController = createMeasurementController({ state, root });
+  pickerController = createPickerController({ state, root, config, renderToolbar, showToast, closePickerInspector: () => pickerInspector?.closeInspector?.() });
+  pickerInspector = createPickerInspector({
+    state,
+    root,
+    renderToolbar,
+    measurement: measurementController,
+    clearHighlight: () => pickerController?.clearHighlight?.(),
+    showToast,
+    onAction: (action, element) => {
+      if (action === 'measure-box') {
+        measurementController.enable(element, 'box');
+        pickerInspector.refresh();
+        return;
+      }
+      if (action === 'measure-gap') {
+        measurementController.enable(element, 'gap');
+        state.mode = 'measure-gap';
+        state.picking = true;
+        state.pickingLocked = false;
+        root.classList.add('ui-feedback-picking');
+        renderToolbar();
+        showToast('Rê chuột và bấm phần tử thứ hai để đo gap');
+        return;
+      }
+      if (action === 'copy') return;
+      openModal(element, action);
+    },
+  });
 
   const featureContext = {
     state,
@@ -1407,6 +1547,8 @@ export function createUIFeedback(options = {}) {
     openModalWithExisting,
     restoreImageState,
     showToast: (...args) => toastController?.showToast(...args),
+    pickerInspector,
+    measurementController,
   };
   toastController = createToastController({ root, undoAction: (...args) => commentsController?.undoAction(...args) });
   commentsController = createCommentsController(featureContext);

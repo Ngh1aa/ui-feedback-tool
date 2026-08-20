@@ -26,9 +26,16 @@ export function createPickerController(ctx) {
 
   function beginPicking(mode, opts = {}) {
     clearResumeTimer();
+    if (state.pickerInspector?.phase && state.pickerInspector.phase !== 'idle') ctx.closePickerInspector?.();
     state.panelOpen = false;
     state.mode = mode;
     state.picking = true;
+    state.pickerInspector.phase = 'picking';
+    state.pickerInspector.candidate = null;
+    state.pickerInspector.selected = null;
+    state.pickerInspector.locked = false;
+    state.pickerInspector.breadcrumb = [];
+    state.pickerInspector.measurement = { enabled: false, mode: 'box', compareTarget: null };
     state.pickingLocked = false;
     state._modeBeforePickingStop = null;
     root.classList.add('ui-feedback-picking');
@@ -41,6 +48,7 @@ export function createPickerController(ctx) {
     if (state.picking) state._modeBeforePickingStop = state.mode;
     state.picking = false;
     state.pickingLocked = false;
+    if (!state.pickerInspector?.selected) state.pickerInspector.phase = 'idle';
     root.classList.remove('ui-feedback-picking');
     clearHighlight();
     if (opts.rerender) ctx.renderToolbar();
