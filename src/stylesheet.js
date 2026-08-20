@@ -1048,4 +1048,25 @@ button { cursor: pointer; }
     .ui-feedback-item__badges { gap: 3px; }
     .ui-feedback-item__selector { max-width: 148px; }
   }
+
+  /* ── v0.10 advanced CSS editor ── */
+  .ui-feedback-css-tabs { overflow-x: auto; scrollbar-width: thin; }
+  .ui-feedback-css-tab { flex: 0 0 auto; white-space: nowrap; }
+  .ui-feedback-css-mini-range { display: grid; grid-template-columns: 48px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin: 6px 0; color: #aaa; font-size: 10px; }
+  .ui-feedback-css-mini-range input[type="range"] { width: 100%; min-width: 0; }
+  .ui-feedback-css-mini-range output { color: #ddd; text-align: right; font-variant-numeric: tabular-nums; }
+  .ui-feedback-css-color-inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; color: #aaa; font-size: 10px; }
+  .ui-feedback-css-color-inline input[type="color"] { width: 34px; height: 28px; padding: 2px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: #222; }
+  .ui-feedback-checkbox { display: inline-flex; align-items: center; gap: 7px; margin-top: 9px; color: #cfcfcf; font-size: 10px; }
+  .ui-feedback-checkbox input { accent-color: #fff; }
+  .ui-feedback-css-side-row { margin-top: 9px; padding: 9px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: rgba(255,255,255,.025); }
+  .ui-feedback-css-side-row > strong { display: block; margin-bottom: 5px; color: #ddd; font-size: 10px; }
+  .ui-feedback-css-side-row .ui-feedback-range-row { margin: 5px 0; padding: 6px 8px; }
+  .ui-feedback-css-side-row .ui-feedback-css-select-row { margin-top: 5px; }
+  .ui-feedback-css-side-row .ui-feedback-css-select-row span { font-size: 10px; }
+  .ui-feedback-css-subsection + .ui-feedback-css-subsection { margin-top: 12px; }
+  @media (max-width: 560px) {
+    .ui-feedback-css-tab { padding-inline: 8px; font-size: 9px; }
+    .ui-feedback-css-mini-range { grid-template-columns: 42px minmax(0, 1fr) 38px; gap: 6px; }
+  }
 `;

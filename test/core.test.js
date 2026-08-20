@@ -10,7 +10,7 @@ test('config keeps white accent and merges shortcut safely', () => {
   assert.equal(config.accent, '#ffffff');
   assert.deepEqual(config.shortcut, ['q', 'w', 'e']);
   assert.equal(config.storageKey, 'test');
-  assert.equal(DEFAULTS.version, '0.9.0');
+  assert.equal(DEFAULTS.version, '0.10.0');
 });
 
 test('category labels remain stable for feature types', () => {
@@ -29,6 +29,12 @@ test('CSS editor schema exposes typography and spacing controls', () => {
   assert.ok(source.includes('data-css-range-prop="${prop}"'));
   assert.ok(source.includes('data-css-spacing="${cssProp}"'));
   assert.ok(source.includes('data-css-align="${option.value}"'));
+  assert.ok(source.includes("['advanced', '✦ Nâng cao']"));
+  assert.ok(source.includes('data-css-shadow="${key}"'));
+  assert.ok(source.includes('data-css-number-prop="zIndex"'));
+  assert.ok(source.includes("renderCssRange('Alpha màu chữ', 'colorAlpha'"));
+  assert.ok(source.includes('borderTopLeftRadius'));
+  assert.ok(source.includes("['borderLeft', 'Trái']"));
 });
 
 test('text helpers escape HTML and Markdown safely', () => {

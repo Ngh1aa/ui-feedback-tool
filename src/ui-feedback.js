@@ -1,5 +1,5 @@
 // src/core/config.js
-var TOOL_VERSION = "0.9.0";
+var TOOL_VERSION = "0.10.0";
 var DEFAULTS = {
   version: TOOL_VERSION,
   updateUrl: "https://ngh1aa.github.io/Atelier/ui-feedback.js",
@@ -1315,6 +1315,27 @@ button { cursor: pointer; }
     .ui-feedback-item__badges { gap: 3px; }
     .ui-feedback-item__selector { max-width: 148px; }
   }
+
+  /* \u2500\u2500 v0.10 advanced CSS editor \u2500\u2500 */
+  .ui-feedback-css-tabs { overflow-x: auto; scrollbar-width: thin; }
+  .ui-feedback-css-tab { flex: 0 0 auto; white-space: nowrap; }
+  .ui-feedback-css-mini-range { display: grid; grid-template-columns: 48px minmax(0, 1fr) 42px; align-items: center; gap: 8px; margin: 6px 0; color: #aaa; font-size: 10px; }
+  .ui-feedback-css-mini-range input[type="range"] { width: 100%; min-width: 0; }
+  .ui-feedback-css-mini-range output { color: #ddd; text-align: right; font-variant-numeric: tabular-nums; }
+  .ui-feedback-css-color-inline { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 9px; color: #aaa; font-size: 10px; }
+  .ui-feedback-css-color-inline input[type="color"] { width: 34px; height: 28px; padding: 2px; border: 1px solid rgba(255,255,255,.18); border-radius: 7px; background: #222; }
+  .ui-feedback-checkbox { display: inline-flex; align-items: center; gap: 7px; margin-top: 9px; color: #cfcfcf; font-size: 10px; }
+  .ui-feedback-checkbox input { accent-color: #fff; }
+  .ui-feedback-css-side-row { margin-top: 9px; padding: 9px; border: 1px solid rgba(255,255,255,.07); border-radius: 9px; background: rgba(255,255,255,.025); }
+  .ui-feedback-css-side-row > strong { display: block; margin-bottom: 5px; color: #ddd; font-size: 10px; }
+  .ui-feedback-css-side-row .ui-feedback-range-row { margin: 5px 0; padding: 6px 8px; }
+  .ui-feedback-css-side-row .ui-feedback-css-select-row { margin-top: 5px; }
+  .ui-feedback-css-side-row .ui-feedback-css-select-row span { font-size: 10px; }
+  .ui-feedback-css-subsection + .ui-feedback-css-subsection { margin-top: 12px; }
+  @media (max-width: 560px) {
+    .ui-feedback-css-tab { padding-inline: 8px; font-size: 9px; }
+    .ui-feedback-css-mini-range { grid-template-columns: 42px minmax(0, 1fr) 38px; gap: 6px; }
+  }
 `;
 
 // src/ui/icons.js
@@ -2535,6 +2556,54 @@ function createUIFeedback(options = {}) {
     const current = String(readCssValue("textAlign", "left") || "left");
     return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">C\u0103n ch\u1EEF</div><div class="ui-feedback-align-grid" role="group" aria-label="C\u0103n ch\u1EEF">${TEXT_ALIGN_OPTIONS.map((option) => `<button type="button" class="ui-feedback-align-button ${current === option.value ? "is-active" : ""}" data-css-align="${option.value}" aria-label="${option.label}" aria-pressed="${current === option.value}"><span aria-hidden="true">${option.icon}</span><small>${option.label}</small></button>`).join("")}</div></div>`;
   }
+  function colorToHex(value, fallback = "#000000") {
+    const raw = String(value || "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(raw)) return raw.replace(/^#(.)(.)(.)$/, "#$1$1$2$2$3$3").toLowerCase();
+    const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (match) return `#${[match[1], match[2], match[3]].map((part) => Number(part).toString(16).padStart(2, "0")).join("")}`;
+    return fallback;
+  }
+  function parseShadow(value) {
+    const raw = String(value || "").trim();
+    const match = raw.match(/^(inset\s+)?(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px\s+(\d+(?:\.\d+)?)px(?:\s+(-?\d+(?:\.\d+)?)px)?\s+(rgba?\([^)]*\)|#[0-9a-f]{3,8}|[a-z]+)$/i);
+    if (!match) return { inset: false, x: 0, y: 10, blur: 30, spread: 0, color: "#000000" };
+    return { inset: Boolean(match[1]), x: Number(match[2]), y: Number(match[3]), blur: Number(match[4]), spread: Number(match[5] || 0), color: colorToHex(match[6]) };
+  }
+  function shadowCss(shadow2) {
+    return `${shadow2.inset ? "inset " : ""}${Math.round(shadow2.x)}px ${Math.round(shadow2.y)}px ${Math.round(shadow2.blur)}px ${Math.round(shadow2.spread)}px ${shadow2.color}`;
+  }
+  function renderShadowEditor() {
+    const shadow2 = parseShadow(readCssValue("boxShadow", "none"));
+    const range = (label, key, min, max, value) => `<label class="ui-feedback-css-mini-range"><span>${label}</span><input type="range" min="${min}" max="${max}" step="1" data-css-shadow="${key}" value="${value}" aria-label="${label}" /><output data-css-shadow-output="${key}">${value}px</output></label>`;
+    return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Box-shadow tr\u1EF1c quan</div>${range("X", "x", -40, 40, Math.round(shadow2.x))}${range("Y", "y", -40, 40, Math.round(shadow2.y))}${range("Blur", "blur", 0, 80, Math.round(shadow2.blur))}${range("Spread", "spread", -20, 40, Math.round(shadow2.spread))}<label class="ui-feedback-css-color-inline"><span>M\xE0u shadow</span><input type="color" data-css-shadow="color" value="${shadow2.color}" aria-label="M\xE0u shadow" /></label><label class="ui-feedback-checkbox"><input type="checkbox" data-css-shadow="inset" ${shadow2.inset ? "checked" : ""} /> <span>Inset</span></label><button type="button" class="ui-feedback-button ui-feedback-css-reset" data-css-shadow-reset>\u0110\u1EB7t l\u1EA1i shadow</button></div>`;
+  }
+  function renderRadiusEditor() {
+    const sides = [["borderTopLeftRadius", "Tr\xEAn tr\xE1i"], ["borderTopRightRadius", "Tr\xEAn ph\u1EA3i"], ["borderBottomRightRadius", "D\u01B0\u1EDBi ph\u1EA3i"], ["borderBottomLeftRadius", "D\u01B0\u1EDBi tr\xE1i"]];
+    return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Bo g\xF3c t\u1EEBng c\u1EA1nh</div>${sides.map(([prop, label]) => renderCssRange(label, prop, 0, 48, 1, "px", 0)).join("")}</div>`;
+  }
+  function renderBorderSides() {
+    const sides = [["borderTop", "Tr\xEAn"], ["borderRight", "Ph\u1EA3i"], ["borderBottom", "D\u01B0\u1EDBi"], ["borderLeft", "Tr\xE1i"]];
+    const styles = [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }];
+    return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Vi\u1EC1n t\u1EEBng c\u1EA1nh</div>${sides.map(([prefix, label]) => `<div class="ui-feedback-css-side-row"><strong>${label}</strong>${renderCssRange("\u0110\u1ED9 d\xE0y", `${prefix}Width`, 0, 12, 1, "px", 0)}${renderCssSelect("Ki\u1EC3u", `${prefix}Style`, styles, "solid")}</div>`).join("")}</div>`;
+  }
+  function colorWithAlpha(value, alpha) {
+    const hex = colorToHex(value);
+    const rgb = hex.slice(1).match(/../g).map((part) => parseInt(part, 16));
+    return `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${Math.max(0, Math.min(1, Number(alpha))).toFixed(2)})`;
+  }
+  function colorAlpha(value) {
+    const match = String(value || "").match(/rgba?\([^,]+,[^,]+,[^,]+(?:,\s*([0-9.]+))?\)/i);
+    return match?.[1] === void 0 ? 1 : Number(match[1]);
+  }
+  function renderAdvancedCss() {
+    const currentColor = readCssValue("color", "#ffffff");
+    const alpha = Math.round(colorAlpha(currentColor) * 100);
+    return `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">N\xE2ng cao</div><p class="ui-feedback-css-help">Tinh ch\u1EC9nh c\xE1c thu\u1ED9c t\xEDnh th\u01B0\u1EDDng d\xF9ng khi debug component v\xE0 l\u1EDBp ch\u1ED3ng.</p>${renderShadowEditor()}${renderRadiusEditor()}${renderBorderSides()}<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">L\u1EDBp & \u0111\u1ED9 trong su\u1ED1t ch\u1EEF</div><label class="ui-feedback-css-text-row"><span>Z-index</span><input type="number" min="-1000" max="1000" step="1" data-css-number-prop="zIndex" value="${Number(readCssValue("zIndex", 0)) || 0}" inputmode="numeric" /></label>${renderCssRange("Alpha m\xE0u ch\u1EEF", "colorAlpha", 0, 100, 1, "%", alpha, (value) => `${Math.round(value)}%`)}</div></div>`;
+  }
+  function cssShadowState() {
+    return parseShadow(readCssValue("boxShadow", "none"));
+  }
   function renderCssContent() {
     const tab = state.cssTab || "colors";
     const tabs = [
@@ -2542,14 +2611,16 @@ function createUIFeedback(options = {}) {
       ["colors", "\u25CF M\xE0u s\u1EAFc"],
       ["typography", "T Ch\u1EEF"],
       ["spacing", "\u2194 Kho\u1EA3ng c\xE1ch"],
-      ["position", "\u2316 V\u1ECB tr\xED"]
+      ["position", "\u2316 V\u1ECB tr\xED"],
+      ["advanced", "\u2726 N\xE2ng cao"]
     ];
     const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1ED9 c\xF3 s\u1EB5n</div><p class="ui-feedback-css-help">Ch\u1ECDn nhanh m\u1ED9t phong c\xE1ch, sau \u0111\xF3 tinh ch\u1EC9nh t\u1EEBng gi\xE1 tr\u1ECB \u1EDF c\xE1c tab b\xEAn c\u1EA1nh.</p><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>G\u1ECDn g\xE0ng</span><small>Kh\xF4ng b\xF3ng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, \u0111\u1ED5 b\xF3ng nh\u1EB9</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Vi\u1EC1n accent n\u1ED5i b\u1EADt</small></button></div></div>`;
     const colors = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">M\xE0u s\u1EAFc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join("")}<details class="ui-feedback-more-colors"><summary>\u2304 Th\xEAm 8 m\xE0u kh\xE1c</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join("")}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1EC1 m\u1EB7t & vi\u1EC1n</div>${renderCssRange("Border radius", "borderRadius", 0, 32, 1, "px", 0)}${renderCssRange("Border width", "borderWidth", 0, 12, 1, "px", 0)}${renderCssSelect("Border style", "borderStyle", [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }], "solid")}${renderCssRange("Opacity", "opacity", 0, 100, 1, "%", 100, (value) => `${Math.round(value)}%`)}</div>`;
     const typography = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Typography</div>${renderFontRow("Font ch\u1EEF (Google Fonts)", "fontFamily")}${renderCssRange("C\u1EE1 ch\u1EEF", "fontSize", 10, 72, 1, "px", 16)}${renderCssSelect("\u0110\u1ED9 \u0111\u1EADm", "fontWeight", FONT_WEIGHT_OPTIONS, "400")}${renderCssRange("Line height", "lineHeight", 1, 2, 0.05, "", 1.5, (value) => Number(value).toFixed(2))}${renderCssRange("Letter spacing", "letterSpacing", -2, 4, 0.1, "px", 0, (value) => `${Number(value).toFixed(1)}px`)}${renderTextAlign()}${renderCssSelect("Bi\u1EBFn \u0111\u1ED5i ch\u1EEF", "textTransform", [{ value: "none", label: "Gi\u1EEF nguy\xEAn" }, { value: "uppercase", label: "UPPERCASE" }, { value: "capitalize", label: "Capitalize" }, { value: "lowercase", label: "lowercase" }], "none")}</div>`;
     const spacing = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Kho\u1EA3ng c\xE1ch & k\xEDch th\u01B0\u1EDBc</div><p class="ui-feedback-css-help">\u0110\u1ED5i t\u1EEBng c\u1EA1nh tr\u1EF1c ti\u1EBFp. Gi\xE1 tr\u1ECB \u0111\u01B0\u1EE3c \xE1p d\u1EE5ng theo px \u0111\u1EC3 d\u1EC5 ki\u1EC3m so\xE1t khi review.</p>${renderSpacingGroup("Padding", "padding")}${renderSpacingGroup("Margin", "margin")}<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Chi\u1EC1u r\u1ED9ng</div><label class="ui-feedback-css-text-row"><span>Width</span><input type="text" data-css-text-prop="width" value="${escapeAttribute(readCssValue("width", "auto"))}" placeholder="auto \xB7 320px \xB7 80%" /></label><label class="ui-feedback-css-text-row"><span>Max-width</span><input type="text" data-css-text-prop="maxWidth" value="${escapeAttribute(readCssValue("maxWidth", "none"))}" placeholder="none \xB7 720px \xB7 100%" /></label></div><div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">B\xF3ng n\xE2ng cao</div><label class="ui-feedback-css-text-row"><span>Box shadow</span><input type="text" data-css-text-prop="boxShadow" value="${escapeAttribute(readCssValue("boxShadow", "none"))}" placeholder="0 10px 30px rgba(0,0,0,.12)" /></label></div></div>`;
     const position = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">V\u1ECB tr\xED 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="\u0110i\u1EC1u ch\u1EC9nh v\u1ECB tr\xED X Y"></div><div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">\u0110\u1EB7t l\u1EA1i (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">\u21B6 Kh\xF4i ph\u1EE5c m\u1EB7c \u0111\u1ECBnh</button>`;
-    const content = { preset: presets, colors, typography, spacing, position }[tab] || colors;
+    const advanced = renderAdvancedCss();
+    const content = { preset: presets, colors, typography, spacing, position, advanced }[tab] || colors;
     return `<div class="ui-feedback-css-tabs" role="tablist" aria-label="Nh\xF3m thu\u1ED9c t\xEDnh CSS">${tabs.map(([value, label]) => `<button class="ui-feedback-css-tab ${tab === value ? "is-active" : ""}" data-css-tab="${value}" type="button" role="tab" aria-selected="${tab === value}">${label}</button>`).join("")}</div>${content}`;
   }
   function renderImageContent() {
@@ -2740,6 +2811,13 @@ function createUIFeedback(options = {}) {
       applyCssPreset(preset.dataset.cssPreset);
       return;
     }
+    const shadowReset = event.target.closest("[data-css-shadow-reset]");
+    if (shadowReset) {
+      event.stopPropagation();
+      applyCssProperty("boxShadow", "none");
+      renderModal();
+      return;
+    }
     const reset = event.target.closest("[data-css-reset]");
     if (reset && state.target && state.modalSnapshot) {
       event.stopPropagation();
@@ -2788,13 +2866,31 @@ function createUIFeedback(options = {}) {
       applyCssProperty("opacity", String(Number(target.value) / 100));
       const output = root.querySelector("[data-css-opacity-output]");
       if (output) output.textContent = `${target.value}%`;
+    } else if (target.matches("[data-css-shadow]")) {
+      const shadow2 = cssShadowState();
+      const key = target.dataset.cssShadow;
+      if (key === "color") shadow2.color = target.value;
+      else if (key === "inset") shadow2.inset = target.checked;
+      else shadow2[key] = Number(target.value) || 0;
+      applyCssProperty("boxShadow", shadowCss(shadow2));
+      const output = root.querySelector(`[data-css-shadow-output="${key}"]`);
+      if (output) output.textContent = `${Math.round(Number(target.value) || 0)}px`;
     } else if (target.matches("[data-css-range-prop]")) {
       const prop = target.dataset.cssRangeProp;
       const raw = Number(target.value);
       const unit = target.dataset.cssRangeUnit || "";
-      applyCssProperty(prop, `${raw}${unit}`);
+      if (prop === "colorAlpha") {
+        applyCssProperty("color", colorWithAlpha(readCssValue("color", "#ffffff"), raw / 100));
+      } else {
+        applyCssProperty(prop, `${raw}${unit}`);
+      }
       const output = root.querySelector(`[data-css-output="${prop}"]`);
       if (output) output.textContent = prop === "lineHeight" ? raw.toFixed(2) : `${raw}${unit}`;
+    } else if (target.matches("[data-css-number-prop]")) {
+      const prop = target.dataset.cssNumberProp;
+      const value = Math.max(-1e3, Math.min(1e3, Number(target.value) || 0));
+      target.value = String(value);
+      applyCssProperty(prop, String(value));
     } else if (target.matches("[data-css-spacing]")) {
       const value = Math.max(0, Math.min(160, Number(target.value) || 0));
       target.value = String(value);
