@@ -1,8 +1,13 @@
 /**
- * UI Feedback Tool v0.5.1
+ * UI Feedback Tool v0.6.0
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
+ *
+ * Changelog v0.6.0:
+ *   - New: nút Update trên toolbar để kiểm tra và nạp bản tool mới an toàn
+ *   - New: updateUrl/version config cho phép project dùng source canonical
+ *   - Fix: cập nhật runtime bằng Blob module mà không mất feedback đã lưu
  *
  * Changelog v0.5.1:
  *   - Fix: drag handle nhận diện ổn định qua composedPath trong Shadow DOM
@@ -48,7 +53,11 @@
  *   - New: Escape đóng modal/panel
  */
 
+const TOOL_VERSION = '0.6.0';
+
 const DEFAULTS = {
+  version: TOOL_VERSION,
+  updateUrl: 'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
   shortcut: ['q', 'w', 'e'],
   storageKey: 'ui-feedback-session',
   accent: '#ffffff',
@@ -215,6 +224,8 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>',
   collapse:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4 4 4-4"/></svg>',
+  refresh:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-4L3 10"/><path d="M3 5v5h5M4 13a8 8 0 0 0 14.8 4L21 14"/><path d="M21 19v-5h-5"/></svg>',
   github:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>',
 };
@@ -370,6 +381,21 @@ button { cursor: pointer; }
   background: rgba(255,255,255,.06);
   box-shadow: inset 0 -2px 0 var(--ui-feedback-accent);
 }
+.ui-feedback-tool--update {
+  min-width: 78px;
+  color: var(--ui-feedback-accent);
+  border-color: rgba(255,255,255,.22);
+  background: rgba(255,255,255,.07);
+}
+.ui-feedback-tool--update:hover,
+.ui-feedback-tool--update:focus-visible {
+  color: #111;
+  background: var(--ui-feedback-accent);
+  outline-color: var(--ui-feedback-accent);
+}
+.ui-feedback-tool--update.is-busy { pointer-events: none; opacity: .72; }
+.ui-feedback-tool--update.is-busy svg { animation: uiFeedbackSpin .8s linear infinite; }
+@keyframes uiFeedbackSpin { to { transform: rotate(360deg); } }
 .ui-feedback-tool svg {
   width: 18px;
   height: 18px;
@@ -1137,6 +1163,7 @@ export function createUIFeedback(options = {}) {
     modalImageZoom: 100,
     modalPosition: { x: 0, y: 0 },
     panelPosition: { x: 0, y: 0 },
+    updateBusy: false,
   };
 
   // Marker tracking
@@ -1236,6 +1263,7 @@ export function createUIFeedback(options = {}) {
     }
     const undoCount = state.undoStack.length;
     const undoBadge = undoCount ? `<span class="ui-feedback-badge ui-feedback-badge--undo">${undoCount}</span>` : '';
+    const updateLabel = state.updateBusy ? 'Đang kiểm tra' : 'Update';
     const coachmark = state.coachmarkVisible ? `<aside class="ui-feedback-coachmark" role="status"><strong>Bắt đầu với UI Feedback</strong><p>Ghi nhận thay đổi ngay trên bản preview, không cần rời khỏi trang.</p><ol class="ui-feedback-coachmark__steps"><li>Chọn một công cụ trên thanh dock.</li><li>Rê chuột và bấm vào phần tử cần review.</li><li>Lưu feedback hoặc hoàn tác bằng nút Undo.</li></ol><button type="button" data-coachmark-dismiss>Đã hiểu</button></aside>` : '';
     const bubble = `<button class="ui-feedback-toolbar-bubble" data-action="collapse" aria-label="Mở thanh công cụ" title="Mở thanh công cụ">${ICONS.grip}<span class="ui-feedback-badge" ${state.comments.length ? '' : 'hidden'}>${state.comments.length}</span></button>`;
     const dock = `<div class="ui-feedback-toolbar" role="toolbar" aria-label="UI Feedback tools" style="${getToolbarStyle()}">
@@ -1245,12 +1273,76 @@ export function createUIFeedback(options = {}) {
       <button class="ui-feedback-tool ${state.picking && state.mode === 'edit' ? 'is-active' : ''}" data-action="edit" aria-label="Sửa nội dung UI" title="Sửa text">${ICONS.pencil}<span class="ui-feedback-tool__label">Sửa text</span></button>
       <button class="ui-feedback-tool ${state.picking && state.mode === 'css' ? 'is-active' : ''}" data-action="css" aria-label="Mở Bộ CSS" title="Bộ CSS">${ICONS.paintbrush}<span class="ui-feedback-tool__label">Bộ CSS</span></button>
       <button class="ui-feedback-tool ${state.picking && state.mode === 'image' ? 'is-active' : ''}" data-action="image" aria-label="Thay ảnh" title="Thay ảnh">${ICONS.image}<span class="ui-feedback-tool__label">Thay ảnh</span></button>
+      <button class="ui-feedback-tool ui-feedback-tool--update ${state.updateBusy ? 'is-busy' : ''}" data-action="update" aria-label="Kiểm tra và cập nhật UI Feedback tool" title="Kiểm tra bản cập nhật" aria-busy="${state.updateBusy ? 'true' : 'false'}">${ICONS.refresh}<span class="ui-feedback-tool__label">${updateLabel}</span></button>
       ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Hoàn tác thao tác gần nhất" title="Hoàn tác (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Undo</span>${undoBadge}</button>` : ''}
       <button class="ui-feedback-tool" data-action="collapse" aria-label="Thu gọn thanh công cụ" title="Thu gọn">${ICONS.collapse}</button>
     </div>`;
     root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ''}${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div><div data-ui-feedback-toast></div>`;
     if (state.panelOpen) renderPanel();
     if (state.modalOpen) renderModal();
+  }
+
+  /* ── toolbar update ── */
+  function normalizeVersion(value) {
+    const match = String(value || '').match(/\d+(?:\.\d+){0,2}/);
+    return match ? match[0].split('.').map(Number) : [0];
+  }
+
+  function compareVersions(left, right) {
+    const a = normalizeVersion(left);
+    const b = normalizeVersion(right);
+    for (let i = 0; i < 3; i += 1) {
+      const delta = (a[i] || 0) - (b[i] || 0);
+      if (delta) return delta;
+    }
+    return 0;
+  }
+
+  function extractToolVersion(source) {
+    return String(source || '').match(/UI Feedback Tool v(\d+(?:\.\d+){2})/)?.[1] || '';
+  }
+
+  async function updateTool() {
+    if (state.updateBusy) return;
+    state.updateBusy = true;
+    let feedbackMessage = '';
+    renderToolbar();
+    try {
+      const updateUrl = new URL(config.updateUrl, document.baseURI);
+      updateUrl.searchParams.set('ui_feedback_update', String(Date.now()));
+      const response = await fetch(updateUrl.href, { cache: 'no-store', credentials: 'omit' });
+      if (!response.ok) throw new Error(`Update source returned ${response.status}`);
+      const source = await response.text();
+      const latestVersion = extractToolVersion(source);
+      const currentVersion = config.version || TOOL_VERSION;
+      if (!latestVersion) throw new Error('Update source has no recognizable version');
+
+      if (compareVersions(latestVersion, currentVersion) <= 0) {
+        feedbackMessage = `UI Feedback đang ở bản mới nhất · v${currentVersion}`;
+        return;
+      }
+
+      const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
+      try {
+        const updatedModule = await import(`${blobUrl}#ui-feedback-${latestVersion}-${Date.now()}`);
+        if (typeof updatedModule.createUIFeedback !== 'function') throw new Error('Updated module is invalid');
+        const preservedOptions = { ...config, version: latestVersion };
+        dispose();
+        const updatedInstance = updatedModule.createUIFeedback(preservedOptions);
+        setTimeout(() => updatedInstance?.notify?.(`Đã cập nhật UI Feedback lên v${latestVersion}`), 0);
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch (error) {
+      console.warn('[UI Feedback] Update failed:', error);
+      feedbackMessage = 'Không thể cập nhật tool. Kiểm tra kết nối rồi thử lại.';
+    } finally {
+      state.updateBusy = false;
+      if (root.isConnected) {
+        renderToolbar();
+        if (feedbackMessage) showToast(feedbackMessage);
+      }
+    }
   }
 
   /* ── toolbar actions ── */
@@ -1265,6 +1357,7 @@ export function createUIFeedback(options = {}) {
     if (action === 'edit') toggleMode('edit');
     if (action === 'css') toggleMode('css');
     if (action === 'image') toggleMode('image');
+    if (action === 'update') updateTool();
     if (action === 'collapse') { state.collapsed = !state.collapsed; renderToolbar(); }
   }
 
@@ -2860,6 +2953,8 @@ export function createUIFeedback(options = {}) {
     toggle,
     exportMarkdown,
     getComments: () => [...state.comments],
+    updateTool,
+    notify: showToast,
     dispose,
   };
   if (state.active) applyPersistedChanges();
