@@ -1,10 +1,11 @@
 /**
- * UI Feedback Tool v0.6.0
+ * UI Feedback Tool v0.6.1
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
  *
  * Changelog v0.6.0:
+*   - Fix: Update dùng mirror GitHub Pages public vì source canonical private không thể fetch trực tiếp từ browser
  *   - New: nút Update trên toolbar để kiểm tra và nạp bản tool mới an toàn
  *   - New: updateUrl/version config cho phép project dùng source canonical
  *   - Fix: cập nhật runtime bằng Blob module mà không mất feedback đã lưu
@@ -53,11 +54,18 @@
  *   - New: Escape đóng modal/panel
  */
 
-const TOOL_VERSION = '0.6.0';
+const TOOL_VERSION = '0.6.1';
 
 const DEFAULTS = {
   version: TOOL_VERSION,
-  updateUrl: 'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
+  // Source canonical là private; các mirror Pages public giúp browser tải được bản mới mà không cần GitHub token.
+  updateUrl: 'https://ngh1aa.github.io/Atelier/ui-feedback.js',
+  updateMirrors: [
+    'https://ngh1aa.github.io/Atelier/ui-feedback.js',
+    'https://ngh1aa.github.io/LuxRoom/ui-feedback.js',
+    'https://ngh1aa.github.io/StudioOS/ui-feedback.js',
+    'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
+  ],
   shortcut: ['q', 'w', 'e'],
   storageKey: 'ui-feedback-session',
   accent: '#ffffff',
@@ -1308,15 +1316,35 @@ export function createUIFeedback(options = {}) {
     let feedbackMessage = '';
     renderToolbar();
     try {
-      const updateUrl = new URL(config.updateUrl, document.baseURI);
-      updateUrl.searchParams.set('ui_feedback_update', String(Date.now()));
-      const response = await fetch(updateUrl.href, { cache: 'no-store', credentials: 'omit' });
-      if (!response.ok) throw new Error(`Update source returned ${response.status}`);
-      const source = await response.text();
-      const latestVersion = extractToolVersion(source);
+      const candidateUrls = [...new Set([
+        ...(Array.isArray(config.updateMirrors) ? config.updateMirrors : []),
+        config.updateUrl,
+      ].filter(Boolean))];
       const currentVersion = config.version || TOOL_VERSION;
-      if (!latestVersion) throw new Error('Update source has no recognizable version');
+      let newest = null;
+      const failures = [];
 
+      for (const candidate of candidateUrls) {
+        try {
+          const updateUrl = new URL(candidate, document.baseURI);
+          updateUrl.searchParams.set('ui_feedback_update', String(Date.now()));
+          const response = await fetch(updateUrl.href, { cache: 'no-store', credentials: 'omit' });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const source = await response.text();
+          const version = extractToolVersion(source);
+          if (!version) throw new Error('missing version');
+          if (!newest || compareVersions(version, newest.version) > 0) {
+            newest = { source, version, url: updateUrl.href };
+          }
+        } catch (error) {
+          failures.push(`${candidate}: ${error.message}`);
+        }
+      }
+
+      if (!newest) {
+        throw new Error(`No reachable update mirror. ${failures.join(' | ')}`);
+      }
+      const { source, version: latestVersion } = newest;
       if (compareVersions(latestVersion, currentVersion) <= 0) {
         feedbackMessage = `UI Feedback đang ở bản mới nhất · v${currentVersion}`;
         return;
@@ -1326,7 +1354,7 @@ export function createUIFeedback(options = {}) {
       try {
         const updatedModule = await import(`${blobUrl}#ui-feedback-${latestVersion}-${Date.now()}`);
         if (typeof updatedModule.createUIFeedback !== 'function') throw new Error('Updated module is invalid');
-        const preservedOptions = { ...config, version: latestVersion };
+        const preservedOptions = { ...config, version: latestVersion, updateMirrors: config.updateMirrors, updateUrl: config.updateUrl };
         dispose();
         const updatedInstance = updatedModule.createUIFeedback(preservedOptions);
         setTimeout(() => updatedInstance?.notify?.(`Đã cập nhật UI Feedback lên v${latestVersion}`), 0);
@@ -1335,7 +1363,7 @@ export function createUIFeedback(options = {}) {
       }
     } catch (error) {
       console.warn('[UI Feedback] Update failed:', error);
-      feedbackMessage = 'Không thể cập nhật tool. Kiểm tra kết nối rồi thử lại.';
+      feedbackMessage = 'Không thể cập nhật tool từ các mirror. Kiểm tra kết nối rồi thử lại.';
     } finally {
       state.updateBusy = false;
       if (root.isConnected) {
