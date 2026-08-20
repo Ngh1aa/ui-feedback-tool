@@ -3586,6 +3586,8 @@ function createUIFeedback(options = {}) {
     if (state.active) {
       placeMarkers();
     } else {
+      pickerInspector?.closeInspector?.();
+      measurementController?.destroy?.();
       clearMarkers();
     }
     showToast(state.active ? "UI Feedback \u0111\xE3 b\u1EADt" : "UI Feedback \u0111\xE3 t\u1EAFt");
@@ -3884,6 +3886,8 @@ function createUIFeedback(options = {}) {
   }
   function dispose() {
     stopPicking();
+    pickerInspector?.closeInspector?.();
+    measurementController?.destroy?.();
     clearMarkers();
     window.removeEventListener("scroll", refreshMarkerPositions);
     window.removeEventListener("resize", refreshMarkerPositions);

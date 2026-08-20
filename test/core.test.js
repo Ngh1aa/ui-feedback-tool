@@ -64,6 +64,8 @@ test('Picker Inspector contracts keep selection, lock, breadcrumb and measuremen
   assert.ok(index.includes("event.key.toLowerCase() === 'l'"));
   assert.ok(index.includes("event.key.toLowerCase() === 'm'"));
   assert.ok(index.includes('ArrowUp'));
+  assert.ok(index.includes('pickerInspector?.closeInspector?.();'));
+  assert.ok(index.includes('measurementController?.destroy?.();'));
 });
 
 test('feedback cards support progressive disclosure without losing core actions', () => {

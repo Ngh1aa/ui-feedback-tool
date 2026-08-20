@@ -1144,6 +1144,11 @@ export function createUIFeedback(options = {}) {
     if (state.active) {
       placeMarkers();
     } else {
+      // A hard toggle must discard transient Inspector/measurement state;
+      // otherwise stale DOM references and ResizeObserver listeners survive
+      // until the next activation.
+      pickerInspector?.closeInspector?.();
+      measurementController?.destroy?.();
       clearMarkers();
     }
     showToast(state.active ? 'UI Feedback đã bật' : 'UI Feedback đã tắt');
@@ -1474,6 +1479,8 @@ export function createUIFeedback(options = {}) {
   /* ── dispose ── */
   function dispose() {
     stopPicking();
+    pickerInspector?.closeInspector?.();
+    measurementController?.destroy?.();
     clearMarkers();
     window.removeEventListener('scroll', refreshMarkerPositions);
     window.removeEventListener('resize', refreshMarkerPositions);
