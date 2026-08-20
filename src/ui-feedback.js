@@ -4,6 +4,12 @@
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
  *
+ * Changelog v0.5:
+ *   - New: panel/modal có title bar kéo thả bằng Pointer Events và pointer capture
+ *   - New: grip + drag hint + nút đặt lại vị trí cho các cửa sổ công cụ
+ *   - New: white accent tokens cho focus, primary action và dark/light theme
+ *   - Fix: cleanup pointer drag state khi pointerup hoặc pointercancel
+ *
  * Changelog v0.4:
  *   - New: marker trên trang cho edit / css (xanh lá / tím) — biết ngay
  *         chỗ nào đã cập nhật
@@ -40,7 +46,7 @@
 const DEFAULTS = {
   shortcut: ['q', 'w', 'e'],
   storageKey: 'ui-feedback-session',
-  accent: '#f5a623',
+  accent: '#ffffff',
   position: 'right',
   theme: 'auto', // 'light' | 'dark' | 'auto'
   githubRepo: 'Ngh1aa/StudioOS', // 'username/repo' cho GitHub Issue
@@ -239,6 +245,8 @@ button { cursor: pointer; }
   --_shadow: rgba(0,0,0,.18);
   --_shadow-heavy: rgba(0,0,0,.27);
   --_scrim: rgba(0,0,0,.18);
+  --_accent-ink: #111;
+  --_focus-ring: rgba(17,17,17,.18);
   color: var(--_text);
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
@@ -265,6 +273,8 @@ button { cursor: pointer; }
   --_shadow: rgba(0,0,0,.4);
   --_shadow-heavy: rgba(0,0,0,.55);
   --_scrim: rgba(0,0,0,.45);
+  --_accent-ink: #111;
+  --_focus-ring: rgba(255,255,255,.28);
 }
 
 .ui-feedback-root [hidden] { display: none !important; }
@@ -457,13 +467,18 @@ button { cursor: pointer; }
   justify-content: space-between;
   gap: 12px;
 }
-.ui-feedback-panel__header strong { display: block; font-size: 15px; }
-.ui-feedback-panel__header small { display: block; margin-top: 2px; color: var(--_text-muted); font-size: 10px; font-weight: 600; }
-.ui-feedback-panel__header:active { cursor: grabbing; }
+.ui-feedback-panel__header strong { display: block; font-size: 15px; letter-spacing: -.01em; }
+.ui-feedback-panel__header small { display: block; margin-top: 3px; color: var(--_text-muted); font-size: 10px; font-weight: 600; }
+.ui-feedback-panel__header:active, .ui-feedback-panel__header.is-dragging { cursor: grabbing; }
+.ui-feedback-window-heading { min-width: 0; display: flex; align-items: center; gap: 9px; }
+.ui-feedback-window-grip { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; border: 1px solid var(--_border); border-radius: 8px; color: var(--_text-muted); background: var(--_bg-alt); }
+.ui-feedback-window-grip svg { width: 15px; height: 15px; stroke: currentColor; fill: currentColor; stroke-width: 0; }
+.ui-feedback-window-heading:hover .ui-feedback-window-grip, .ui-feedback-modal__top:hover .ui-feedback-window-grip { color: var(--_text); border-color: var(--ui-feedback-accent); }
+.ui-feedback-drag-hint { margin-left: 6px; color: var(--_text-muted); font-size: 9px; font-weight: 600; opacity: .8; }
 .ui-feedback-panel__actions { display: flex; gap: 5px; }
 .ui-feedback-panel__tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 12px 0; background: var(--_bg-panel); }
 .ui-feedback-panel__tab { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; padding: 7px 8px 8px; color: var(--_text-muted); background: transparent; font-size: 10px; font-weight: 800; white-space: nowrap; }
-.ui-feedback-panel__tab:hover, .ui-feedback-panel__tab.is-active { color: var(--_text); border-bottom-color: var(--ui-feedback-accent); }
+.ui-feedback-panel__tab:hover, .ui-feedback-panel__tab.is-active { color: var(--_text); border-bottom-color: color-mix(in srgb, var(--ui-feedback-accent), var(--_text) 28%); }
 
 .ui-feedback-icon-button {
   width: 30px;
@@ -757,8 +772,9 @@ button { cursor: pointer; }
   user-select: none;
   touch-action: none;
 }
-.ui-feedback-modal__top:active { cursor: grabbing; }
-.ui-feedback-modal__top h2 { margin: 0 0 7px; font-size: 16px; color: var(--_text); }
+.ui-feedback-modal__top:active, .ui-feedback-modal__top.is-dragging { cursor: grabbing; }
+.ui-feedback-modal__top h2 { margin: 8px 0 7px; font-size: 16px; color: var(--_text); }
+.ui-feedback-modal__top .ui-feedback-drag-hint { display: inline-flex; margin: 0; }
 .ui-feedback-modal__top p { overflow: hidden; margin: 0; color: var(--_text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .ui-feedback-modal__content { padding: 17px 20px; }
 .ui-feedback-modal.is-inspector { left: auto; right: 22px; top: 22px; transform: translate(var(--ui-feedback-modal-x), var(--ui-feedback-modal-y)); width: min(520px, calc(100vw - 32px)); height: calc(100vh - 44px); display: flex; flex-direction: column; animation: uiFeedbackSlideIn .25s cubic-bezier(.4,0,.2,1) both; }
@@ -781,13 +797,13 @@ button { cursor: pointer; }
 .ui-feedback-field:focus,
 .ui-feedback-textarea:focus,
 .ui-feedback-select:focus {
-  box-shadow: 0 2px 0 rgba(245,166,35,.3);
+  box-shadow: 0 2px 0 var(--_focus-ring);
 }
 .ui-feedback-form-row { display: grid; grid-template-columns: 1fr 120px; gap: 18px; margin-top: 17px; }
-.ui-feedback-modal__footer { display: flex; justify-content: flex-end; gap: 9px; padding: 0 20px 18px; }
+.ui-feedback-modal__footer { display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 8px; padding: 0 18px 16px; }
 .ui-feedback-button { min-width: 76px; border: 1px solid var(--_border); padding: 9px 16px; border-radius: 8px; color: var(--_text); background: var(--_bg-panel); transition: background .12s; }
 .ui-feedback-button:hover { background: var(--_bg-hover); }
-.ui-feedback-button--primary { border-color: var(--ui-feedback-accent); background: var(--ui-feedback-accent); color: #141414; }
+.ui-feedback-button--primary { border-color: var(--ui-feedback-accent); background: var(--ui-feedback-accent); color: var(--_accent-ink); font-weight: 800; }
 .ui-feedback-button--primary:hover { filter: brightness(.95); }
 
 /* ── toast ── */
@@ -1337,7 +1353,7 @@ export function createUIFeedback(options = {}) {
     const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
     const content = renderGroupedComments(filtered);
     mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh sách feedback">
-      <header class="ui-feedback-panel__header" data-panel-drag-handle title="Kéo để di chuyển cửa sổ"><div><strong>Feedback</strong><small>${openCount} đang mở · ${resolvedCount} đã xong · ${editCount} chỉnh sửa</small></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng">${ICONS.close}</button></span></header>
+      <header class="ui-feedback-panel__header" data-panel-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} đang mở · ${resolvedCount} đã xong · ${editCount} chỉnh sửa <span class="ui-feedback-drag-hint">Kéo để di chuyển</span></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="Đưa cửa sổ về vị trí mặc định" title="Đặt lại vị trí">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng cửa sổ">${ICONS.close}</button></span></header>
       <div class="ui-feedback-panel__tabs" role="tablist"><button class="ui-feedback-panel__tab ${state.drawerTab === 'all' ? 'is-active' : ''}" data-panel-tab="all" role="tab">Tất cả <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'comment' ? 'is-active' : ''}" data-panel-tab="comment" role="tab">Ghi chú <span>${state.comments.filter((c) => c.type === 'comment').length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'edit' ? 'is-active' : ''}" data-panel-tab="edit" role="tab">Chỉnh sửa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'resolved' ? 'is-active' : ''}" data-panel-tab="resolved" role="tab">Đã xong <span>${resolvedCount}</span></button></div>
       <div class="ui-feedback-panel__filter">
         <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="Tìm feedback…" value="${escapeAttribute(state.searchQuery)}" /></div>
@@ -1371,8 +1387,11 @@ export function createUIFeedback(options = {}) {
     if (!handle) return;
     event.preventDefault();
     event.stopPropagation();
+    const panel = root.querySelector('.ui-feedback-panel');
     const position = state.panelPosition || { x: 0, y: 0 };
-    const drag = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y };
+    const drag = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
+    handle.classList.add('is-dragging');
+    try { handle.setPointerCapture?.(event.pointerId); } catch { /* ignore unsupported capture */ }
     const onMove = (moveEvent) => {
       const maxX = Math.max(0, window.innerWidth - 80);
       const maxY = Math.max(0, window.innerHeight - 80);
@@ -1383,9 +1402,12 @@ export function createUIFeedback(options = {}) {
       applyPanelPosition();
     };
     const onEnd = () => {
+      handle.classList.remove('is-dragging');
+      try { handle.releasePointerCapture?.(drag.pointerId); } catch { /* ignore */ }
       document.removeEventListener('pointermove', onMove, true);
       document.removeEventListener('pointerup', onEnd, true);
       document.removeEventListener('pointercancel', onEnd, true);
+      if (panel) panel.classList.remove('is-dragging');
     };
     document.addEventListener('pointermove', onMove, true);
     document.addEventListener('pointerup', onEnd, true);
@@ -1397,6 +1419,7 @@ export function createUIFeedback(options = {}) {
     if (!target) return;
     event.stopPropagation();
     if (target.dataset.panelTab) { state.drawerTab = target.dataset.panelTab; renderPanel(); return; }
+    if (target.dataset.panelAction === 'reset-position') { state.panelPosition = { x: 0, y: 0 }; applyPanelPosition(); showToast('Đã đặt lại vị trí cửa sổ'); return; }
     if (target.dataset.copySelector) { const copyResult = navigator.clipboard?.writeText?.(target.dataset.copySelector); Promise.resolve(copyResult).then(() => showToast('Đã copy selector')).catch(() => showToast('Không thể copy selector')); return; }
     if (target.dataset.panelAction === 'close') togglePanel(false);
     else if (target.dataset.panelAction === 'export') exportMarkdown();
@@ -1900,9 +1923,9 @@ export function createUIFeedback(options = {}) {
         : isImage
           ? renderImageContent()
           : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Phân loại</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || 'other')}</select></div></div>`;
-    const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
+    const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
     const modalClass = isCss || isImage ? 'ui-feedback-modal is-inspector' : 'ui-feedback-modal is-mini';
-    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="Kéo để di chuyển cửa sổ"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
+    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">Kéo để di chuyển</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
     applyModalPosition();
     mount.onclick = handleModalClick;
     mount.onpointerdown = handleModalPointerDown;
@@ -1980,9 +2003,13 @@ export function createUIFeedback(options = {}) {
       event.preventDefault();
       event.stopPropagation();
       const position = state.modalPosition || { x: 0, y: 0 };
-      modalDragState = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y };
+      modalDragState = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
+      dragHandle.classList.add('is-dragging');
+      try { dragHandle.setPointerCapture?.(event.pointerId); } catch { /* ignore unsupported capture */ }
       const onMove = (moveEvent) => updateModalPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
       const onEnd = () => {
+        dragHandle.classList.remove('is-dragging');
+        try { dragHandle.releasePointerCapture?.(modalDragState?.pointerId); } catch { /* ignore */ }
         modalDragState = null;
         document.removeEventListener('pointermove', onMove, true);
         document.removeEventListener('pointerup', onEnd, true);
@@ -2089,6 +2116,7 @@ export function createUIFeedback(options = {}) {
     if (!target) return;
     event.stopPropagation();
     if (target.dataset.modalAction === 'cancel') closeModal(true);
+    else if (target.dataset.modalAction === 'reset-position') { state.modalPosition = { x: 0, y: 0 }; applyModalPosition(); showToast('Đã đặt lại vị trí cửa sổ'); }
     else if (target.dataset.modalAction === 'save') saveModal();
   }
 
