@@ -1,5 +1,5 @@
 // src/core/config.js
-var TOOL_VERSION = "0.8.1";
+var TOOL_VERSION = "0.9.0";
 var DEFAULTS = {
   version: TOOL_VERSION,
   updateUrl: "https://ngh1aa.github.io/Atelier/ui-feedback.js",
@@ -217,6 +217,7 @@ function createFeedbackState(config) {
     cssTab: "advanced",
     drawerTab: "all",
     collapsed: false,
+    expandedComments: {},
     coachmarkVisible: false,
     cssPosition: { x: 0, y: 0 },
     cssTransformBase: "",
@@ -1254,6 +1255,66 @@ button { cursor: pointer; }
     .ui-feedback-panel { right: 12px; width: min(420px, calc(100vw - 24px)); }
     .ui-feedback-modal.is-inspector { right: 12px; width: calc(100vw - 24px); height: calc(100vh - 24px); }
   }
+
+  /* \u2500\u2500 v0.9 visual refresh: modern minimalism \u2500\u2500 */
+  .ui-feedback-panel {
+    width: min(432px, calc(100vw - 112px));
+    border-radius: 16px;
+    background: #151515;
+    box-shadow: 0 24px 72px rgba(0,0,0,.42), 0 0 0 1px rgba(255,255,255,.025);
+  }
+  .ui-feedback-panel__header { padding: 15px 16px 13px; }
+  .ui-feedback-panel__header strong { font-size: 15px; }
+  .ui-feedback-panel__header small { white-space: nowrap; }
+  .ui-feedback-drag-hint { margin-left: 4px; padding: 2px 5px; border: 1px solid rgba(255,255,255,.12); border-radius: 5px; color: #aaa; font-size: 9px; opacity: 1; }
+  .ui-feedback-panel__tabs { padding: 7px 14px 0; }
+  .ui-feedback-panel__tab { padding: 7px 8px 9px; font-size: 10px; }
+  .ui-feedback-panel__filter { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 7px; padding: 10px 14px 9px; }
+  .ui-feedback-panel__body { padding: 10px 14px 16px; background: #111; }
+  .ui-feedback-group { margin-bottom: 12px; }
+  .ui-feedback-group__name { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; color: #bcbcbc; background: #242424; border-radius: 9px 9px 5px 5px; font-size: 11px; font-weight: 700; }
+  .ui-feedback-group__name span:first-child { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ui-feedback-group__name span:last-child { flex: 0 0 auto; min-width: 20px; padding: 2px 6px; border-radius: 99px; color: #cfcfcf; background: #333; text-align: center; font-size: 10px; }
+  .ui-feedback-category-group + .ui-feedback-category-group { margin-top: 8px; }
+  .ui-feedback-category-label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 4px; padding: 7px 5px 6px; border-left: 0; color: #8f8f8f; background: transparent; font-size: 9px; letter-spacing: .08em; }
+  .ui-feedback-category-label span:last-child { color: #666; font-size: 10px; letter-spacing: 0; }
+  .ui-feedback-item { padding: 11px 12px; border: 1px solid rgba(255,255,255,.09); border-left: 2px solid rgba(255,255,255,.14); border-radius: 10px; background: #1a1a1a; }
+  .ui-feedback-item + .ui-feedback-item { margin-top: 6px; border-top: 1px solid rgba(255,255,255,.09); }
+  .ui-feedback-item:last-child { border-radius: 10px; }
+  .ui-feedback-item:hover { background: #202020; border-color: rgba(255,255,255,.18); }
+  .ui-feedback-item[data-priority="high"] { border-left-color: #f87171; }
+  .ui-feedback-item[data-priority="medium"] { border-left-color: #facc15; }
+  .ui-feedback-item[data-priority="low"] { border-left-color: #4ade80; }
+  .ui-feedback-item__meta { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 7px; }
+  .ui-feedback-item__identity { min-width: 0; display: flex; align-items: center; gap: 3px; }
+  .ui-feedback-item__badges { display: flex; align-items: center; justify-content: flex-end; gap: 4px; flex: 0 0 auto; }
+  .ui-feedback-item__selector { color: #a6a6a6; font-size: 10px; }
+  .ui-feedback-copy-selector { opacity: .7; }
+  .ui-feedback-category-chip { padding: 3px 6px; color: #aaa; background: #252525; font-size: 9px; }
+  .ui-feedback-priority, .ui-feedback-resolve-badge { padding: 3px 6px; font-size: 9px; }
+  .ui-feedback-item__target { margin: 0; color: #666; font-size: 10px; line-height: 1.4; }
+  .ui-feedback-item__comment { margin: 7px 0 0; color: #f1f1f1; font-size: 13px; line-height: 1.45; }
+  .ui-feedback-item__comment code { color: #ddd; font-size: .92em; }
+  .ui-feedback-item__details { margin-top: 9px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,.08); }
+  .ui-feedback-item__context { margin-bottom: 7px; }
+  .ui-feedback-item__time { margin-bottom: 7px; color: #666; font-size: 10px; }
+  .ui-feedback-item__code { margin-top: 0; padding: 6px 8px; border-color: rgba(255,255,255,.08); border-radius: 7px; background: #141414; color: #777; }
+  .ui-feedback-item__actions { align-items: center; gap: 4px; margin-top: 10px; }
+  .ui-feedback-item__action-spacer { flex: 1; }
+  .ui-feedback-mini { padding: 5px 7px; border-radius: 6px; color: #999; background: #242424; font-size: 10px; }
+  .ui-feedback-mini:hover { color: #fff; background: #303030; }
+  .ui-feedback-mini--details { color: #bdbdbd; background: transparent; }
+  .ui-feedback-mini--details:hover { background: #242424; }
+  .ui-feedback-mini--resolve { color: #86efac; }
+  .ui-feedback-item.is-resolved { opacity: .48; }
+  @media (max-width: 560px) {
+    .ui-feedback-panel__filter { grid-template-columns: 1fr 1fr; }
+    .ui-feedback-search-wrap { grid-column: 1 / -1; }
+    .ui-feedback-panel__header small { white-space: normal; }
+    .ui-feedback-drag-hint { display: none; }
+    .ui-feedback-item__badges { gap: 3px; }
+    .ui-feedback-item__selector { max-width: 148px; }
+  }
 `;
 
 // src/ui/icons.js
@@ -1301,25 +1362,29 @@ function createCommentsController(ctx) {
   function renderItem(item) {
     const priority = item.priority || "medium";
     const resolved = Boolean(item.resolved);
+    const expanded = Boolean(state.expandedComments?.[item.id]);
     const time = relativeTime(item.updatedAt || item.createdAt);
     const contextTags = [];
     if (item.viewport) contextTags.push(`\u{1F4F1} ${item.viewport}`);
     if (item.scrollY !== void 0) contextTags.push(`\u2195\uFE0F ${item.scrollY}px`);
     const category = categoryLabel(item.category, item.type);
     const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F Thay \u0111\u1ED5i text: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? `<p class="ui-feedback-item__comment">\u2726 B\u1ED9 giao di\u1EC7n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 Thay \u1EA3nh (${item.imageSourceType === "upload" ? "upload" : "URL"}): <code>${escapeHtml(item.value)}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
-    return `<article class="ui-feedback-item ${resolved ? "is-resolved" : ""}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
-      <div class="ui-feedback-item__meta">
-        <span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">\u29C9</button>
-        <span class="ui-feedback-category-chip">${escapeHtml(category)}</span>
-        <span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span>
-        <span class="ui-feedback-resolve-badge ${resolved ? "is-resolved" : "is-open"}">${resolved ? `${ICONS.check} Xong` : "M\u1EDF"}</span>
-      </div>
+    const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ""}
-      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} \xB7 ${escapeHtml(item.targetText || "Kh\xF4ng c\xF3 n\u1ED9i dung xem tr\u01B0\u1EDBc")}</p>
       <div class="ui-feedback-item__code" title="D\xF2ng code \u0111\u1EA7u c\u1EE7a component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || "Kh\xF4ng x\xE1c \u0111\u1ECBnh")}</code></div>
+    </div>` : "";
+    return `<article class="ui-feedback-item ${resolved ? "is-resolved" : ""} ${expanded ? "is-expanded" : ""}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
+      <div class="ui-feedback-item__meta">
+        <div class="ui-feedback-item__identity"><span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">\u29C9</button></div>
+        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span><span class="ui-feedback-resolve-badge ${resolved ? "is-resolved" : "is-open"}">${resolved ? `${ICONS.check} Xong` : "M\u1EDF"}</span></div>
+      </div>
+      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">\xB7</span> ${escapeHtml(item.targetText || "Kh\xF4ng c\xF3 n\u1ED9i dung xem tr\u01B0\u1EDBc")}</p>
       ${content}
+      ${details}
       <div class="ui-feedback-item__actions">
+        <button class="ui-feedback-mini ui-feedback-mini--details" data-toggle-comment="${escapeAttribute(item.id)}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "\u1EA8n chi ti\u1EBFt" : "Chi ti\u1EBFt"} <span aria-hidden="true">${expanded ? "\u2303" : "\u2304"}</span></button>
+        <span class="ui-feedback-item__action-spacer"></span>
         <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${escapeAttribute(item.id)}" title="${resolved ? "M\u1EDF l\u1EA1i" : "\u0110\xE1nh d\u1EA5u xong"}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? "M\u1EDF l\u1EA1i" : "Xong"}</button>
         ${!["edit", "css", "image"].includes(item.type) ? `<button class="ui-feedback-mini" data-edit-comment="${escapeAttribute(item.id)}">${ICONS.edit} S\u1EEDa</button>` : ""}
         <button class="ui-feedback-mini" data-delete-comment="${escapeAttribute(item.id)}">${ICONS.trash} X\xF3a</button>
@@ -1338,9 +1403,9 @@ function createCommentsController(ctx) {
     return Object.entries(grouped).map(([page, categories]) => {
       const total = Object.values(categories).reduce((sum, group) => sum + group.length, 0);
       const categoryContent = Object.entries(categories).map(
-        ([category, categoryItems]) => `<div class="ui-feedback-category-group"><span class="ui-feedback-category-label">${escapeHtml(category)} \xB7 ${categoryItems.length}</span>${categoryItems.map(renderItem).join("")}</div>`
+        ([category, categoryItems]) => `<div class="ui-feedback-category-group"><div class="ui-feedback-category-label"><span>${escapeHtml(category)}</span><span>${categoryItems.length}</span></div>${categoryItems.map(renderItem).join("")}</div>`
       ).join("");
-      return `<section class="ui-feedback-group"><span class="ui-feedback-group__name">${escapeHtml(page)} \xB7 ${total} m\u1EE5c</span>${categoryContent}</section>`;
+      return `<section class="ui-feedback-group"><div class="ui-feedback-group__name"><span title="${escapeAttribute(page)}">${escapeHtml(page)}</span><span>${total}</span></div>${categoryContent}</section>`;
     }).join("");
   }
   function renderCategoryOptions(selected = "all") {
@@ -2198,7 +2263,7 @@ function createUIFeedback(options = {}) {
     const editCount = state.comments.filter((c) => ["edit", "css", "image"].includes(c.type)).length;
     const content = renderGroupedComments(filtered);
     mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh s\xE1ch feedback">
-      <header class="ui-feedback-panel__header" data-panel-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} \u0111ang m\u1EDF \xB7 ${resolvedCount} \u0111\xE3 xong \xB7 ${editCount} ch\u1EC9nh s\u1EEDa <span class="ui-feedback-drag-hint">K\xE9o \u0111\u1EC3 di chuy\u1EC3n</span></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="T\u1EA1o GitHub Issue" title="T\u1EA1o GitHub Issue">${ICONS.github}</button>` : ""}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xu\u1EA5t Markdown" title="Xu\u1EA5t Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh" title="\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5">${ICONS.close}</button></span></header>
+      <header class="ui-feedback-panel__header" data-panel-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} \u0111ang m\u1EDF \xB7 ${resolvedCount} \u0111\xE3 xong \xB7 ${editCount} ch\u1EC9nh s\u1EEDa <span class="ui-feedback-drag-hint" title="K\xE9o \u0111\u1EC3 di chuy\u1EC3n">K\xE9o</span></small></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="T\u1EA1o GitHub Issue" title="T\u1EA1o GitHub Issue">${ICONS.github}</button>` : ""}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xu\u1EA5t Markdown" title="Xu\u1EA5t Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh" title="\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5">${ICONS.close}</button></span></header>
       <div class="ui-feedback-panel__tabs" role="tablist"><button class="ui-feedback-panel__tab ${state.drawerTab === "all" ? "is-active" : ""}" data-panel-tab="all" role="tab">T\u1EA5t c\u1EA3 <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "comment" ? "is-active" : ""}" data-panel-tab="comment" role="tab">Ghi ch\xFA <span>${state.comments.filter((c) => c.type === "comment").length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "edit" ? "is-active" : ""}" data-panel-tab="edit" role="tab">Ch\u1EC9nh s\u1EEDa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "resolved" ? "is-active" : ""}" data-panel-tab="resolved" role="tab">\u0110\xE3 xong <span>${resolvedCount}</span></button></div>
       <div class="ui-feedback-panel__filter">
         <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="T\xECm feedback\u2026" value="${escapeAttribute(state.searchQuery)}" /></div>
@@ -2228,11 +2293,16 @@ function createUIFeedback(options = {}) {
     return panelController.handlePointerDown(event);
   }
   function handlePanelClick(event) {
-    const target = event.target.closest("[data-panel-action], [data-panel-tab], [data-edit-comment], [data-delete-comment], [data-resolve-comment], [data-copy-selector], [data-comment-id]");
+    const target = event.target.closest("[data-panel-action], [data-panel-tab], [data-edit-comment], [data-delete-comment], [data-resolve-comment], [data-copy-selector], [data-toggle-comment], [data-comment-id]");
     if (!target) return;
     event.stopPropagation();
     if (target.dataset.panelTab) {
       state.drawerTab = target.dataset.panelTab;
+      renderPanel();
+      return;
+    }
+    if (target.dataset.toggleComment) {
+      state.expandedComments[target.dataset.toggleComment] = !state.expandedComments[target.dataset.toggleComment];
       renderPanel();
       return;
     }

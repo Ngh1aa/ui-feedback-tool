@@ -40,6 +40,7 @@ export function createFeedbackState(config) {
     cssTab: 'advanced',
     drawerTab: 'all',
     collapsed: false,
+    expandedComments: {},
     coachmarkVisible: false,
     cssPosition: { x: 0, y: 0 },
     cssTransformBase: '',

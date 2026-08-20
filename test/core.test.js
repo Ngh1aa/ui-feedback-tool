@@ -10,7 +10,7 @@ test('config keeps white accent and merges shortcut safely', () => {
   assert.equal(config.accent, '#ffffff');
   assert.deepEqual(config.shortcut, ['q', 'w', 'e']);
   assert.equal(config.storageKey, 'test');
-  assert.equal(DEFAULTS.version, '0.8.1');
+  assert.equal(DEFAULTS.version, '0.9.0');
 });
 
 test('category labels remain stable for feature types', () => {
@@ -35,4 +35,13 @@ test('text helpers escape HTML and Markdown safely', () => {
   assert.equal(escapeHtml('<script>"x"</script>'), '&lt;script&gt;&quot;x&quot;&lt;/script&gt;');
   assert.equal(escapeMarkdown('[feedback] *important*'), '\\[feedback\\] \\*important\\*');
   assert.equal(safeText('  one   two  '), 'one two');
+});
+
+test('feedback cards support progressive disclosure without losing core actions', () => {
+  const comments = fs.readFileSync(new URL('../src/features/comments.js', import.meta.url), 'utf8');
+  const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(comments.includes('data-toggle-comment'));
+  assert.ok(comments.includes('ui-feedback-item__details'));
+  assert.ok(comments.includes('ui-feedback-item__action-spacer'));
+  assert.ok(index.includes('expandedComments[target.dataset.toggleComment]'));
 });

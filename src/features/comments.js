@@ -29,6 +29,7 @@ export function createCommentsController(ctx) {
   function renderItem(item) {
     const priority = item.priority || 'medium';
     const resolved = Boolean(item.resolved);
+    const expanded = Boolean(state.expandedComments?.[item.id]);
     const time = relativeTime(item.updatedAt || item.createdAt);
     const contextTags = [];
     if (item.viewport) contextTags.push(`📱 ${item.viewport}`);
@@ -41,19 +42,22 @@ export function createCommentsController(ctx) {
         : item.type === 'image'
           ? `<p class="ui-feedback-item__comment">▧ Thay ảnh (${item.imageSourceType === 'upload' ? 'upload' : 'URL'}): <code>${escapeHtml(item.value)}</code></p>`
           : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
-    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
-      <div class="ui-feedback-item__meta">
-        <span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">⧉</button>
-        <span class="ui-feedback-category-chip">${escapeHtml(category)}</span>
-        <span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span>
-        <span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span>
-      </div>
+    const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ''}
-      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} · ${escapeHtml(item.targetText || 'Không có nội dung xem trước')}</p>
       <div class="ui-feedback-item__code" title="Dòng code đầu của component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || 'Không xác định')}</code></div>
+    </div>` : '';
+    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''} ${expanded ? 'is-expanded' : ''}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
+      <div class="ui-feedback-item__meta">
+        <div class="ui-feedback-item__identity"><span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">⧉</button></div>
+        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span><span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span></div>
+      </div>
+      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">·</span> ${escapeHtml(item.targetText || 'Không có nội dung xem trước')}</p>
       ${content}
+      ${details}
       <div class="ui-feedback-item__actions">
+        <button class="ui-feedback-mini ui-feedback-mini--details" data-toggle-comment="${escapeAttribute(item.id)}" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? 'Ẩn chi tiết' : 'Chi tiết'} <span aria-hidden="true">${expanded ? '⌃' : '⌄'}</span></button>
+        <span class="ui-feedback-item__action-spacer"></span>
         <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${escapeAttribute(item.id)}" title="${resolved ? 'Mở lại' : 'Đánh dấu xong'}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? 'Mở lại' : 'Xong'}</button>
         ${!['edit', 'css', 'image'].includes(item.type) ? `<button class="ui-feedback-mini" data-edit-comment="${escapeAttribute(item.id)}">${ICONS.edit} Sửa</button>` : ''}
         <button class="ui-feedback-mini" data-delete-comment="${escapeAttribute(item.id)}">${ICONS.trash} Xóa</button>
@@ -72,9 +76,9 @@ export function createCommentsController(ctx) {
     return Object.entries(grouped).map(([page, categories]) => {
       const total = Object.values(categories).reduce((sum, group) => sum + group.length, 0);
       const categoryContent = Object.entries(categories).map(([category, categoryItems]) =>
-        `<div class="ui-feedback-category-group"><span class="ui-feedback-category-label">${escapeHtml(category)} · ${categoryItems.length}</span>${categoryItems.map(renderItem).join('')}</div>`,
+        `<div class="ui-feedback-category-group"><div class="ui-feedback-category-label"><span>${escapeHtml(category)}</span><span>${categoryItems.length}</span></div>${categoryItems.map(renderItem).join('')}</div>`,
       ).join('');
-      return `<section class="ui-feedback-group"><span class="ui-feedback-group__name">${escapeHtml(page)} · ${total} mục</span>${categoryContent}</section>`;
+      return `<section class="ui-feedback-group"><div class="ui-feedback-group__name"><span title="${escapeAttribute(page)}">${escapeHtml(page)}</span><span>${total}</span></div>${categoryContent}</section>`;
     }).join('');
   }
 
