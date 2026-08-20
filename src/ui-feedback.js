@@ -135,6 +135,35 @@ function escapeAttribute(value) {
   return escapeHtml(value).replace(/`/g, '&#096;');
 }
 
+const FEEDBACK_CATEGORIES = [
+  { value: 'layout', label: 'Bố cục' },
+  { value: 'image', label: 'Hình ảnh' },
+  { value: 'content', label: 'Nội dung' },
+  { value: 'typography', label: 'Kiểu chữ' },
+  { value: 'color', label: 'Màu sắc' },
+  { value: 'spacing', label: 'Khoảng cách' },
+  { value: 'interaction', label: 'Tương tác' },
+  { value: 'other', label: 'Khác' },
+];
+const CATEGORY_LABELS = Object.fromEntries(FEEDBACK_CATEGORIES.map((item) => [item.value, item.label]));
+
+function defaultCategoryForType(type) {
+  if (type === 'image') return 'image';
+  if (type === 'edit') return 'content';
+  if (type === 'css') return 'color';
+  return 'other';
+}
+
+function categoryLabel(value, type = 'comment') {
+  return CATEGORY_LABELS[value] || CATEGORY_LABELS[defaultCategoryForType(type)] || 'Khác';
+}
+
+function firstCodeLine(element) {
+  if (!(element instanceof Element)) return '';
+  const markup = String(element.outerHTML || '').trim();
+  return safeText(markup.split(/\r?\n/)[0] || markup, 180);
+}
+
 function detectTheme(preference) {
   if (preference === 'dark') return 'dark';
   if (preference === 'light') return 'light';
@@ -459,6 +488,7 @@ button { cursor: pointer; }
   outline: none;
 }
 .ui-feedback-filter-select:focus { border-color: var(--ui-feedback-accent); }
+.ui-feedback-filter-select--category { max-width: 112px; }
 
 .ui-feedback-panel__body {
   max-height: calc(min(680px, 100vh - 32px) - 110px);
@@ -481,6 +511,18 @@ button { cursor: pointer; }
   border-radius: 7px 7px 0 0;
   font-size: 12px;
   font-weight: 700;
+}
+.ui-feedback-category-group + .ui-feedback-category-group { margin-top: 8px; }
+.ui-feedback-category-label {
+  display: block;
+  padding: 5px 9px;
+  color: var(--_text-muted);
+  background: var(--_bg-alt);
+  border-left: 3px solid var(--ui-feedback-accent);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .06em;
+  text-transform: uppercase;
 }
 
 .ui-feedback-item {
@@ -572,6 +614,29 @@ button { cursor: pointer; }
   margin: 8px 0 0;
   color: var(--_text-muted);
   font-size: 11px;
+}
+.ui-feedback-item__code {
+  overflow: hidden;
+  margin-top: 7px;
+  border: 1px solid var(--_border);
+  border-radius: 5px;
+  padding: 6px 8px;
+  color: var(--_text-secondary);
+  background: var(--_bg-alt);
+  font-size: 10px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ui-feedback-item__code code { color: var(--_text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ui-feedback-category-chip {
+  flex-shrink: 0;
+  border-radius: 99px;
+  padding: 2px 6px;
+  color: var(--_text-secondary);
+  background: var(--_bg-alt);
+  font-size: 9px;
+  font-weight: 700;
 }
 .ui-feedback-item__actions {
   display: flex;
@@ -875,9 +940,12 @@ button { cursor: pointer; }
 .ui-feedback-image-heading strong { color: var(--_text); font-size: 12px; }
 .ui-feedback-image-heading small { display: block; margin-top: 3px; color: var(--_text-muted); font-size: 10px; }
 .ui-feedback-image-state { flex-shrink: 0; border-radius: 99px; padding: 3px 7px; color: #166534; background: #dcfce7; font-size: 9px; font-weight: 800; }
-.ui-feedback-image-preview { display: flex; align-items: center; justify-content: center; min-height: 105px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; }
-.ui-feedback-image-preview img { display: block; width: 100%; max-height: 150px; object-fit: contain; }
+.ui-feedback-image-preview { position: relative; display: flex; align-items: center; justify-content: center; min-height: 180px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; cursor: grab; touch-action: none; }
+.ui-feedback-image-preview:active { cursor: grabbing; }
+.ui-feedback-image-preview img { display: block; width: 100%; height: 180px; object-fit: cover; user-select: none; pointer-events: none; }
 .ui-feedback-image-preview span { padding: 20px; color: var(--_text-muted); font-size: 11px; text-align: center; }
+.ui-feedback-image-canvas-hint { position: absolute; right: 8px; bottom: 8px; border-radius: 99px; padding: 4px 7px; color: #fff; background: rgba(0,0,0,.58); font-size: 9px; pointer-events: none; }
+.ui-feedback-image-position { display: flex; justify-content: space-between; color: var(--_text-muted); font-size: 10px; }
 .ui-feedback-image-url { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 9px 10px; color: var(--_text); background: var(--_bg-input); outline: none; font-size: 11px; }
 .ui-feedback-image-url:focus { border-color: var(--ui-feedback-accent); }
 .ui-feedback-image-upload { width: 100%; border: 1px dashed var(--_border); border-radius: 6px; padding: 8px; color: var(--_text-secondary); background: var(--_bg-alt); font-size: 11px; }
@@ -933,6 +1001,7 @@ export function createUIFeedback(options = {}) {
     comments: loadComments(),
     undoStack: [], // for undoing deletes, edits, and css
     filterPriority: 'all',
+    filterCategory: 'all',
     searchQuery: '',
     theme: detectTheme(config.theme),
     // Resume context: remember the mode that was active before picking was
@@ -1005,6 +1074,26 @@ export function createUIFeedback(options = {}) {
     } catch {
       // Private browsing or a blocked storage API should not break the tool.
     }
+  }
+
+  function resolveSelector(selector) {
+    if (!selector) return null;
+    try { return document.querySelector(selector); } catch { return null; }
+  }
+
+  function applyPersistedChanges() {
+    if (!state.active) return;
+    const page = location.pathname || '/';
+    state.comments
+      .filter((item) => (item.page || '/') === page && ['edit', 'css', 'image'].includes(item.type))
+      .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
+      .forEach((item) => {
+        const element = resolveSelector(item.selector);
+        if (!element) return;
+        if (item.type === 'edit') element.textContent = item.value || '';
+        else if (item.type === 'css') element.style.cssText = item.value || '';
+        else if (item.type === 'image') applyImageState(element, item.newImageState || { kind: 'src', src: item.value || '' });
+      });
   }
   /* ── rendering ── */
   function renderToolbar() {
@@ -1089,6 +1178,9 @@ export function createUIFeedback(options = {}) {
     if (state.filterPriority !== 'all') {
       items = items.filter((c) => c.priority === state.filterPriority);
     }
+    if (state.filterCategory !== 'all') {
+      items = items.filter((c) => (c.category || defaultCategoryForType(c.type)) === state.filterCategory);
+    }
     if (state.searchQuery) {
       const q = state.searchQuery.toLowerCase();
       items = items.filter(
@@ -1103,38 +1195,49 @@ export function createUIFeedback(options = {}) {
     return items;
   }
 
+  function renderGroupedComments(items) {
+    const grouped = items.reduce((groups, item) => {
+      const page = item.page || location.pathname || '/';
+      const category = categoryLabel(item.category, item.type);
+      (groups[page] ||= {});
+      (groups[page][category] ||= []).push(item);
+      return groups;
+    }, {});
+    return Object.entries(grouped).map(([page, categories]) => {
+      const total = Object.values(categories).reduce((sum, items) => sum + items.length, 0);
+      const categoryContent = Object.entries(categories).map(([category, categoryItems]) =>
+        `<div class="ui-feedback-category-group"><span class="ui-feedback-category-label">${escapeHtml(category)} · ${categoryItems.length}</span>${categoryItems.map(renderItem).join('')}</div>`,
+      ).join('');
+      return `<section class="ui-feedback-group"><span class="ui-feedback-group__name">${escapeHtml(page)} · ${total} mục</span>${categoryContent}</section>`;
+    }).join('');
+  }
+
+  function renderCategoryOptions(selected = 'all') {
+    return `<option value="all" ${selected === 'all' ? 'selected' : ''}>Tất cả phân loại</option>${FEEDBACK_CATEGORIES.map((category) => `<option value="${category.value}" ${selected === category.value ? 'selected' : ''}>${category.label}</option>`).join('')}`;
+  }
+
   function renderPanel() {
     const mount = root.querySelector('[data-ui-feedback-panel]');
     if (!mount || !state.panelOpen) return;
     const filtered = getFilteredComments();
-    const grouped = filtered.reduce((groups, item) => {
-      const key = item.page || location.pathname || '/';
-      (groups[key] ||= []).push(item);
-      return groups;
-    }, {});
     const resolvedCount = state.comments.filter((c) => c.resolved).length;
     const openCount = state.comments.filter((c) => !c.resolved && !['edit', 'css', 'image'].includes(c.type)).length;
     const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
-    const content = Object.entries(grouped)
-      .map(
-        ([page, items]) =>
-          `<section class="ui-feedback-group"><span class="ui-feedback-group__name">${escapeHtml(page)} · ${items.length} mục</span>${items.map(renderItem).join('')}</section>`,
-      )
-      .join('');
+    const content = renderGroupedComments(filtered);
     mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh sách feedback">
       <header class="ui-feedback-panel__header"><strong>Feedback (${openCount} mở · ${resolvedCount} xong) · Sửa (${editCount})</strong><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng">${ICONS.close}</button></span></header>
       <div class="ui-feedback-panel__filter">
         <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="Tìm feedback…" value="${escapeAttribute(state.searchQuery)}" /></div>
         <select class="ui-feedback-filter-select" data-panel-filter aria-label="Lọc theo mức độ">
-          <option value="all" ${state.filterPriority === 'all' ? 'selected' : ''}>Tất cả</option>
+          <option value="all" ${state.filterPriority === 'all' ? 'selected' : ''}>Mức độ</option>
           <option value="high" ${state.filterPriority === 'high' ? 'selected' : ''}>Cao</option>
           <option value="medium" ${state.filterPriority === 'medium' ? 'selected' : ''}>Trung bình</option>
           <option value="low" ${state.filterPriority === 'low' ? 'selected' : ''}>Thấp</option>
         </select>
+        <select class="ui-feedback-filter-select ui-feedback-filter-select--category" data-panel-category aria-label="Lọc theo phân loại">${renderCategoryOptions(state.filterCategory)}</select>
       </div>
-      <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback. Chọn biểu tượng comment rồi bấm vào một phần tử trên trang.'}</div>`}</div>
+      <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' || state.filterCategory !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback. Chọn biểu tượng comment rồi bấm vào một phần tử trên trang.'}</div>`}</div>
     </aside>`;
-    // Bind panel events through delegation
     mount.addEventListener('click', handlePanelClick);
     mount.addEventListener('input', handlePanelInput);
     mount.addEventListener('change', handlePanelChange);
@@ -1159,17 +1262,7 @@ export function createUIFeedback(options = {}) {
       const body = root.querySelector('.ui-feedback-panel__body');
       if (body) {
         const filtered = getFilteredComments();
-        const grouped = filtered.reduce((groups, item) => {
-          const key = item.page || location.pathname || '/';
-          (groups[key] ||= []).push(item);
-          return groups;
-        }, {});
-        const content = Object.entries(grouped)
-          .map(
-            ([page, items]) =>
-              `<section class="ui-feedback-group"><span class="ui-feedback-group__name">${escapeHtml(page)} · ${items.length} mục</span>${items.map(renderItem).join('')}</section>`,
-          )
-          .join('');
+        const content = renderGroupedComments(filtered);
         body.innerHTML = content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback.'}</div>`;
       }
     }
@@ -1179,7 +1272,15 @@ export function createUIFeedback(options = {}) {
     if (event.target.matches('[data-panel-filter]')) {
       state.filterPriority = event.target.value;
       renderPanel();
+    } else if (event.target.matches('[data-panel-category]')) {
+      state.filterCategory = event.target.value;
+      renderPanel();
     }
+  }
+
+  function getItemCodeLine(item) {
+    const element = resolveSelector(item.selector);
+    return firstCodeLine(element) || item.codeLine || '';
   }
 
   function renderItem(item) {
@@ -1193,12 +1294,14 @@ export function createUIFeedback(options = {}) {
     return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''}">
       <div class="ui-feedback-item__meta">
         <span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span>
+        <span class="ui-feedback-category-chip">${escapeHtml(categoryLabel(item.category, item.type))}</span>
         <span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span>
         <span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span>
       </div>
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map(t => `<span class="ui-feedback-context-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
       ${timeStr ? `<div class="ui-feedback-item__time">${escapeHtml(timeStr)}</div>` : ''}
       <p class="ui-feedback-item__target">${escapeHtml(item.tag)} · ${escapeHtml(item.targetText || 'Không có nội dung xem trước')}</p>
+      <div class="ui-feedback-item__code" title="Dòng code đầu của component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || 'Không xác định')}</code></div>
       ${item.type === 'edit' ? `<p class="ui-feedback-item__comment">✏️ Thay đổi text: <code>${escapeHtml(item.value)}</code></p>` : item.type === 'css' ? `<p class="ui-feedback-item__comment">✦ Bộ giao diện: <code>${escapeHtml(item.value)}</code></p>` : item.type === 'image' ? `<p class="ui-feedback-item__comment">▧ Thay ảnh (${item.imageSourceType === 'upload' ? 'upload' : 'URL'}): <code>${escapeHtml(item.value)}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`}
       <div class="ui-feedback-item__actions">
         <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${item.id}" title="${resolved ? 'Mở lại' : 'Đánh dấu xong'}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? 'Mở lại' : 'Xong'}</button>
@@ -1345,6 +1448,8 @@ export function createUIFeedback(options = {}) {
     state.mode = mode;
     state.modalSnapshot = mode === 'css' ? { styleCssText: element?.style?.cssText || '' } : mode === 'image' ? captureImageState(element) : null;
     state.modalImageSource = mode === 'image' ? (state.modalSnapshot?.src || '') : '';
+    const initialPosition = mode === 'image' ? (state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || '50% 50%') : '50% 50%';
+    state.modalImagePosition = mode === 'image' ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
     state.modalCommitted = false;
     state.cssTab = 'advanced';
     state.modalOpen = true;
@@ -1417,12 +1522,48 @@ export function createUIFeedback(options = {}) {
     return match ? match[1] : '';
   }
 
+  function parseImagePosition(value) {
+    const raw = String(value || '').trim().toLowerCase();
+    const parts = raw ? raw.split(/\s+/) : [];
+    const convert = (part, fallback) => {
+      if (!part) return fallback;
+      if (part === 'left' || part === 'top') return 0;
+      if (part === 'center') return 50;
+      if (part === 'right' || part === 'bottom') return 100;
+      const numeric = parseFloat(part);
+      return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : fallback;
+    };
+    return { x: convert(parts[0], 50), y: convert(parts[1], 50) };
+  }
+
   function captureImageState(element) {
-    if (!(element instanceof Element)) return { kind: 'background', src: '', srcset: '', backgroundImage: '' };
+    if (!(element instanceof Element)) return { kind: 'background', src: '', srcset: '', backgroundImage: '', backgroundPosition: '', backgroundSize: '' };
     const isImg = element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img';
-    if (isImg) return { kind: 'src', src: element.currentSrc || element.getAttribute('src') || '', srcset: element.getAttribute('srcset') || '', backgroundImage: '' };
+    if (isImg) {
+      let computed = {};
+      try { computed = getComputedStyle(element); } catch { /* ignore inaccessible styles */ }
+      return {
+        kind: 'src',
+        src: element.currentSrc || element.getAttribute('src') || '',
+        srcset: element.getAttribute('srcset') || '',
+        backgroundImage: '',
+        objectPosition: element.style.objectPosition || '',
+        objectFit: element.style.objectFit || '',
+        effectiveObjectPosition: computed.objectPosition || '50% 50%',
+      };
+    }
     const backgroundImage = element.style.backgroundImage || (() => { try { return getComputedStyle(element).backgroundImage || ''; } catch { return ''; } })();
-    return { kind: 'background', src: imageBackgroundSource(backgroundImage), srcset: '', backgroundImage: element.style.backgroundImage || '' };
+    let computed = {};
+    try { computed = getComputedStyle(element); } catch { /* ignore inaccessible styles */ }
+    return {
+      kind: 'background',
+      src: imageBackgroundSource(backgroundImage),
+      srcset: '',
+      backgroundImage: element.style.backgroundImage || '',
+      backgroundPosition: element.style.backgroundPosition || '',
+      backgroundSize: element.style.backgroundSize || '',
+      effectiveBackgroundPosition: computed.backgroundPosition || '50% 50%',
+    };
   }
 
   function applyImageSource(element, source) {
@@ -1437,14 +1578,45 @@ export function createUIFeedback(options = {}) {
     element.style.backgroundImage = safeSource ? `url("${safeSource.replace(/"/g, '\\"')}")` : '';
   }
 
+  function applyImagePosition(element, position = { x: 50, y: 50 }) {
+    if (!(element instanceof Element)) return;
+    const x = Math.max(0, Math.min(100, Number(position.x) || 0));
+    const y = Math.max(0, Math.min(100, Number(position.y) || 0));
+    const isImg = element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img';
+    if (isImg) {
+      element.style.objectFit = 'cover';
+      element.style.objectPosition = `${x}% ${y}%`;
+    } else {
+      element.style.backgroundPosition = `${x}% ${y}%`;
+    }
+  }
+
+  function applyImageState(element, snapshot) {
+    if (!(element instanceof Element) || !snapshot) return;
+    if (snapshot.kind === 'src') {
+      if (snapshot.src) element.setAttribute('src', snapshot.src); else element.removeAttribute('src');
+      if (snapshot.srcset) element.setAttribute('srcset', snapshot.srcset); else element.removeAttribute('srcset');
+      if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition; else if (snapshot.effectiveObjectPosition) element.style.objectPosition = snapshot.effectiveObjectPosition;
+      if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit;
+    } else {
+      element.style.backgroundImage = snapshot.backgroundImage || (snapshot.src ? `url("${snapshot.src.replace(/"/g, '\"')}")` : '');
+      if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition; else if (snapshot.effectiveBackgroundPosition) element.style.backgroundPosition = snapshot.effectiveBackgroundPosition;
+      if (snapshot.backgroundSize) element.style.backgroundSize = snapshot.backgroundSize;
+    }
+  }
+
   function restoreImageState(element, snapshot) {
     if (!(element instanceof Element) || !snapshot) return;
     const isImg = snapshot.kind === 'src';
     if (isImg) {
       if (snapshot.src) element.setAttribute('src', snapshot.src); else element.removeAttribute('src');
       if (snapshot.srcset) element.setAttribute('srcset', snapshot.srcset); else element.removeAttribute('srcset');
+      if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition; else element.style.removeProperty('object-position');
+      if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit; else element.style.removeProperty('object-fit');
     } else {
       element.style.backgroundImage = snapshot.backgroundImage || '';
+      if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition; else element.style.removeProperty('background-position');
+      if (snapshot.backgroundSize) element.style.backgroundSize = snapshot.backgroundSize; else element.style.removeProperty('background-size');
     }
   }
 
@@ -1479,8 +1651,10 @@ export function createUIFeedback(options = {}) {
   function renderImageContent() {
     const snapshot = state.modalSnapshot || captureImageState(state.target);
     const source = state.modalImageSource || snapshot.src || '';
-    const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" />` : '<span data-image-preview>Phần tử này chưa có ảnh URL trực tiếp. Hãy nhập URL hoặc chọn file.</span>';
-    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview">${preview}</div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
+    const position = state.modalImagePosition || { x: 50, y: 50 };
+    const positionStyle = `object-position:${position.x}% ${position.y}%;`;
+    const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="${positionStyle}" />` : '<span data-image-preview>Phần tử này chưa có ảnh URL trực tiếp. Hãy nhập URL hoặc chọn file.</span>';
+    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="Kéo ảnh để căn chỉnh">${preview}<span class="ui-feedback-image-canvas-hint">Kéo để căn chỉnh</span></div><div class="ui-feedback-image-position"><span>Vị trí ảnh</span><output data-image-position>${Math.round(position.x)}% · ${Math.round(position.y)}%</output></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
   }
 
   function renderModal(existing = null) {
@@ -1498,13 +1672,22 @@ export function createUIFeedback(options = {}) {
         ? renderCssContent()
         : isImage
           ? renderImageContent()
-          : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div></div></div>`;
+          : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Phân loại</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || 'other')}</select></div></div>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
     mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="ui-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
     mount.addEventListener('click', handleModalClick);
+    mount.addEventListener('pointerdown', handleModalPointerDown);
     mount.addEventListener('input', handleModalInput);
     mount.addEventListener('change', handleModalChange);
     mount.addEventListener('keydown', handleModalKeydown);
+  }
+
+  function applyPreviewImagePosition() {
+    const preview = root.querySelector('[data-image-preview]');
+    const position = state.modalImagePosition || { x: 50, y: 50 };
+    if (preview?.tagName?.toLowerCase() === 'img') preview.style.objectPosition = `${position.x}% ${position.y}%`;
+    const output = root.querySelector('[data-image-position]');
+    if (output) output.textContent = `${Math.round(position.x)}% · ${Math.round(position.y)}%`;
   }
 
   function previewImageSource(source) {
@@ -1512,7 +1695,8 @@ export function createUIFeedback(options = {}) {
     if (!preview) return;
     if (!source) { preview.outerHTML = '<span data-image-preview>Hãy nhập URL hoặc chọn file để xem preview.</span>'; return; }
     if (preview.tagName?.toLowerCase() === 'img') preview.src = source;
-    else preview.outerHTML = `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" />`;
+    else preview.outerHTML = `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="object-position:${state.modalImagePosition?.x || 50}% ${state.modalImagePosition?.y || 50}%;" />`;
+    applyPreviewImagePosition();
   }
 
   function applyCssPreset(name) {
@@ -1532,6 +1716,39 @@ export function createUIFeedback(options = {}) {
       applyCssProperty('outlineOffset', '2px');
     }
     renderModal();
+  }
+
+  let imageDragState = null;
+
+  function updateImagePositionFromPointer(clientX, clientY) {
+    if (!imageDragState || !state.modalOpen || state.mode !== 'image') return;
+    const rect = imageDragState.canvas.getBoundingClientRect();
+    const position = {
+      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
+    };
+    state.modalImagePosition = position;
+    applyPreviewImagePosition();
+    applyImagePosition(state.target, position);
+  }
+
+  function handleModalPointerDown(event) {
+    const canvas = event.target.closest('[data-image-canvas]');
+    if (!canvas || state.mode !== 'image') return;
+    event.preventDefault();
+    event.stopPropagation();
+    imageDragState = { canvas };
+    updateImagePositionFromPointer(event.clientX, event.clientY);
+    const onMove = (moveEvent) => updateImagePositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+    const onEnd = () => {
+      imageDragState = null;
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onEnd, true);
+      document.removeEventListener('pointercancel', onEnd, true);
+    };
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onEnd, true);
+    document.addEventListener('pointercancel', onEnd, true);
   }
 
   function handleModalClick(event) {
@@ -1638,8 +1855,10 @@ export function createUIFeedback(options = {}) {
       }
       const oldImageState = state.modalSnapshot || captureImageState(state.target);
       applyImageSource(state.target, source);
+      applyImagePosition(state.target, state.modalImagePosition || { x: 50, y: 50 });
       const item = {
-        id: generateId(), type: 'image', selector: cssPath(state.target), tag: targetLabel(state.target),
+        id: generateId(), type: 'image', category: 'image', selector: cssPath(state.target), tag: targetLabel(state.target),
+        codeLine: firstCodeLine(state.target),
         targetText: oldImageState.src || oldImageState.backgroundImage || '', value: source,
         imageSourceType: source.startsWith('data:image/') ? 'upload' : 'url',
         oldImageState, newImageState: captureImageState(state.target), page: location.pathname || '/',
@@ -1671,6 +1890,8 @@ export function createUIFeedback(options = {}) {
           type: modeUsed,
           selector: cssPath(state.target),
           tag: targetLabel(state.target),
+          category: modeUsed === 'edit' ? 'content' : 'color',
+          codeLine: firstCodeLine(state.target),
           targetText: safeText(oldValue, 120),
           value: newValue,
           page: location.pathname || '/',
@@ -1695,8 +1916,10 @@ export function createUIFeedback(options = {}) {
       const item = existing || { id: generateId(), createdAt: new Date().toISOString(), type: 'comment' };
       item.comment = value;
       item.priority = root.querySelector('[data-feedback-priority]')?.value || item.priority || 'medium';
+      item.category = root.querySelector('[data-feedback-category]')?.value || item.category || 'other';
       item.selector = cssPath(state.target);
       item.tag = targetLabel(state.target);
+      item.codeLine = firstCodeLine(state.target);
       item.targetText = safeText(state.target?.textContent, 120);
       item.page = location.pathname || '/';
       item.viewport = `${window.innerWidth}x${window.innerHeight}`;
@@ -1724,10 +1947,14 @@ export function createUIFeedback(options = {}) {
     if (!state.modalCommitted && state.mode === 'css' && state.target && state.modalSnapshot) {
       state.target.style.cssText = state.modalSnapshot.styleCssText || '';
     }
+    if (!state.modalCommitted && state.mode === 'image' && state.target && state.modalSnapshot) {
+      restoreImageState(state.target, state.modalSnapshot);
+    }
     state.modalOpen = false;
     state.target = null;
     state.modalSnapshot = null;
     state.modalImageSource = '';
+    state.modalImagePosition = { x: 50, y: 50 };
     state.modalCommitted = false;
     editingExisting = null;
     renderToolbar();
@@ -1823,6 +2050,8 @@ export function createUIFeedback(options = {}) {
       lines.push(`- **Ưu tiên:** ${item.priority || 'medium'}`);
       lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
     }
+    lines.push(`- **Phân loại:** ${categoryLabel(item.category, item.type)}`);
+    lines.push(`- **Dòng code đầu:** \`${escapeMarkdown(item.codeLine || getItemCodeLine(item) || item.tag || '')}\``);
     lines.push(`- **Selector:** \`${item.selector}\``);
     lines.push(`- **Trạng thái:** ${status}`);
     if (item.viewport) lines.push(`- **Context:** \`${item.viewport}\` · \`${item.scrollY}px\``);
@@ -1942,6 +2171,8 @@ export function createUIFeedback(options = {}) {
         lines.push(`- **Priority:** ${item.priority || 'medium'}`);
         lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
       }
+      lines.push(`- **Category:** ${categoryLabel(item.category, item.type)}`);
+      lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || getItemCodeLine(item) || item.tag || 'N/A')}\``);
       lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : 'N/A'}\``);
       lines.push('');
     });
@@ -2005,6 +2236,8 @@ export function createUIFeedback(options = {}) {
           priority: 'high',
           selector: cssPath(state.highlight.element),
           tag: targetLabel(state.highlight.element),
+          category: char === 'T' ? 'typography' : char === 'C' ? 'color' : 'spacing',
+          codeLine: firstCodeLine(state.highlight.element),
           targetText: safeText(state.highlight.element.textContent, 120),
           page: location.pathname || '/',
           viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -2054,10 +2287,25 @@ export function createUIFeedback(options = {}) {
   }
 
   /* ── element picking ── */
+  function imageTargetFor(element) {
+    if (!(element instanceof Element)) return null;
+    if (element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img') return element;
+    const directPictureImage = element.closest('picture')?.querySelector('img');
+    if (directPictureImage) return directPictureImage;
+    const nestedImages = element.querySelectorAll?.('img');
+    if (nestedImages?.length === 1) return nestedImages[0];
+    return element;
+  }
+
+  function targetForMode(element, mode = state.mode) {
+    return mode === 'image' ? imageTargetFor(element) : element;
+  }
+
   function elementAtPoint(clientX, clientY) {
     const picker = root.querySelector('[data-picker-layer]');
     if (picker) picker.style.display = 'none';
-    const element = document.elementFromPoint(clientX, clientY);
+    const stack = typeof document.elementsFromPoint === 'function' ? document.elementsFromPoint(clientX, clientY) : [];
+    const element = stack.find((candidate) => candidate instanceof Element && candidate !== document.documentElement && candidate !== document.body && !candidate.closest('#ui-feedback-host')) || document.elementFromPoint(clientX, clientY);
     if (picker) picker.style.display = '';
     if (
       !(element instanceof Element) ||
@@ -2071,7 +2319,7 @@ export function createUIFeedback(options = {}) {
 
   function pointerMove(event) {
     if (!state.picking) return;
-    const element = elementAtPoint(event.clientX, event.clientY);
+    const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (element) highlight(element);
   }
 
@@ -2096,7 +2344,7 @@ export function createUIFeedback(options = {}) {
     );
     if (!picker) return;
 
-    const element = elementAtPoint(event.clientX, event.clientY);
+    const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (!element) return;
 
     event.preventDefault();
@@ -2115,7 +2363,8 @@ export function createUIFeedback(options = {}) {
   function documentPickHandler(event) {
     if (!state.picking || state.pickingLocked) return;
     if (event.composedPath().includes(host)) return;
-    const element = event.target instanceof Element ? event.target : null;
+    const rawElement = event.target instanceof Element ? event.target : null;
+    const element = targetForMode(rawElement);
     if (!element || element === document.documentElement || element === document.body) return;
     event.preventDefault();
     event.stopPropagation();
@@ -2173,6 +2422,9 @@ export function createUIFeedback(options = {}) {
     clearMarkers();
     window.removeEventListener('scroll', refreshMarkerPositions);
     window.removeEventListener('resize', refreshMarkerPositions);
+    window.removeEventListener('pageshow', reapplyPageChanges);
+    window.removeEventListener('popstate', reapplyPageChanges);
+    document.removeEventListener('visibilitychange', reapplyPageChanges);
     document.removeEventListener('keydown', keydown, true);
     document.removeEventListener('keyup', keyup, true);
     window.removeEventListener('blur', blurHandler);
@@ -2188,6 +2440,10 @@ export function createUIFeedback(options = {}) {
 
   /* ── bind global listeners ── */
   const blurHandler = () => pressed.clear();
+  const reapplyPageChanges = () => {
+    if (!state.active) return;
+    setTimeout(() => { applyPersistedChanges(); placeMarkers(); }, 0);
+  };
 
   document.addEventListener('keydown', keydown, true);
   document.addEventListener('keyup', keyup, true);
@@ -2195,6 +2451,9 @@ export function createUIFeedback(options = {}) {
   // Keep markers positioned on scroll/resize
   window.addEventListener('scroll', refreshMarkerPositions, { passive: true });
   window.addEventListener('resize', refreshMarkerPositions, { passive: true });
+  window.addEventListener('pageshow', reapplyPageChanges);
+  window.addEventListener('popstate', reapplyPageChanges);
+  document.addEventListener('visibilitychange', reapplyPageChanges);
   document.addEventListener('pointermove', pointerMove, true);
   // Document-level pick fallback (capture)
   document.addEventListener('pointerdown', documentPickHandler, true);
@@ -2211,6 +2470,7 @@ export function createUIFeedback(options = {}) {
     getComments: () => [...state.comments],
     dispose,
   };
+  if (state.active) applyPersistedChanges();
   renderToolbar();
   if (state.active) placeMarkers();
   return window.__uiFeedbackInstance;
