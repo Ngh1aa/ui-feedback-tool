@@ -1,5 +1,5 @@
 /**
- * UI Feedback Tool v0.4
+ * UI Feedback Tool v0.5
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
@@ -45,6 +45,7 @@ const DEFAULTS = {
   theme: 'auto', // 'light' | 'dark' | 'auto'
   githubRepo: 'Ngh1aa/StudioOS', // 'username/repo' cho GitHub Issue
   persistActive: true, // giữ trạng thái bật trong cùng một tab khi chuyển trang
+  coachmark: true, // hint 3 bước hiển thị một lần khi bật lần đầu
 };
 
 /* ── helpers ─────────────────────────────────────────────────────────── */
@@ -201,6 +202,8 @@ const ICONS = {
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/><path d="M9 11l-4 4s-1.5 2 1 4.5 4.5 1 4.5 1l4-4"/></svg>',
   image:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>',
+  collapse:
+    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4 4 4-4"/></svg>',
   github:
     '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>',
 };
@@ -272,8 +275,8 @@ button { cursor: pointer; }
   to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 }
 @keyframes uiFeedbackSlideIn {
-  from { opacity: 0; transform: translateY(-50%) translateX(18px); }
-  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
 }
 @keyframes uiFeedbackToastIn {
   from { opacity: 0; transform: translateY(12px); }
@@ -288,75 +291,101 @@ button { cursor: pointer; }
   50%      { transform: scale(1.12); }
 }
 @keyframes uiFeedbackToolbarIn {
-  from { opacity: 0; transform: translateY(-50%) translateX(20px); }
-  to   { opacity: 1; transform: translateY(-50%) translateX(0); }
+  from { opacity: 0; transform: translateY(12px) scale(.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── toolbar ── */
+/* ── floating action dock ── */
 .ui-feedback-toolbar {
   position: fixed;
   z-index: 2147483000;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
   align-items: center;
-  animation: uiFeedbackToolbarIn .32s cubic-bezier(.4,0,.2,1) both;
+  gap: 3px;
+  padding: 6px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 16px;
+  color: var(--_text-toolbar);
+  background: rgba(18,18,18,.88);
+  box-shadow: 0 18px 46px rgba(0,0,0,.28), inset 0 1px 0 rgba(255,255,255,.08);
+  backdrop-filter: blur(16px) saturate(1.25);
+  animation: uiFeedbackToolbarIn .28s cubic-bezier(.4,0,.2,1) both;
   touch-action: none;
   user-select: none;
 }
-
 .ui-feedback-toolbar-grip {
-  width: 32px;
-  height: 18px;
+  width: 26px;
+  height: 38px;
   display: grid;
   place-items: center;
   cursor: grab;
-  color: #555;
-  opacity: .5;
-  transition: opacity .18s ease;
+  color: rgba(255,255,255,.52);
   border: 0;
   background: transparent;
   padding: 0;
 }
-.ui-feedback-toolbar-grip:hover { opacity: 1; }
+.ui-feedback-toolbar-grip:hover { color: #fff; }
 .ui-feedback-toolbar-grip:active { cursor: grabbing; }
-.ui-feedback-toolbar-grip svg { width: 16px; height: 16px; stroke: currentColor; fill: currentColor; stroke-width: 0; }
-
+.ui-feedback-toolbar-grip svg { width: 15px; height: 15px; stroke: currentColor; fill: currentColor; stroke-width: 0; }
 .ui-feedback-tool {
-  width: 54px;
-  height: 54px;
-  border: 1px solid rgba(255,255,255,.18);
-  border-radius: 50%;
-  display: grid;
-  place-items: center;
+  min-width: 72px;
+  height: 38px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 10px;
   color: var(--_text-toolbar);
-  background: var(--_bg-toolbar);
-  box-shadow: 0 10px 26px var(--_shadow);
-  transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+  background: transparent;
+  transition: color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease;
   position: relative;
 }
 .ui-feedback-tool:hover,
 .ui-feedback-tool:focus-visible {
-  transform: translateY(-2px);
-  background: var(--_bg-toolbar-hover);
-  box-shadow: 0 14px 28px var(--_shadow-heavy);
-  outline: 3px solid color-mix(in srgb, var(--ui-feedback-accent), transparent 65%);
+  transform: translateY(-1px);
+  color: #fff;
+  background: rgba(255,255,255,.10);
+  outline: 2px solid color-mix(in srgb, var(--ui-feedback-accent), transparent 60%);
   outline-offset: 2px;
 }
 .ui-feedback-tool.is-active {
-  background: var(--ui-feedback-accent);
-  color: #141414;
+  color: #fff;
+  background: rgba(255,255,255,.06);
+  box-shadow: inset 0 -2px 0 var(--ui-feedback-accent);
 }
 .ui-feedback-tool svg {
-  width: 22px;
-  height: 22px;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   stroke: currentColor;
   fill: none;
   stroke-width: 1.8;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-
+.ui-feedback-tool__label { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.ui-feedback-toolbar-bubble {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 2147483000;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(18,18,18,.88);
+  box-shadow: 0 14px 36px rgba(0,0,0,.3);
+  backdrop-filter: blur(16px);
+  animation: uiFeedbackToolbarIn .24s ease both;
+}
+.ui-feedback-toolbar-bubble:hover,
+.ui-feedback-toolbar-bubble:focus-visible { outline: 2px solid var(--ui-feedback-accent); outline-offset: 3px; }
+.ui-feedback-toolbar-bubble svg { width: 19px; height: 19px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .ui-feedback-badge {
   position: absolute;
   top: -5px;
@@ -373,17 +402,29 @@ button { cursor: pointer; }
   font-weight: 800;
   border: 2px solid var(--_bg-panel);
 }
-.ui-feedback-badge.is-pulse {
-  animation: uiFeedbackPulse .4s ease;
+.ui-feedback-badge.is-pulse { animation: uiFeedbackPulse .4s ease; }
+.ui-feedback-badge--undo { background: #0ea5e9; border-color: #151515; }
+
+/* ── first-use coachmark ── */
+.ui-feedback-coachmark {
+  position: fixed;
+  right: 22px;
+  bottom: 82px;
+  z-index: 2147483001;
+  width: min(290px, calc(100vw - 32px));
+  padding: 14px;
+  border: 1px solid var(--_border-panel);
+  border-radius: 12px;
+  color: var(--_text);
+  background: var(--_bg-panel);
+  box-shadow: 0 18px 45px var(--_shadow-heavy);
+  animation: uiFeedbackFadeIn .25s ease both;
 }
-.ui-feedback-badge--undo {
-  background: #0ea5e9;
-  border-color: var(--_bg-toolbar);
-}
-.ui-feedback-root.is-dark .ui-feedback-badge--undo {
-  background: #38bdf8;
-  color: #0c4a6e;
-}
+.ui-feedback-coachmark strong { display: block; margin-bottom: 5px; font-size: 13px; }
+.ui-feedback-coachmark p { margin: 0 0 10px; color: var(--_text-secondary); font-size: 11px; line-height: 1.55; }
+.ui-feedback-coachmark__steps { display: grid; gap: 5px; margin: 0 0 11px; padding: 0; color: var(--_text-secondary); font-size: 10px; list-style: none; }
+.ui-feedback-coachmark__steps li::before { content: '•'; margin-right: 6px; color: var(--ui-feedback-accent); }
+.ui-feedback-coachmark button { width: 100%; border: 1px solid var(--ui-feedback-accent); border-radius: 7px; padding: 7px 9px; color: #141414; background: var(--ui-feedback-accent); font-size: 11px; font-weight: 800; }
 
 /* ── panel ── */
 .ui-feedback-panel {
@@ -402,16 +443,21 @@ button { cursor: pointer; }
   animation: uiFeedbackSlideIn .28s cubic-bezier(.4,0,.2,1) both;
 }
 .ui-feedback-panel__header {
-  padding: 15px 16px;
-  color: #111;
-  background: var(--ui-feedback-accent);
+  padding: 15px 16px 12px;
+  color: var(--_text);
+  background: var(--_bg-panel);
+  border-bottom: 1px solid var(--_border);
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-.ui-feedback-panel__header strong { font-size: 15px; }
+.ui-feedback-panel__header strong { display: block; font-size: 15px; }
+.ui-feedback-panel__header small { display: block; margin-top: 2px; color: var(--_text-muted); font-size: 10px; font-weight: 600; }
 .ui-feedback-panel__actions { display: flex; gap: 5px; }
+.ui-feedback-panel__tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 12px 0; background: var(--_bg-panel); }
+.ui-feedback-panel__tab { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; padding: 7px 8px 8px; color: var(--_text-muted); background: transparent; font-size: 10px; font-weight: 800; white-space: nowrap; }
+.ui-feedback-panel__tab:hover, .ui-feedback-panel__tab.is-active { color: var(--_text); border-bottom-color: var(--ui-feedback-accent); }
 
 .ui-feedback-icon-button {
   width: 30px;
@@ -491,7 +537,7 @@ button { cursor: pointer; }
 .ui-feedback-filter-select--category { max-width: 112px; }
 
 .ui-feedback-panel__body {
-  max-height: calc(min(680px, 100vh - 32px) - 110px);
+  max-height: calc(min(680px, 100vh - 32px) - 145px);
   overflow: auto;
   padding: 10px;
   background: var(--_bg-alt);
@@ -526,7 +572,9 @@ button { cursor: pointer; }
 }
 
 .ui-feedback-item {
+  position: relative;
   padding: 12px;
+  border-left: 3px solid transparent;
   background: var(--_bg-item);
   border: 1px solid var(--_border);
   border-top: 0;
@@ -536,6 +584,9 @@ button { cursor: pointer; }
 .ui-feedback-item:last-child { border-radius: 0 0 7px 7px; }
 .ui-feedback-item + .ui-feedback-item { border-top: 1px solid var(--_border); }
 
+.ui-feedback-item[data-priority="high"] { border-left-color: #ef4444; }
+.ui-feedback-item[data-priority="medium"] { border-left-color: #f59e0b; }
+.ui-feedback-item[data-priority="low"] { border-left-color: #22c55e; }
 .ui-feedback-item.is-resolved {
   opacity: .55;
 }
@@ -568,6 +619,7 @@ button { cursor: pointer; }
   color: var(--_text-secondary);
 }
 .ui-feedback-item__selector {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -629,6 +681,8 @@ button { cursor: pointer; }
   white-space: nowrap;
 }
 .ui-feedback-item__code code { color: var(--_text); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+.ui-feedback-copy-selector { border: 0; padding: 0 4px; color: var(--_text-muted); background: transparent; font-size: 10px; cursor: copy; }
+.ui-feedback-copy-selector:hover { color: var(--ui-feedback-accent); }
 .ui-feedback-category-chip {
   flex-shrink: 0;
   border-radius: 99px;
@@ -695,6 +749,9 @@ button { cursor: pointer; }
 .ui-feedback-modal__top h2 { margin: 0 0 7px; font-size: 16px; color: var(--_text); }
 .ui-feedback-modal__top p { overflow: hidden; margin: 0; color: var(--_text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .ui-feedback-modal__content { padding: 17px 20px; }
+.ui-feedback-modal.is-inspector { left: auto; right: 22px; top: 22px; transform: none; width: min(520px, calc(100vw - 32px)); height: calc(100vh - 44px); display: flex; flex-direction: column; animation: uiFeedbackSlideIn .25s cubic-bezier(.4,0,.2,1) both; }
+.ui-feedback-modal.is-inspector .ui-feedback-modal__content { flex: 1; overflow: auto; }
+.ui-feedback-modal.is-mini { width: min(380px, calc(100vw - 32px)); }
 .ui-feedback-label { display: block; margin: 0 0 7px; color: var(--_text-secondary); font-size: 12px; font-weight: 700; }
 .ui-feedback-field,
 .ui-feedback-textarea,
@@ -769,7 +826,8 @@ button { cursor: pointer; }
   justify-content: center;
   box-shadow: 0 2px 8px rgba(0,0,0,.25);
   z-index: 2147482980;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: pointer;
   animation: uiFeedbackMarkerIn .25s cubic-bezier(.4,0,.2,1) both;
   border: 2px solid #fff;
 }
@@ -935,6 +993,12 @@ button { cursor: pointer; }
 }
 .ui-feedback-css-preset:hover { border-color: var(--ui-feedback-accent); background: var(--_bg-hover); }
 .ui-feedback-css-reset { width: 100%; margin-top: 14px; }
+.ui-feedback-position-pad { position: relative; height: 132px; margin: 7px 0; border: 1px solid var(--_border); border-radius: 9px; background: linear-gradient(90deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), linear-gradient(0deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), var(--_bg-alt); cursor: crosshair; touch-action: none; }
+.ui-feedback-position-pad::after { content: ; position: absolute; left: calc(50% + var(--pad-x, 0px)); top: calc(50% + var(--pad-y, 0px)); width: 12px; height: 12px; border: 2px solid var(--ui-feedback-accent); border-radius: 50%; background: var(--_bg-panel); transform: translate(-50%, -50%); box-shadow: 0 1px 4px var(--_shadow); }
+.ui-feedback-position-sliders { display: grid; gap: 7px; }
+.ui-feedback-position-sliders label { display: grid; grid-template-columns: 24px 1fr 40px; align-items: center; gap: 7px; color: var(--_text-secondary); font-size: 10px; }
+.ui-feedback-position-sliders input { width: 100%; accent-color: var(--ui-feedback-accent); }
+.ui-feedback-position-sliders output { text-align: right; font-variant-numeric: tabular-nums; }
 .ui-feedback-image-block { display: grid; gap: 10px; }
 .ui-feedback-image-heading { display: flex; justify-content: space-between; gap: 8px; align-items: start; }
 .ui-feedback-image-heading strong { color: var(--_text); font-size: 12px; }
@@ -942,12 +1006,18 @@ button { cursor: pointer; }
 .ui-feedback-image-state { flex-shrink: 0; border-radius: 99px; padding: 3px 7px; color: #166534; background: #dcfce7; font-size: 9px; font-weight: 800; }
 .ui-feedback-image-preview { position: relative; display: flex; align-items: center; justify-content: center; min-height: 180px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; cursor: grab; touch-action: none; }
 .ui-feedback-image-preview:active { cursor: grabbing; }
-.ui-feedback-image-preview img { display: block; width: 100%; height: 180px; object-fit: cover; user-select: none; pointer-events: none; }
+.ui-feedback-image-preview img { display: block; width: 100%; height: 180px; object-fit: cover; user-select: none; pointer-events: none; transform-origin: 50% 50%; transition: transform .12s ease; }
 .ui-feedback-image-preview span { padding: 20px; color: var(--_text-muted); font-size: 11px; text-align: center; }
 .ui-feedback-image-canvas-hint { position: absolute; right: 8px; bottom: 8px; border-radius: 99px; padding: 4px 7px; color: #fff; background: rgba(0,0,0,.58); font-size: 9px; pointer-events: none; }
+.ui-feedback-image-zoom { display: grid; grid-template-columns: 28px 1fr 28px auto; align-items: center; gap: 6px; }
+.ui-feedback-image-zoom button { width: 28px; height: 28px; border: 1px solid var(--_border); border-radius: 6px; color: var(--_text); background: var(--_bg-panel); }
+.ui-feedback-image-zoom input { width: 100%; accent-color: var(--ui-feedback-accent); }
+.ui-feedback-image-zoom output { min-width: 42px; color: var(--_text-secondary); font-size: 10px; text-align: right; }
 .ui-feedback-image-position { display: flex; justify-content: space-between; color: var(--_text-muted); font-size: 10px; }
 .ui-feedback-image-url { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 9px 10px; color: var(--_text); background: var(--_bg-input); outline: none; font-size: 11px; }
 .ui-feedback-image-url:focus { border-color: var(--ui-feedback-accent); }
+.ui-feedback-image-paste { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 8px; color: var(--_text-secondary); background: var(--_bg-panel); font-size: 11px; }
+.ui-feedback-image-paste:hover { border-color: var(--ui-feedback-accent); color: var(--_text); }
 .ui-feedback-image-upload { width: 100%; border: 1px dashed var(--_border); border-radius: 6px; padding: 8px; color: var(--_text-secondary); background: var(--_bg-alt); font-size: 11px; }
 .ui-feedback-image-original { display: block; overflow: hidden; color: var(--_text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .ui-feedback-marker.is-image { background: #fcd34d; border-color: #b45309; color: #78350f; font-size: 11px; line-height: 1; }
@@ -966,10 +1036,17 @@ button { cursor: pointer; }
 
 /* ── responsive ── */
 @media (max-width: 640px) {
-  .ui-feedback-toolbar { gap: 9px; }
-  .ui-feedback-tool { width: 48px; height: 48px; }
-  .ui-feedback-panel { right: 70px; width: min(340px, calc(100vw - 84px)); }
+  .ui-feedback-toolbar { right: 10px !important; left: 10px; bottom: 10px; justify-content: space-between; }
+  .ui-feedback-toolbar-grip { display: none; }
+  .ui-feedback-tool { min-width: 38px; width: 38px; padding: 0; }
+  .ui-feedback-tool__label { display: none; }
+  .ui-feedback-panel { right: 10px; left: 10px; width: auto; width: min(340px, calc(100vw - 84px)); }
   .ui-feedback-form-row { grid-template-columns: 1fr; gap: 12px; }
+  .ui-feedback-modal.is-inspector { right: 10px; top: 10px; width: calc(100vw - 20px); height: calc(100vh - 20px); }
+  .ui-feedback-coachmark { right: 16px; bottom: 68px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
 `;
 
@@ -1013,6 +1090,11 @@ export function createUIFeedback(options = {}) {
     modalCommitted: false,
     modalImageSource: '',
     cssTab: 'advanced',
+    drawerTab: 'all',
+    collapsed: false,
+    coachmarkVisible: false,
+    cssPosition: { x: 0, y: 0 },
+    modalImageZoom: 100,
   };
 
   // Marker tracking
@@ -1037,17 +1119,26 @@ export function createUIFeedback(options = {}) {
 
   /* ── toolbar drag state ── */
   let dragState = null;
-  let toolbarPos = { right: 20, top: null }; // null = centered (50%)
+  let toolbarPos = { right: 20, top: null }; // null = bottom dock
 
   function getToolbarStyle() {
     const r = toolbarPos.right;
     if (toolbarPos.top !== null) {
       return `right:${r}px;top:${toolbarPos.top}px;transform:none;`;
     }
-    return `right:${r}px;top:50%;transform:translateY(-50%);`;
+    return `right:${r}px;bottom:20px;`;
   }
 
   /* ── persistence ── */
+  function hasSeenCoachmark() {
+    try { return localStorage.getItem(`${config.storageKey}:coachmark`) === '1'; } catch { return false; }
+  }
+  function dismissCoachmark() {
+    state.coachmarkVisible = false;
+    try { localStorage.setItem(`${config.storageKey}:coachmark`, '1'); } catch { /* ignore blocked storage */ }
+    renderToolbar();
+  }
+
   function loadComments() {
     try {
       return JSON.parse(localStorage.getItem(config.storageKey) || '[]');
@@ -1102,22 +1193,20 @@ export function createUIFeedback(options = {}) {
       return;
     }
     const undoCount = state.undoStack.length;
-    const undoBadge = undoCount
-      ? `<span class="ui-feedback-badge ui-feedback-badge--undo">${undoCount}</span>`
-      : '';
-    const undoButton = `<button class="ui-feedback-tool" data-action="undo" aria-label="Hoàn tác thao tác gần nhất" title="Hoàn tác (${undoCount})" ${undoCount ? '' : 'hidden'}>${ICONS.undo}${undoBadge}</button>`;
-    root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ''}<div class="ui-feedback-toolbar" role="toolbar" aria-label="UI Feedback tools" style="${getToolbarStyle()}">
+    const undoBadge = undoCount ? `<span class="ui-feedback-badge ui-feedback-badge--undo">${undoCount}</span>` : '';
+    const coachmark = state.coachmarkVisible ? `<aside class="ui-feedback-coachmark" role="status"><strong>Bắt đầu với UI Feedback</strong><p>Ghi nhận thay đổi ngay trên bản preview, không cần rời khỏi trang.</p><ol class="ui-feedback-coachmark__steps"><li>Chọn một công cụ trên thanh dock.</li><li>Rê chuột và bấm vào phần tử cần review.</li><li>Lưu feedback hoặc hoàn tác bằng nút Undo.</li></ol><button type="button" data-coachmark-dismiss>Đã hiểu</button></aside>` : '';
+    const bubble = `<button class="ui-feedback-toolbar-bubble" data-action="collapse" aria-label="Mở thanh công cụ" title="Mở thanh công cụ">${ICONS.grip}<span class="ui-feedback-badge" ${state.comments.length ? '' : 'hidden'}>${state.comments.length}</span></button>`;
+    const dock = `<div class="ui-feedback-toolbar" role="toolbar" aria-label="UI Feedback tools" style="${getToolbarStyle()}">
       <div class="ui-feedback-toolbar-grip" data-drag-handle aria-label="Kéo để di chuyển toolbar">${ICONS.grip}</div>
-      <button class="ui-feedback-tool ${state.panelOpen ? 'is-active' : ''}" data-action="list" aria-label="Mở danh sách feedback" title="Danh sách feedback">${ICONS.clipboard}<span class="ui-feedback-badge" ${state.comments.length ? '' : 'hidden'}>${state.comments.length}</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'comment' ? 'is-active' : ''}" data-action="comment" aria-label="Thêm comment" title="Thêm comment">${ICONS.comment}</button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'edit' ? 'is-active' : ''}" data-action="edit" aria-label="Sửa nội dung UI" title="Sửa nội dung UI">${ICONS.pencil}</button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'css' ? 'is-active' : ''}" data-action="css" aria-label="Bộ giao diện" title="Bộ giao diện">${ICONS.paintbrush}</button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'image' ? 'is-active' : ''}" data-action="image" aria-label="Thay ảnh" title="Thay ảnh">${ICONS.image}</button>
-      ${undoButton}
-    </div>
-    <div data-ui-feedback-panel></div>
-    <div data-ui-feedback-modal></div>
-    <div data-ui-feedback-toast></div>`;
+      <button class="ui-feedback-tool ${state.panelOpen ? 'is-active' : ''}" data-action="list" aria-label="Mở danh sách feedback" title="Danh sách feedback">${ICONS.clipboard}<span class="ui-feedback-tool__label">Feedback</span><span class="ui-feedback-badge" ${state.comments.length ? '' : 'hidden'}>${state.comments.length}</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === 'comment' ? 'is-active' : ''}" data-action="comment" aria-label="Thêm note" title="Thêm note">${ICONS.comment}<span class="ui-feedback-tool__label">Note</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === 'edit' ? 'is-active' : ''}" data-action="edit" aria-label="Sửa nội dung UI" title="Sửa text">${ICONS.pencil}<span class="ui-feedback-tool__label">Sửa text</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === 'css' ? 'is-active' : ''}" data-action="css" aria-label="Mở Bộ CSS" title="Bộ CSS">${ICONS.paintbrush}<span class="ui-feedback-tool__label">Bộ CSS</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === 'image' ? 'is-active' : ''}" data-action="image" aria-label="Thay ảnh" title="Thay ảnh">${ICONS.image}<span class="ui-feedback-tool__label">Thay ảnh</span></button>
+      ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Hoàn tác thao tác gần nhất" title="Hoàn tác (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Undo</span>${undoBadge}</button>` : ''}
+      <button class="ui-feedback-tool" data-action="collapse" aria-label="Thu gọn thanh công cụ" title="Thu gọn">${ICONS.collapse}</button>
+    </div>`;
+    root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ''}${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div><div data-ui-feedback-toast></div>`;
     if (state.panelOpen) renderPanel();
     if (state.modalOpen) renderModal();
   }
@@ -1134,6 +1223,7 @@ export function createUIFeedback(options = {}) {
     if (action === 'edit') toggleMode('edit');
     if (action === 'css') toggleMode('css');
     if (action === 'image') toggleMode('image');
+    if (action === 'collapse') { state.collapsed = !state.collapsed; renderToolbar(); }
   }
 
   // Toggling behavior: clicking the same picking mode again turns it off.
@@ -1175,6 +1265,9 @@ export function createUIFeedback(options = {}) {
 
   function getFilteredComments() {
     let items = state.comments;
+    if (state.drawerTab === 'comment') items = items.filter((c) => c.type === 'comment');
+    if (state.drawerTab === 'edit') items = items.filter((c) => ['edit', 'css', 'image'].includes(c.type));
+    if (state.drawerTab === 'resolved') items = items.filter((c) => c.resolved);
     if (state.filterPriority !== 'all') {
       items = items.filter((c) => c.priority === state.filterPriority);
     }
@@ -1225,7 +1318,8 @@ export function createUIFeedback(options = {}) {
     const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
     const content = renderGroupedComments(filtered);
     mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh sách feedback">
-      <header class="ui-feedback-panel__header"><strong>Feedback (${openCount} mở · ${resolvedCount} xong) · Sửa (${editCount})</strong><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng">${ICONS.close}</button></span></header>
+      <header class="ui-feedback-panel__header"><div><strong>Feedback</strong><small>${openCount} đang mở · ${resolvedCount} đã xong · ${editCount} chỉnh sửa</small></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng">${ICONS.close}</button></span></header>
+      <div class="ui-feedback-panel__tabs" role="tablist"><button class="ui-feedback-panel__tab ${state.drawerTab === 'all' ? 'is-active' : ''}" data-panel-tab="all" role="tab">Tất cả <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'comment' ? 'is-active' : ''}" data-panel-tab="comment" role="tab">Ghi chú <span>${state.comments.filter((c) => c.type === 'comment').length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'edit' ? 'is-active' : ''}" data-panel-tab="edit" role="tab">Chỉnh sửa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'resolved' ? 'is-active' : ''}" data-panel-tab="resolved" role="tab">Đã xong <span>${resolvedCount}</span></button></div>
       <div class="ui-feedback-panel__filter">
         <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="Tìm feedback…" value="${escapeAttribute(state.searchQuery)}" /></div>
         <select class="ui-feedback-filter-select" data-panel-filter aria-label="Lọc theo mức độ">
@@ -1238,21 +1332,27 @@ export function createUIFeedback(options = {}) {
       </div>
       <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' || state.filterCategory !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback. Chọn biểu tượng comment rồi bấm vào một phần tử trên trang.'}</div>`}</div>
     </aside>`;
-    mount.addEventListener('click', handlePanelClick);
-    mount.addEventListener('input', handlePanelInput);
-    mount.addEventListener('change', handlePanelChange);
+    mount.onclick = handlePanelClick;
+    mount.oninput = handlePanelInput;
+    mount.onchange = handlePanelChange;
   }
 
   function handlePanelClick(event) {
-    const target = event.target.closest('[data-panel-action], [data-edit-comment], [data-delete-comment], [data-resolve-comment]');
+    const target = event.target.closest('[data-panel-action], [data-panel-tab], [data-edit-comment], [data-delete-comment], [data-resolve-comment], [data-copy-selector], [data-comment-id]');
     if (!target) return;
     event.stopPropagation();
+    if (target.dataset.panelTab) { state.drawerTab = target.dataset.panelTab; renderPanel(); return; }
+    if (target.dataset.copySelector) { const copyResult = navigator.clipboard?.writeText?.(target.dataset.copySelector); Promise.resolve(copyResult).then(() => showToast('Đã copy selector')).catch(() => showToast('Không thể copy selector')); return; }
     if (target.dataset.panelAction === 'close') togglePanel(false);
     else if (target.dataset.panelAction === 'export') exportMarkdown();
     else if (target.dataset.panelAction === 'github') createGithubIssue();
     else if (target.dataset.editComment) editComment(target.dataset.editComment);
     else if (target.dataset.deleteComment) deleteComment(target.dataset.deleteComment);
     else if (target.dataset.resolveComment) resolveComment(target.dataset.resolveComment);
+    else {
+      const card = event.target.closest('[data-comment-id]');
+      if (card) focusComment(card.dataset.commentId);
+    }
   }
 
   function handlePanelInput(event) {
@@ -1291,9 +1391,9 @@ export function createUIFeedback(options = {}) {
     if (item.viewport) contextTags.push(`📱 ${item.viewport}`);
     if (item.scrollY !== undefined) contextTags.push(`↕️ ${item.scrollY}px`);
 
-    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''}">
+    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
       <div class="ui-feedback-item__meta">
-        <span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span>
+        <span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">⧉</button>
         <span class="ui-feedback-category-chip">${escapeHtml(categoryLabel(item.category, item.type))}</span>
         <span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span>
         <span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span>
@@ -1382,6 +1482,17 @@ export function createUIFeedback(options = {}) {
   }
 
   /* ── comment markers on page ── */
+  function focusComment(id) {
+    const item = state.comments.find((comment) => comment.id === id);
+    if (!item) return;
+    const element = resolveSelector(item.selector);
+    if (!element) { showToast('Không tìm thấy phần tử trên trang hiện tại'); return; }
+    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    highlight(element);
+    setTimeout(clearHighlight, 1200);
+    showToast('Đã focus đến phần tử feedback');
+  }
+
   function placeMarkers() {
     // remove old markers
     markers.forEach((m) => m.markerEl?.remove());
@@ -1414,6 +1525,10 @@ export function createUIFeedback(options = {}) {
           : comment.type === 'image'
             ? `Đã thay ảnh: ${safeText(comment.value, 80)}`
             : `Feedback #${index + 1}`;
+      marker.dataset.commentId = comment.id;
+      marker.setAttribute('role', 'button');
+      marker.setAttribute('aria-label', marker.title);
+      marker.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); focusComment(comment.id); });
       marker.style.position = 'absolute';
       // position relative to the element
       positionMarker(el, marker);
@@ -1452,6 +1567,8 @@ export function createUIFeedback(options = {}) {
     state.modalImagePosition = mode === 'image' ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
     state.modalCommitted = false;
     state.cssTab = 'advanced';
+    state.cssPosition = mode === 'css' ? parseTranslatePosition(element?.style?.translate || '') : { x: 0, y: 0 };
+    state.modalImageZoom = 100;
     state.modalOpen = true;
     renderToolbar();
     renderModal(existing);
@@ -1520,6 +1637,37 @@ export function createUIFeedback(options = {}) {
     const raw = String(value || '').trim();
     const match = raw.match(/url\((?:"|')?(.*?)(?:"|')?\)/i);
     return match ? match[1] : '';
+  }
+
+  function parseTranslatePosition(value) {
+    const match = String(value || '').match(/(-?\d+(?:\.\d+)?)px\s+(-?\d+(?:\.\d+)?)px/);
+    return match ? { x: Number(match[1]), y: Number(match[2]) } : { x: 0, y: 0 };
+  }
+
+  function applyCssPosition(position = state.cssPosition) {
+    if (!state.target) return;
+    const x = Math.max(-200, Math.min(200, Number(position.x) || 0));
+    const y = Math.max(-200, Math.min(200, Number(position.y) || 0));
+    state.cssPosition = { x, y };
+    state.target.style.translate = `${x}px ${y}px`;
+    const pad = root.querySelector('[data-css-position-pad]');
+    if (pad) { pad.style.setProperty('--pad-x', `${x * 0.3}px`); pad.style.setProperty('--pad-y', `${y * 0.3}px`); }
+    const xOutput = root.querySelector('[data-css-x-output]');
+    const yOutput = root.querySelector('[data-css-y-output]');
+    if (xOutput) xOutput.textContent = `${Math.round(x)}px`;
+    if (yOutput) yOutput.textContent = `${Math.round(y)}px`;
+  }
+
+  function updateCssPositionFromPointer(clientX, clientY) {
+    const pad = root.querySelector('[data-css-position-pad]');
+    if (!pad) return;
+    const rect = pad.getBoundingClientRect();
+    state.cssPosition = { x: ((clientX - rect.left) / rect.width - 0.5) * 400, y: ((clientY - rect.top) / rect.height - 0.5) * 400 };
+    applyCssPosition();
+    const xInput = root.querySelector('[data-css-x]');
+    const yInput = root.querySelector('[data-css-y]');
+    if (xInput) xInput.value = Math.round(state.cssPosition.x);
+    if (yInput) yInput.value = Math.round(state.cssPosition.y);
   }
 
   function parseImagePosition(value) {
@@ -1643,7 +1791,7 @@ export function createUIFeedback(options = {}) {
   }
 
   function renderCssContent() {
-    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font chữ (Google Fonts)</div>${renderFontRow('Tiêu đề', 'fontFamily')} ${renderFontRow('Nội dung', 'fontFamily')}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo góc</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue('borderRadius', '0'), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue('borderRadius', '0'), 10) || 0))}" /></div></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
+    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font chữ (Google Fonts)</div>${renderFontRow('Tiêu đề', 'fontFamily')} ${renderFontRow('Nội dung', 'fontFamily')}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo góc & độ mờ</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue('borderRadius', '0'), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue('borderRadius', '0'), 10) || 0))}" /></div><div class="ui-feedback-range-row" style="margin-top:7px"><div class="ui-feedback-range-row__head"><span>Opacity</span><output data-css-opacity-output>${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}%</output></div><input type="range" min="0" max="100" step="1" data-css-opacity value="${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}" /></div></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Vị trí 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="Điều chỉnh vị trí X Y"></div><div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">Đặt lại (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
     const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bộ có sẵn</div><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>Gọn gàng</span><small>Không bóng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, đổ bóng nhẹ</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Viền accent nổi bật</small></button></div></div>`;
     return `<div class="ui-feedback-css-tabs"><button class="ui-feedback-css-tab ${state.cssTab === 'preset' ? 'is-active' : ''}" data-css-tab="preset" type="button">✦ Bộ có sẵn</button><button class="ui-feedback-css-tab ${state.cssTab === 'advanced' ? 'is-active' : ''}" data-css-tab="advanced" type="button">☷ Nâng cao</button></div>${state.cssTab === 'preset' ? presets : advanced}`;
   }
@@ -1652,9 +1800,10 @@ export function createUIFeedback(options = {}) {
     const snapshot = state.modalSnapshot || captureImageState(state.target);
     const source = state.modalImageSource || snapshot.src || '';
     const position = state.modalImagePosition || { x: 50, y: 50 };
-    const positionStyle = `object-position:${position.x}% ${position.y}%;`;
+    const zoom = state.modalImageZoom || 100;
+    const positionStyle = `object-position:${position.x}% ${position.y}%;transform:scale(${zoom / 100});`;
     const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="${positionStyle}" />` : '<span data-image-preview>Phần tử này chưa có ảnh URL trực tiếp. Hãy nhập URL hoặc chọn file.</span>';
-    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="Kéo ảnh để căn chỉnh">${preview}<span class="ui-feedback-image-canvas-hint">Kéo để căn chỉnh</span></div><div class="ui-feedback-image-position"><span>Vị trí ảnh</span><output data-image-position>${Math.round(position.x)}% · ${Math.round(position.y)}%</output></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
+    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="Kéo ảnh để căn chỉnh">${preview}<span class="ui-feedback-image-canvas-hint">Kéo để căn chỉnh</span></div><div class="ui-feedback-image-zoom"><button type="button" data-image-zoom-step="-" aria-label="Thu nhỏ ảnh">−</button><input type="range" min="30" max="300" step="5" data-image-zoom value="${zoom}" aria-label="Zoom ảnh" /><button type="button" data-image-zoom-step="+" aria-label="Phóng to ảnh">+</button><output data-image-zoom-output>${zoom}%</output></div><div class="ui-feedback-image-position"><span>Vị trí ảnh</span><output data-image-position>${Math.round(position.x)}% · ${Math.round(position.y)}%</output></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><button type="button" class="ui-feedback-image-paste" data-image-paste>Dán ảnh từ clipboard (Ctrl/Cmd + V)</button><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
   }
 
   function renderModal(existing = null) {
@@ -1674,12 +1823,14 @@ export function createUIFeedback(options = {}) {
           ? renderImageContent()
           : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Phân loại</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || 'other')}</select></div></div>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
-    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="ui-feedback-modal" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
-    mount.addEventListener('click', handleModalClick);
-    mount.addEventListener('pointerdown', handleModalPointerDown);
-    mount.addEventListener('input', handleModalInput);
-    mount.addEventListener('change', handleModalChange);
-    mount.addEventListener('keydown', handleModalKeydown);
+    const modalClass = isCss || isImage ? 'ui-feedback-modal is-inspector' : 'ui-feedback-modal is-mini';
+    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top"><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
+    mount.onclick = handleModalClick;
+    mount.onpointerdown = handleModalPointerDown;
+    mount.oninput = handleModalInput;
+    mount.onchange = handleModalChange;
+    mount.onkeydown = handleModalKeydown;
+    mount.onwheel = handleModalWheel;
   }
 
   function applyPreviewImagePosition() {
@@ -1733,6 +1884,18 @@ export function createUIFeedback(options = {}) {
   }
 
   function handleModalPointerDown(event) {
+    const pad = event.target.closest('[data-css-position-pad]');
+    if (pad && state.mode === 'css') {
+      event.preventDefault();
+      event.stopPropagation();
+      updateCssPositionFromPointer(event.clientX, event.clientY);
+      const onMove = (moveEvent) => updateCssPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+      const onEnd = () => { document.removeEventListener('pointermove', onMove, true); document.removeEventListener('pointerup', onEnd, true); document.removeEventListener('pointercancel', onEnd, true); };
+      document.addEventListener('pointermove', onMove, true);
+      document.addEventListener('pointerup', onEnd, true);
+      document.addEventListener('pointercancel', onEnd, true);
+      return;
+    }
     const canvas = event.target.closest('[data-image-canvas]');
     if (!canvas || state.mode !== 'image') return;
     event.preventDefault();
@@ -1751,7 +1914,60 @@ export function createUIFeedback(options = {}) {
     document.addEventListener('pointercancel', onEnd, true);
   }
 
+  function applyPreviewImageZoom() {
+    const preview = root.querySelector('[data-image-preview]');
+    const zoom = state.modalImageZoom || 100;
+    if (preview?.tagName?.toLowerCase() === 'img') preview.style.transform = `scale(${zoom / 100})`;
+    const output = root.querySelector('[data-image-zoom-output]');
+    if (output) output.textContent = `${zoom}%`;
+  }
+
+  function handleModalWheel(event) {
+    if (state.mode !== 'image' || !event.target.closest('[data-image-canvas]')) return;
+    event.preventDefault();
+    state.modalImageZoom = Math.max(30, Math.min(300, (state.modalImageZoom || 100) + (event.deltaY < 0 ? 10 : -10)));
+    const input = root.querySelector('[data-image-zoom]');
+    if (input) input.value = state.modalImageZoom;
+    applyPreviewImageZoom();
+  }
+
+  async function pasteImageFromClipboard() {
+    if (!navigator.clipboard?.read) { showToast('Trình duyệt chưa cho phép đọc clipboard'); return; }
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const type = item.types.find((value) => value.startsWith('image/'));
+        if (type) {
+          const blob = await item.getType(type);
+          loadImageFile(blob);
+          return;
+        }
+      }
+      showToast('Clipboard chưa có dữ liệu ảnh');
+    } catch { showToast('Không thể đọc ảnh từ clipboard'); }
+  }
+
+  function loadImageFile(file) {
+    if (!file?.type?.startsWith('image/')) { showToast('Vui lòng chọn file ảnh'); return; }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const source = String(reader.result || '');
+      if (!validateImageSource(source)) { showToast('Ảnh upload vượt giới hạn 1 MB'); return; }
+      state.modalImageSource = source;
+      const urlInput = root.querySelector('[data-image-url]');
+      if (urlInput) urlInput.value = source;
+      previewImageSource(source);
+    };
+    reader.readAsDataURL(file);
+  }
+
   function handleModalClick(event) {
+    const zoomStep = event.target.closest('[data-image-zoom-step]');
+    if (zoomStep) { event.stopPropagation(); state.modalImageZoom = Math.max(30, Math.min(300, (state.modalImageZoom || 100) + (zoomStep.dataset.imageZoomStep === '+' ? 15 : -15))); const input = root.querySelector('[data-image-zoom]'); if (input) input.value = state.modalImageZoom; applyPreviewImageZoom(); return; }
+    const paste = event.target.closest('[data-image-paste]');
+    if (paste) { event.stopPropagation(); pasteImageFromClipboard(); return; }
+    const positionReset = event.target.closest('[data-css-position-reset]');
+    if (positionReset) { event.stopPropagation(); state.cssPosition = { x: 0, y: 0 }; applyCssPosition(); const x = root.querySelector('[data-css-x]'); const y = root.querySelector('[data-css-y]'); if (x) x.value = 0; if (y) y.value = 0; return; }
     const tab = event.target.closest('[data-css-tab]');
     if (tab) { event.stopPropagation(); state.cssTab = tab.dataset.cssTab; renderModal(); return; }
     const preset = event.target.closest('[data-css-preset]');
@@ -1786,6 +2002,16 @@ export function createUIFeedback(options = {}) {
         if (color) color.value = value;
         if (swatch) swatch.style.background = value;
       }
+    } else if (target.matches('[data-css-opacity]')) {
+      applyCssProperty('opacity', String(Number(target.value) / 100));
+      const output = root.querySelector('[data-css-opacity-output]');
+      if (output) output.textContent = `${target.value}%`;
+    } else if (target.matches('[data-css-x]') || target.matches('[data-css-y]')) {
+      state.cssPosition[target.matches('[data-css-x]') ? 'x' : 'y'] = Number(target.value);
+      applyCssPosition();
+    } else if (target.matches('[data-image-zoom]')) {
+      state.modalImageZoom = Number(target.value);
+      applyPreviewImageZoom();
     } else if (target.matches('[data-css-radius]')) {
       applyCssProperty('borderRadius', `${target.value}px`);
       const output = root.querySelector('[data-css-radius-output]');
@@ -1806,20 +2032,7 @@ export function createUIFeedback(options = {}) {
       renderModal();
       return;
     }
-    if (target.matches('[data-image-file]') && target.files?.[0]) {
-      const file = target.files[0];
-      if (!file.type.startsWith('image/')) { showToast('Vui lòng chọn file ảnh'); return; }
-      const reader = new FileReader();
-      reader.onload = () => {
-        const source = String(reader.result || '');
-        if (!validateImageSource(source)) { showToast('Ảnh upload vượt giới hạn 1 MB'); return; }
-        state.modalImageSource = source;
-        const urlInput = root.querySelector('[data-image-url]');
-        if (urlInput) urlInput.value = source;
-        previewImageSource(source);
-      };
-      reader.readAsDataURL(file);
-    }
+    if (target.matches('[data-image-file]') && target.files?.[0]) loadImageFile(target.files[0]);
   }
 
   function handleModalKeydown(event) {
@@ -2112,7 +2325,14 @@ export function createUIFeedback(options = {}) {
     anchor.download = `ui-feedback-${new Date().toISOString().slice(0, 10)}.md`;
     anchor.click();
     URL.revokeObjectURL(url);
-    showToast('Đã xuất file Markdown');
+    const exportedCount = state.comments.length;
+    state.comments = [];
+    state.undoStack = [];
+    persist();
+    clearMarkers();
+    state.panelOpen = false;
+    renderToolbar();
+    showToast(exportedCount ? `Đã xuất Markdown và làm sạch ${exportedCount} mục` : 'Đã xuất file Markdown');
   }
 
   /* ── toast ── */
@@ -2185,6 +2405,7 @@ export function createUIFeedback(options = {}) {
   /* ── toggle ── */
   function toggle() {
     state.active = !state.active;
+    if (state.active) state.coachmarkVisible = config.coachmark !== false && !hasSeenCoachmark();
     persistActive();
     state.panelOpen = false;
     state.modalOpen = false;
@@ -2328,7 +2549,11 @@ export function createUIFeedback(options = {}) {
   function handleHostEvent(event) {
     const path = event.composedPath();
 
-    // 1) toolbar buttons
+    // 1) coachmark
+    const coachmarkDismiss = path.find((node) => node instanceof Element && node.matches?.('[data-coachmark-dismiss]'));
+    if (coachmarkDismiss) { event.preventDefault(); event.stopPropagation(); dismissCoachmark(); return; }
+
+    // 2) toolbar buttons
     const button = path.find(
       (node) => node instanceof HTMLButtonElement && node.dataset?.action,
     );
@@ -2337,7 +2562,7 @@ export function createUIFeedback(options = {}) {
       return;
     }
 
-    // 2) picker layer interactions
+    // 3) picker layer interactions
     if (!state.picking || state.pickingLocked) return;
     const picker = path.find(
       (node) => node instanceof Element && node.matches?.('[data-picker-layer]'),
