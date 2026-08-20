@@ -1,5 +1,5 @@
 /**
- * UI Feedback Tool v0.7.0
+ * UI Feedback Tool v0.7.1
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
@@ -305,12 +305,12 @@ button { cursor: pointer; }
 
 /* ── animations ── */
 @keyframes uiFeedbackFadeIn {
-  from { opacity: 0; transform: translate(-50%, -50%) scale(.96); }
-  to   { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @keyframes uiFeedbackSlideIn {
-  from { opacity: 0; transform: translateX(18px); }
-  to   { opacity: 1; transform: translateX(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 @keyframes uiFeedbackToastIn {
   from { opacity: 0; transform: translateY(12px); }
