@@ -1,15 +1,22 @@
 {
   "name": "@ngh1aa/ui-feedback-tool",
-  "version": "0.7.1",
+  "version": "0.8.0",
   "private": true,
   "description": "Standalone UI/UX feedback overlay activated by simultaneous Q+W+E.",
   "type": "module",
-  "main": "src/ui-feedback.js",
+  "main": "src/index.js",
   "exports": {
-    ".": "./src/ui-feedback.js"
+    ".": "./src/index.js",
+    "./bundle": "./src/ui-feedback.js"
   },
   "scripts": {
-    "check": "node --check src/ui-feedback.js"
+    "build": "node scripts/build.js",
+    "check": "node --check src/index.js && node --check src/ui-feedback.js",
+    "check:all": "for file in src/core/*.js src/features/*.js src/ui/*.js src/stylesheet.js; do node --check \"$file\"; done && npm run check",
+    "test": "node --test test/*.test.js"
   },
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "devDependencies": {
+    "esbuild": "^0.28.2"
+  }
 }

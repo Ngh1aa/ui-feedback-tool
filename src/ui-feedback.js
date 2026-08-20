@@ -1,253 +1,257 @@
-/**
- * UI Feedback Tool v0.7.1
- * ---------------------
- * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
- * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
- *
- * Changelog v0.6.0:
-*   - Fix: Update dùng mirror GitHub Pages public vì source canonical private không thể fetch trực tiếp từ browser
- *   - New: nút Update trên toolbar để kiểm tra và nạp bản tool mới an toàn
- *   - New: updateUrl/version config cho phép project dùng source canonical
- *   - Fix: cập nhật runtime bằng Blob module mà không mất feedback đã lưu
- *
- * Changelog v0.5.1:
- *   - Fix: drag handle nhận diện ổn định qua composedPath trong Shadow DOM
- *   - Fix: không bắt kéo khi pointer bắt đầu trên button, link, input hoặc vùng chọn text
- *   - Fix: lọc pointerId và cleanup khi pointerup, pointercancel hoặc mất focus
- *
- * Changelog v0.5:
- *   - New: panel/modal có title bar kéo thả bằng Pointer Events và pointer capture
- *   - New: grip + drag hint + nút đặt lại vị trí cho các cửa sổ công cụ
- *   - New: white accent tokens cho focus, primary action và dark/light theme
- *   - Fix: cleanup pointer drag state khi pointerup hoặc pointercancel
- *
- * Changelog v0.4:
- *   - New: marker trên trang cho edit / css (xanh lá / tím) — biết ngay
- *         chỗ nào đã cập nhật
- *   - New: nút Undo trên toolbar (kèm counter) — hoàn tác delete / edit / css
- *   - New: button toolbar toggleable (click lại để tắt picking)
- *   - Fix: resume picking an toàn qua clearable timer, không còn race 80ms
- *   - Fix: đóng panel / Escape trong picking vẫn nhớ mode và phục hồi
- *   - Fix: export Markdown / GitHub Issue có section riêng cho edit / css
- *         (trước đây ghi `undefined` trong feedback)
- *   - New: phân phối qua jsDelivr CDN + semver tag — project khác import
- *         `https://cdn.jsdelivr.net/gh/Ngh1aa/StudioOS@v0.4.0/ui-feedback.js`
- *         và nhận update chỉ bằng cách bump tag.
- *
- * Changelog v0.3:
- *   - New: Bắt ngữ cảnh màn hình (viewport, scrollY)
- *   - New: CSS Tinkering mode (sửa inline CSS trực tiếp)
- *   - New: Phím tắt Quick Tagging (T, C, S) khi picking
- *   - New: Tạo GitHub Issue 1-click
- *
- * Changelog v0.2:
- *   - Fix: đổi `const CSS` → `STYLESHEET` để không shadow `window.CSS`
- *   - Fix: thống nhất event flow qua host delegation, loại bỏ double-fire
- *   - New: dark mode (auto-detect hoặc config `theme`)
- *   - New: animations (modal fade, panel slide, toast slide, toolbar pulse)
- *   - New: drag & drop toolbar
- *   - New: filter & search trong panel
- *   - New: resolve / unresolve status trên mỗi comment
- *   - New: timestamp hiển thị trên comment items
- *   - New: undo delete (toast + hoàn tác)
- *   - New: improved markdown export (status, summary)
- *   - New: Escape đóng modal/panel
- */
-
-const TOOL_VERSION = '0.7.0';
-
-const DEFAULTS = {
+// src/core/config.js
+var TOOL_VERSION = "0.8.0";
+var DEFAULTS = {
   version: TOOL_VERSION,
-  // Source canonical là private; các mirror Pages public giúp browser tải được bản mới mà không cần GitHub token.
-  updateUrl: 'https://ngh1aa.github.io/Atelier/ui-feedback.js',
+  updateUrl: "https://ngh1aa.github.io/Atelier/ui-feedback.js",
   updateMirrors: [
-    'https://ngh1aa.github.io/Atelier/ui-feedback.js',
-    'https://ngh1aa.github.io/LuxRoom/ui-feedback.js',
-    'https://ngh1aa.github.io/StudioOS/ui-feedback.js',
-    'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
+    "https://ngh1aa.github.io/Atelier/ui-feedback.js",
+    "https://ngh1aa.github.io/LuxRoom/ui-feedback.js",
+    "https://ngh1aa.github.io/StudioOS/ui-feedback.js",
+    "https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js"
   ],
-  shortcut: ['q', 'w', 'e'],
-  storageKey: 'ui-feedback-session',
-  accent: '#ffffff',
-  position: 'right',
-  theme: 'auto', // 'light' | 'dark' | 'auto'
-  githubRepo: 'Ngh1aa/StudioOS', // 'username/repo' cho GitHub Issue
-  persistActive: true, // giữ trạng thái bật trong cùng một tab khi chuyển trang
-  coachmark: true, // hint 3 bước hiển thị một lần khi bật lần đầu
+  shortcut: ["q", "w", "e"],
+  storageKey: "ui-feedback-session",
+  accent: "#ffffff",
+  position: "right",
+  theme: "auto",
+  githubRepo: "Ngh1aa/StudioOS",
+  persistActive: true,
+  coachmark: true
 };
+function mergeConfig(options = {}) {
+  return {
+    ...DEFAULTS,
+    ...options,
+    shortcut: (options.shortcut || DEFAULTS.shortcut).map((key) => String(key).toLowerCase())
+  };
+}
+var FEEDBACK_CATEGORIES = [
+  { value: "layout", label: "B\u1ED1 c\u1EE5c" },
+  { value: "image", label: "H\xECnh \u1EA3nh" },
+  { value: "content", label: "N\u1ED9i dung" },
+  { value: "typography", label: "Ki\u1EC3u ch\u1EEF" },
+  { value: "color", label: "M\xE0u s\u1EAFc" },
+  { value: "spacing", label: "Kho\u1EA3ng c\xE1ch" },
+  { value: "interaction", label: "T\u01B0\u01A1ng t\xE1c" },
+  { value: "other", label: "Kh\xE1c" }
+];
+var CATEGORY_LABELS = Object.fromEntries(
+  FEEDBACK_CATEGORIES.map((item) => [item.value, item.label])
+);
+var CSS_COLOR_FIELDS = [
+  { key: "primary", label: "M\xE0u ch\xEDnh", prop: "backgroundColor", fallback: "#cb0236", hint: "background-color" },
+  { key: "primaryText", label: "Ch\u1EEF tr\xEAn m\xE0u ch\xEDnh", prop: "color", fallback: "#ffffff", hint: "color" },
+  { key: "pageBackground", label: "N\u1EC1n trang", prop: "backgroundColor", fallback: "#f4f8f8", hint: "background-color" },
+  { key: "text", label: "M\xE0u ch\u1EEF", prop: "color", fallback: "#1b212b", hint: "color" }
+];
+var EXTRA_COLOR_FIELDS = [
+  { key: "border", label: "Vi\u1EC1n", prop: "borderColor", fallback: "#d1d5db", hint: "border-color" },
+  { key: "outline", label: "Outline", prop: "outlineColor", fallback: "#f5a623", hint: "outline-color" },
+  { key: "decoration", label: "G\u1EA1ch ch\xE2n", prop: "textDecorationColor", fallback: "#f5a623", hint: "text-decoration-color" },
+  { key: "caret", label: "Caret", prop: "caretColor", fallback: "#f5a623", hint: "caret-color" },
+  { key: "accent", label: "Accent", prop: "accentColor", fallback: "#f5a623", hint: "accent-color" },
+  { key: "columnRule", label: "Column rule", prop: "columnRuleColor", fallback: "#d1d5db", hint: "column-rule-color" },
+  { key: "marker", label: "Marker", prop: "markerColor", fallback: "#f5a623", hint: "marker-color" },
+  { key: "fill", label: "SVG fill", prop: "fill", fallback: "#f5a623", hint: "fill" }
+];
+var FONT_OPTIONS = [
+  { value: "", label: "M\u1EB7c \u0111\u1ECBnh website" },
+  { value: "Inter", label: "Inter" },
+  { value: "DM Sans", label: "DM Sans" },
+  { value: "Montserrat", label: "Montserrat" },
+  { value: "Roboto", label: "Roboto" },
+  { value: "Playfair Display", label: "Playfair Display" },
+  { value: "Lora", label: "Lora" }
+];
+function defaultCategoryForType(type) {
+  if (type === "image") return "image";
+  if (type === "edit") return "content";
+  if (type === "css") return "color";
+  return "other";
+}
+function categoryLabel(value, type = "comment") {
+  return CATEGORY_LABELS[value] || CATEGORY_LABELS[defaultCategoryForType(type)] || "Kh\xE1c";
+}
 
-/* ── helpers ─────────────────────────────────────────────────────────── */
-
+// src/core/dom-utils.js
 function generateId() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) {
-    return crypto.randomUUID();
-  }
-  return 'id-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 11);
+  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
+  return `id-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 11)}`;
 }
-
 function escapeMarkdown(value) {
-  return String(value || '').replace(/[\\`*_{}\[\]()#+.!|>-]/g, '\\$&');
+  return String(value || "").replace(/[\\`*_{}\[\]()#+.!|>-]/g, "\\$&");
 }
-
 function formatDate(date) {
-  return new Intl.DateTimeFormat('vi-VN', { dateStyle: 'medium', timeStyle: 'short' }).format(date);
+  return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
-
 function relativeTime(isoString) {
-  if (!isoString) return '';
+  if (!isoString) return "";
   const diff = Date.now() - new Date(isoString).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'Vừa xong';
-  if (mins < 60) return `${mins} phút trước`;
+  const mins = Math.floor(diff / 6e4);
+  if (mins < 1) return "V\u1EEBa xong";
+  if (mins < 60) return `${mins} ph\xFAt tr\u01B0\u1EDBc`;
   const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours} giờ trước`;
-  const days = Math.floor(hours / 24);
-  return `${days} ngày trước`;
+  if (hours < 24) return `${hours} gi\u1EDD tr\u01B0\u1EDBc`;
+  return `${Math.floor(hours / 24)} ng\xE0y tr\u01B0\u1EDBc`;
 }
-
 function safeText(value, max = 180) {
-  const text = String(value || '').replace(/\s+/g, ' ').trim();
-  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  return text.length > max ? `${text.slice(0, max - 1)}\u2026` : text;
 }
-
-function isEditable(target) {
-  return (
-    target instanceof HTMLElement &&
-    (target.matches('input, textarea, select, [contenteditable="true"]') ||
-      Boolean(target.closest('input, textarea, select, [contenteditable="true"]')))
-  );
-}
-
 function cssPath(element) {
-  if (!(element instanceof Element)) return '';
+  if (typeof Element === "undefined" || !(element instanceof Element)) return "";
   const parts = [];
   let node = element;
   while (node && node.nodeType === 1 && node !== document.body && parts.length < 6) {
     let part = node.tagName.toLowerCase();
     if (node.id) {
-      // Use window.CSS explicitly to avoid any scope issues
       part += `#${window.CSS.escape(node.id)}`;
       parts.unshift(part);
       break;
     }
     const classes = [...node.classList].filter(Boolean).slice(0, 2);
-    if (classes.length) part += `.${classes.map(window.CSS.escape).join('.')}`;
-    const siblings = node.parentElement
-      ? [...node.parentElement.children].filter((s) => s.tagName === node.tagName)
-      : [];
+    if (classes.length) part += `.${classes.map(window.CSS.escape).join(".")}`;
+    const siblings = node.parentElement ? [...node.parentElement.children].filter((sibling) => sibling.tagName === node.tagName) : [];
     if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(node) + 1})`;
     parts.unshift(part);
     node = node.parentElement;
   }
-  return parts.join(' > ');
+  return parts.join(" > ");
 }
-
 function targetLabel(element) {
-  if (!(element instanceof Element)) return 'Element chưa xác định';
+  if (typeof Element === "undefined" || !(element instanceof Element)) return "Element ch\u01B0a x\xE1c \u0111\u1ECBnh";
   const tag = element.tagName.toLowerCase();
-  const id = element.id ? `#${element.id}` : '';
-  const classes = [...element.classList]
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((n) => `.${n}`)
-    .join('');
+  const id = element.id ? `#${element.id}` : "";
+  const classes = [...element.classList].filter(Boolean).slice(0, 2).map((name) => `.${name}`).join("");
   return `${tag}${id}${classes}`;
 }
-
 function escapeHtml(value) {
-  return String(value || '').replace(/[&<>"']/g, (c) =>
-    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[c],
-  );
+  return String(value || "").replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[character]);
 }
-
 function escapeAttribute(value) {
-  return escapeHtml(value).replace(/`/g, '&#096;');
+  return escapeHtml(value).replace(/`/g, "&#096;");
 }
-
-const FEEDBACK_CATEGORIES = [
-  { value: 'layout', label: 'Bố cục' },
-  { value: 'image', label: 'Hình ảnh' },
-  { value: 'content', label: 'Nội dung' },
-  { value: 'typography', label: 'Kiểu chữ' },
-  { value: 'color', label: 'Màu sắc' },
-  { value: 'spacing', label: 'Khoảng cách' },
-  { value: 'interaction', label: 'Tương tác' },
-  { value: 'other', label: 'Khác' },
-];
-const CATEGORY_LABELS = Object.fromEntries(FEEDBACK_CATEGORIES.map((item) => [item.value, item.label]));
-
-function defaultCategoryForType(type) {
-  if (type === 'image') return 'image';
-  if (type === 'edit') return 'content';
-  if (type === 'css') return 'color';
-  return 'other';
-}
-
-function categoryLabel(value, type = 'comment') {
-  return CATEGORY_LABELS[value] || CATEGORY_LABELS[defaultCategoryForType(type)] || 'Khác';
-}
-
 function firstCodeLine(element) {
-  if (!(element instanceof Element)) return '';
-  const markup = String(element.outerHTML || '').trim();
+  if (typeof Element === "undefined" || !(element instanceof Element)) return "";
+  const markup = String(element.outerHTML || "").trim();
   return safeText(markup.split(/\r?\n/)[0] || markup, 180);
 }
-
 function detectTheme(preference) {
-  if (preference === 'dark') return 'dark';
-  if (preference === 'light') return 'light';
-  return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (preference === "dark") return "dark";
+  if (preference === "light") return "light";
+  return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+}
+function resolveSelector(selector) {
+  if (!selector) return null;
+  try {
+    return document.querySelector(selector);
+  } catch {
+    return null;
+  }
 }
 
-/* ── icons ───────────────────────────────────────────────────────────── */
+// src/core/state.js
+function createFeedbackState(config) {
+  const activeStorageKey = `${config.storageKey}:active`;
+  function loadComments() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(config.storageKey) || "[]");
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+  function loadActive() {
+    if (!config.persistActive) return false;
+    try {
+      return sessionStorage.getItem(activeStorageKey) === "1";
+    } catch {
+      return false;
+    }
+  }
+  const state = {
+    active: loadActive(),
+    picking: false,
+    pickingLocked: false,
+    mode: "comment",
+    panelOpen: false,
+    modalOpen: false,
+    target: null,
+    highlight: null,
+    comments: loadComments(),
+    undoStack: [],
+    filterPriority: "all",
+    filterCategory: "all",
+    searchQuery: "",
+    theme: detectTheme(config.theme),
+    _modeBeforePickingStop: null,
+    _resumeTimer: null,
+    modalSnapshot: null,
+    modalCommitted: false,
+    modalImageSource: "",
+    cssTab: "advanced",
+    drawerTab: "all",
+    collapsed: false,
+    coachmarkVisible: false,
+    cssPosition: { x: 0, y: 0 },
+    cssTransformBase: "",
+    modalImageZoom: 100,
+    modalImagePosition: { x: 50, y: 50 },
+    modalPosition: { x: 0, y: 0 },
+    panelPosition: { x: 0, y: 0 },
+    updateBusy: false
+  };
+  function persist() {
+    try {
+      localStorage.setItem(config.storageKey, JSON.stringify(state.comments));
+    } catch {
+    }
+  }
+  function persistActive() {
+    if (!config.persistActive) return;
+    try {
+      sessionStorage.setItem(activeStorageKey, state.active ? "1" : "0");
+    } catch {
+    }
+  }
+  function hasSeenCoachmark() {
+    try {
+      return localStorage.getItem(`${config.storageKey}:coachmark`) === "1";
+    } catch {
+      return false;
+    }
+  }
+  function dismissCoachmark() {
+    state.coachmarkVisible = false;
+    try {
+      localStorage.setItem(`${config.storageKey}:coachmark`, "1");
+    } catch {
+    }
+  }
+  return {
+    state,
+    persist,
+    persistActive,
+    hasSeenCoachmark,
+    dismissCoachmark,
+    activeStorageKey
+  };
+}
 
-const ICONS = {
-  clipboard:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 9h6M9 13h6M9 17h4"/></svg>',
-  comment:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M9 10.5h6M12 8v5"/></svg>',
-  pencil:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z"/><path d="m13.8 6.7 3.5 3.5M4 20.8l3.5-.8"/></svg>',
-  close:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
-  download:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>',
-  trash:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v5M14 11v5M8 7l1 13h6l1-13M9 7l1-3h4l1 3"/></svg>',
-  edit:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z"/><path d="m13.8 6.7 3.5 3.5"/></svg>',
-  check:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>',
-  undo:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h13a4 4 0 0 1 0 8H9"/><path d="M7 6l-4 4 4 4"/></svg>',
-  search:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16 16l5 5"/></svg>',
-  filter:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M7 12h10M10 18h4"/></svg>',
-  grip:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/></svg>',
-  paintbrush:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/><path d="M9 11l-4 4s-1.5 2 1 4.5 4.5 1 4.5 1l4-4"/></svg>',
-  image:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>',
-  collapse:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4 4 4-4"/></svg>',
-  refresh:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-4L3 10"/><path d="M3 5v5h5M4 13a8 8 0 0 0 14.8 4L21 14"/><path d="M21 19v-5h-5"/></svg>',
-  github:
-    '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>',
-};
-
-/* ── stylesheet ──────────────────────────────────────────────────────── */
-/* Renamed from `CSS` to `STYLESHEET` to avoid shadowing `window.CSS`. */
-
-const STYLESHEET = `
+// src/stylesheet.js
+var STYLESHEET = `
 :host { all: initial; }
 * { box-sizing: border-box; }
 button, input, textarea, select { font: inherit; }
 button { cursor: pointer; }
 
-/* ── theme tokens ── */
+/* \u2500\u2500 theme tokens \u2500\u2500 */
 .ui-feedback-root {
   --_bg: #ffffff;
   --_bg-alt: #fafafa;
@@ -303,7 +307,7 @@ button { cursor: pointer; }
 
 .ui-feedback-root [hidden] { display: none !important; }
 
-/* ── animations ── */
+/* \u2500\u2500 animations \u2500\u2500 */
 @keyframes uiFeedbackFadeIn {
   from { opacity: 0; }
   to   { opacity: 1; }
@@ -329,7 +333,7 @@ button { cursor: pointer; }
   to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
-/* ── floating action dock ── */
+/* \u2500\u2500 floating action dock \u2500\u2500 */
 .ui-feedback-toolbar {
   position: fixed;
   z-index: 2147483000;
@@ -454,7 +458,7 @@ button { cursor: pointer; }
 .ui-feedback-badge.is-pulse { animation: uiFeedbackPulse .4s ease; }
 .ui-feedback-badge--undo { background: #0ea5e9; border-color: #151515; }
 
-/* ── first-use coachmark ── */
+/* \u2500\u2500 first-use coachmark \u2500\u2500 */
 .ui-feedback-coachmark {
   position: fixed;
   right: 22px;
@@ -472,10 +476,10 @@ button { cursor: pointer; }
 .ui-feedback-coachmark strong { display: block; margin-bottom: 5px; font-size: 13px; }
 .ui-feedback-coachmark p { margin: 0 0 10px; color: var(--_text-secondary); font-size: 11px; line-height: 1.55; }
 .ui-feedback-coachmark__steps { display: grid; gap: 5px; margin: 0 0 11px; padding: 0; color: var(--_text-secondary); font-size: 10px; list-style: none; }
-.ui-feedback-coachmark__steps li::before { content: '•'; margin-right: 6px; color: var(--ui-feedback-accent); }
+.ui-feedback-coachmark__steps li::before { content: '\u2022'; margin-right: 6px; color: var(--ui-feedback-accent); }
 .ui-feedback-coachmark button { width: 100%; border: 1px solid var(--ui-feedback-accent); border-radius: 7px; padding: 7px 9px; color: #141414; background: var(--ui-feedback-accent); font-size: 11px; font-weight: 800; }
 
-/* ── panel ── */
+/* \u2500\u2500 panel \u2500\u2500 */
 .ui-feedback-panel {
   --ui-feedback-panel-x: 0px;
   --ui-feedback-panel-y: 0px;
@@ -546,7 +550,7 @@ button { cursor: pointer; }
   stroke-linejoin: round;
 }
 
-/* ── panel search & filter bar ── */
+/* \u2500\u2500 panel search & filter bar \u2500\u2500 */
 .ui-feedback-panel__filter {
   display: flex;
   gap: 6px;
@@ -777,7 +781,7 @@ button { cursor: pointer; }
 .ui-feedback-mini--resolve { color: #166534; }
 .ui-feedback-mini--resolve:hover { background: #dcfce7; }
 
-/* ── modal ── */
+/* \u2500\u2500 modal \u2500\u2500 */
 .ui-feedback-scrim {
   position: fixed;
   inset: 0;
@@ -847,7 +851,7 @@ button { cursor: pointer; }
 .ui-feedback-button--primary { border-color: var(--ui-feedback-accent); background: var(--ui-feedback-accent); color: var(--_accent-ink); font-weight: 800; }
 .ui-feedback-button--primary:hover { filter: brightness(.95); }
 
-/* ── toast ── */
+/* \u2500\u2500 toast \u2500\u2500 */
 .ui-feedback-toast {
   position: fixed;
   right: 22px;
@@ -880,7 +884,7 @@ button { cursor: pointer; }
 }
 .ui-feedback-toast__undo:hover { background: rgba(255,255,255,.22); }
 
-/* ── comment markers ── */
+/* \u2500\u2500 comment markers \u2500\u2500 */
 .ui-feedback-marker {
   position: absolute;
   width: 22px;
@@ -933,7 +937,7 @@ button { cursor: pointer; }
   color: #ede9fe;
 }
 
-/* ── advanced CSS editor ── */
+/* \u2500\u2500 advanced CSS editor \u2500\u2500 */
 .ui-feedback-css-tabs {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -1096,7 +1100,7 @@ button { cursor: pointer; }
 .ui-feedback-marker.is-image { background: #fcd34d; border-color: #b45309; color: #78350f; font-size: 11px; line-height: 1; }
 .ui-feedback-root.is-dark .ui-feedback-marker.is-image { background: #92400e; border-color: #fcd34d; color: #fef3c7; }
 
-/* ── picker ── */
+/* \u2500\u2500 picker \u2500\u2500 */
 .ui-feedback-picking,
 .ui-feedback-picking * { cursor: crosshair !important; }
 .ui-feedback-picker-layer {
@@ -1107,7 +1111,7 @@ button { cursor: pointer; }
   cursor: crosshair;
 }
 
-/* ── responsive ── */
+/* \u2500\u2500 responsive \u2500\u2500 */
 @media (max-width: 640px) {
   .ui-feedback-toolbar { right: 10px !important; left: 10px; bottom: 10px; justify-content: space-between; }
   .ui-feedback-toolbar-grip { display: none; }
@@ -1121,7 +1125,7 @@ button { cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
-  /* ── v0.7 visual refresh: white accent + modern dark surfaces ── */
+  /* \u2500\u2500 v0.7 visual refresh: white accent + modern dark surfaces \u2500\u2500 */
   .ui-feedback-root { --ui-feedback-accent: #fff !important; }
   .ui-feedback-root.is-dark { --ui-feedback-accent: #fff !important; }
   .ui-feedback-panel,
@@ -1208,555 +1212,523 @@ button { cursor: pointer; }
   }
 `;
 
-/* ── main factory ────────────────────────────────────────────────────── */
+// src/ui/icons.js
+var ICONS = {
+  clipboard: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9 4.5V3h6v1.5M9 9h6M9 13h6M9 17h4"/></svg>',
+  comment: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5.5h14v10H9l-4 3v-13Z"/><path d="M9 10.5h6M12 8v5"/></svg>',
+  pencil: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z"/><path d="m13.8 6.7 3.5 3.5M4 20.8l3.5-.8"/></svg>',
+  close: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg>',
+  download: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 20h16"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 11v5M14 11v5M8 7l1 13h6l1-13M9 7l1-3h4l1 3"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 16.5-.8 4.3 4.3-.8L19 8.5 15.5 5 4 16.5Z"/><path d="m13.8 6.7 3.5 3.5"/></svg>',
+  check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>',
+  undo: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10h13a4 4 0 0 1 0 8H9"/><path d="M7 6l-4 4 4 4"/></svg>',
+  search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M16 16l5 5"/></svg>',
+  filter: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 6h18M7 12h10M10 18h4"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="6" r="1.2"/><circle cx="15" cy="6" r="1.2"/><circle cx="9" cy="12" r="1.2"/><circle cx="15" cy="12" r="1.2"/><circle cx="9" cy="18" r="1.2"/><circle cx="15" cy="18" r="1.2"/></svg>',
+  paintbrush: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/><path d="M9 11l-4 4s-1.5 2 1 4.5 4.5 1 4.5 1l4.5-4"/></svg>',
+  image: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m3 16 5-5 4 4 3-3 6 6"/></svg>',
+  collapse: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 10l4 4 4-4"/></svg>',
+  refresh: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.8-4L3 10"/><path d="M3 5v5h5M4 13a8 8 0 0 0 14.8 4L21 14"/><path d="M21 19v-5h-5"/></svg>',
+  github: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/></svg>'
+};
 
-export function createUIFeedback(options = {}) {
-  if (typeof window === 'undefined' || typeof document === 'undefined') return null;
-  if (window.__uiFeedbackInstance) return window.__uiFeedbackInstance;
-
-    const config = {
-    ...DEFAULTS,
-    ...options,
-    shortcut: (options.shortcut || DEFAULTS.shortcut).map((k) => k.toLowerCase()),
+// src/features/comments.js
+function createCommentsController(ctx) {
+  const { state } = ctx;
+  function getFilteredComments() {
+    let items = state.comments;
+    if (state.drawerTab === "comment") items = items.filter((item) => item.type === "comment");
+    if (state.drawerTab === "edit") items = items.filter((item) => ["edit", "css", "image"].includes(item.type));
+    if (state.drawerTab === "resolved") items = items.filter((item) => item.resolved);
+    if (state.filterPriority !== "all") items = items.filter((item) => item.priority === state.filterPriority);
+    if (state.filterCategory !== "all") {
+      items = items.filter((item) => (item.category || defaultCategoryForType(item.type)) === state.filterCategory);
+    }
+    if (state.searchQuery) {
+      const query = state.searchQuery.toLowerCase();
+      items = items.filter((item) => [item.comment, item.selector, item.tag, item.targetText, item.value].some((value) => String(value || "").toLowerCase().includes(query)));
+    }
+    return items;
+  }
+  function getItemCodeLine(item) {
+    return firstCodeLine(resolveSelector(item.selector)) || item.codeLine || "";
+  }
+  function renderItem(item) {
+    const priority = item.priority || "medium";
+    const resolved = Boolean(item.resolved);
+    const time = relativeTime(item.updatedAt || item.createdAt);
+    const contextTags = [];
+    if (item.viewport) contextTags.push(`\u{1F4F1} ${item.viewport}`);
+    if (item.scrollY !== void 0) contextTags.push(`\u2195\uFE0F ${item.scrollY}px`);
+    const category = categoryLabel(item.category, item.type);
+    const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F Thay \u0111\u1ED5i text: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? `<p class="ui-feedback-item__comment">\u2726 B\u1ED9 giao di\u1EC7n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 Thay \u1EA3nh (${item.imageSourceType === "upload" ? "upload" : "URL"}): <code>${escapeHtml(item.value)}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
+    return `<article class="ui-feedback-item ${resolved ? "is-resolved" : ""}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
+      <div class="ui-feedback-item__meta">
+        <span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">\u29C9</button>
+        <span class="ui-feedback-category-chip">${escapeHtml(category)}</span>
+        <span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span>
+        <span class="ui-feedback-resolve-badge ${resolved ? "is-resolved" : "is-open"}">${resolved ? `${ICONS.check} Xong` : "M\u1EDF"}</span>
+      </div>
+      ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
+      ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ""}
+      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} \xB7 ${escapeHtml(item.targetText || "Kh\xF4ng c\xF3 n\u1ED9i dung xem tr\u01B0\u1EDBc")}</p>
+      <div class="ui-feedback-item__code" title="D\xF2ng code \u0111\u1EA7u c\u1EE7a component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || "Kh\xF4ng x\xE1c \u0111\u1ECBnh")}</code></div>
+      ${content}
+      <div class="ui-feedback-item__actions">
+        <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${escapeAttribute(item.id)}" title="${resolved ? "M\u1EDF l\u1EA1i" : "\u0110\xE1nh d\u1EA5u xong"}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? "M\u1EDF l\u1EA1i" : "Xong"}</button>
+        ${!["edit", "css", "image"].includes(item.type) ? `<button class="ui-feedback-mini" data-edit-comment="${escapeAttribute(item.id)}">${ICONS.edit} S\u1EEDa</button>` : ""}
+        <button class="ui-feedback-mini" data-delete-comment="${escapeAttribute(item.id)}">${ICONS.trash} X\xF3a</button>
+      </div>
+    </article>`;
+  }
+  function renderGroupedComments(items) {
+    const grouped = items.reduce((groups, item) => {
+      var _a;
+      const page = item.page || location.pathname || "/";
+      const category = categoryLabel(item.category, item.type);
+      groups[page] || (groups[page] = {});
+      ((_a = groups[page])[category] || (_a[category] = [])).push(item);
+      return groups;
+    }, {});
+    return Object.entries(grouped).map(([page, categories]) => {
+      const total = Object.values(categories).reduce((sum, group) => sum + group.length, 0);
+      const categoryContent = Object.entries(categories).map(
+        ([category, categoryItems]) => `<div class="ui-feedback-category-group"><span class="ui-feedback-category-label">${escapeHtml(category)} \xB7 ${categoryItems.length}</span>${categoryItems.map(renderItem).join("")}</div>`
+      ).join("");
+      return `<section class="ui-feedback-group"><span class="ui-feedback-group__name">${escapeHtml(page)} \xB7 ${total} m\u1EE5c</span>${categoryContent}</section>`;
+    }).join("");
+  }
+  function renderCategoryOptions(selected = "all") {
+    return `<option value="all" ${selected === "all" ? "selected" : ""}>T\u1EA5t c\u1EA3 ph\xE2n lo\u1EA1i</option>${FEEDBACK_CATEGORIES.map((category) => `<option value="${category.value}" ${selected === category.value ? "selected" : ""}>${category.label}</option>`).join("")}`;
+  }
+  function editComment(id) {
+    const item = state.comments.find((comment) => comment.id === id);
+    if (!item) return;
+    ctx.openModalWithExisting(resolveSelector(item.selector) || document.body, ["css", "image"].includes(item.type) ? item.type : "comment", item);
+  }
+  function deleteComment(id) {
+    const index = state.comments.findIndex((comment) => comment.id === id);
+    if (index === -1) return;
+    const deleted = state.comments.splice(index, 1)[0];
+    state.undoStack.push({ type: "delete", item: deleted, index });
+    ctx.persist();
+    ctx.renderToolbar();
+    state.panelOpen = true;
+    ctx.renderPanel();
+    ctx.showToast("\u0110\xE3 x\xF3a feedback", { undo: true });
+  }
+  function undoAction() {
+    const entry = state.undoStack.pop();
+    if (!entry) return;
+    if (entry.type === "delete") {
+      state.comments.splice(entry.index, 0, entry.item);
+      ctx.persist();
+      ctx.renderToolbar();
+      state.panelOpen = true;
+      ctx.renderPanel();
+      ctx.showToast("\u0110\xE3 ho\xE0n t\xE1c x\xF3a");
+      return;
+    }
+    if (["edit", "css", "image"].includes(entry.type)) {
+      const element = resolveSelector(entry.selector);
+      if (element) {
+        if (entry.type === "edit") element.textContent = entry.oldValue;
+        if (entry.type === "css") element.style.cssText = entry.oldValue;
+        if (entry.type === "image") ctx.restoreImageState(element, entry.oldImageState);
+      }
+      const index = state.comments.findIndex((comment) => comment.id === entry.id);
+      if (index !== -1) state.comments.splice(index, 1);
+      ctx.persist();
+      ctx.renderToolbar();
+      ctx.renderPanel();
+      ctx.placeMarkers();
+      ctx.showToast("\u0110\xE3 ho\xE0n t\xE1c ch\u1EC9nh s\u1EEDa");
+    }
+  }
+  function resolveComment(id) {
+    const item = state.comments.find((comment) => comment.id === id);
+    if (!item) return;
+    item.resolved = !item.resolved;
+    item.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
+    ctx.persist();
+    ctx.renderPanel();
+    ctx.showToast(item.resolved ? "\u0110\xE3 \u0111\xE1nh d\u1EA5u xong" : "\u0110\xE3 m\u1EDF l\u1EA1i feedback");
+  }
+  return {
+    getFilteredComments,
+    getItemCodeLine,
+    renderItem,
+    renderGroupedComments,
+    renderCategoryOptions,
+    editComment,
+    deleteComment,
+    undoAction,
+    resolveComment
   };
-  const activeStorageKey = `${config.storageKey}:active`;
-  const pressed = new Set();
-  const recentShortcutKeys = [];
-  let shortcutTimer;
+}
 
-  const state = {
-    active: loadActive(),
-    picking: false,
-    pickingLocked: false, // guard against double-fire
-    mode: 'comment',
-    panelOpen: false,
-    modalOpen: false,
-    target: null,
-    highlight: null,
-    comments: loadComments(),
-    undoStack: [], // for undoing deletes, edits, and css
-    filterPriority: 'all',
-    filterCategory: 'all',
-    searchQuery: '',
-    theme: detectTheme(config.theme),
-    // Resume context: remember the mode that was active before picking was
-    // stopped (panel open, Escape, manual stop) so we can call beginPicking()
-    // again with the same value when the interrupt clears.
-    _modeBeforePickingStop: null,
-    _resumeTimer: null,
-    modalSnapshot: null,
-    modalCommitted: false,
-    modalImageSource: '',
-    cssTab: 'advanced',
-    drawerTab: 'all',
-    collapsed: false,
-    coachmarkVisible: false,
-    cssPosition: { x: 0, y: 0 },
-    cssTransformBase: '',
-    modalImageZoom: 100,
-    modalPosition: { x: 0, y: 0 },
-    panelPosition: { x: 0, y: 0 },
-    updateBusy: false,
-  };
-
-  // Marker tracking
-  const markers = []; // { element, markerEl, commentId }
-
-  /* ── shadow DOM setup ── */
-  const host = document.createElement('div');
-  host.id = 'ui-feedback-host';
-  host.dataset.uiFeedbackIgnore = 'true';
-  const shadow = host.attachShadow({ mode: 'open' });
-  shadow.innerHTML = `<style>${STYLESHEET}</style><div class="ui-feedback-root${state.theme === 'dark' ? ' is-dark' : ''}" style="--ui-feedback-accent:${config.accent}"></div>`;
-  const root = shadow.querySelector('.ui-feedback-root');
-  document.documentElement.appendChild(host);
-
-  // Listen for system theme changes
-  if (config.theme === 'auto') {
-    window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-      state.theme = e.matches ? 'dark' : 'light';
-      root.classList.toggle('is-dark', state.theme === 'dark');
+// src/features/export-markdown.js
+function createMarkdownExporter(ctx) {
+  const { state } = ctx;
+  function renderItemMarkdown(item, index) {
+    const status = item.resolved ? "\u0110\xE3 x\u1EED l\xFD" : "\u0110ang m\u1EDF";
+    const lines = [`### ${index + 1}. ${escapeMarkdown(item.tag || "Element")} _(${item.type || "comment"})_`];
+    if (item.type === "edit") {
+      lines.push(`- **Text c\u0169:** ${escapeMarkdown(item.targetText || "")}`);
+      lines.push(`- **Text m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
+    } else if (item.type === "css") {
+      lines.push(`- **CSS c\u0169:** \`${escapeMarkdown(item.targetText || "")}\``);
+      lines.push(`- **CSS m\u1EDBi:** \`${escapeMarkdown(item.value || "")}\``);
+    } else if (item.type === "image") {
+      lines.push(`- **\u1EA2nh c\u0169:** ${escapeMarkdown(item.targetText || "Kh\xF4ng c\xF3")}`);
+      lines.push(`- **\u1EA2nh m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
+      lines.push(`- **Ngu\u1ED3n:** ${item.imageSourceType === "upload" ? "Upload t\u1EEB m\xE1y" : "URL website"}`);
+    } else {
+      lines.push(`- **\u01AFu ti\xEAn:** ${item.priority || "medium"}`);
+      lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || "")}`);
+    }
+    lines.push(`- **Ph\xE2n lo\u1EA1i:** ${categoryLabel(item.category, item.type)}`);
+    lines.push(`- **D\xF2ng code \u0111\u1EA7u:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || "")}\``);
+    lines.push(`- **Selector:** \`${escapeMarkdown(item.selector || "")}\``);
+    lines.push(`- **Tr\u1EA1ng th\xE1i:** ${status}`);
+    if (item.viewport) lines.push(`- **Context:** \`${item.viewport}\` \xB7 \`${item.scrollY}px\``);
+    lines.push(`- **T\u1EA1o l\xFAc:** ${item.createdAt ? formatDate(new Date(item.createdAt)) : "N/A"}`);
+    lines.push(`- **C\u1EADp nh\u1EADt:** ${item.updatedAt ? formatDate(new Date(item.updatedAt)) : "N/A"}`);
+    lines.push("");
+    return lines;
+  }
+  function exportMarkdown() {
+    const resolvedCount = state.comments.filter((item) => item.resolved).length;
+    const openCount = state.comments.length - resolvedCount;
+    const editCount = state.comments.filter((item) => ["edit", "css", "image"].includes(item.type)).length;
+    const feedbackCount = state.comments.length - editCount;
+    const lines = [
+      "# UI/UX Feedback",
+      "",
+      `- **URL:** ${location.href}`,
+      `- **Ng\xE0y xu\u1EA5t:** ${formatDate(/* @__PURE__ */ new Date())}`,
+      `- **T\u1ED5ng feedback:** ${state.comments.length} (${feedbackCount} ghi ch\xFA, ${editCount} ch\u1EC9nh s\u1EEDa, ${openCount} m\u1EDF, ${resolvedCount} \u0111\xE3 x\u1EED l\xFD)`,
+      ""
+    ];
+    const grouped = state.comments.reduce((groups, item) => {
+      const key = item.page || "/";
+      (groups[key] || (groups[key] = [])).push(item);
+      return groups;
+    }, {});
+    Object.entries(grouped).forEach(([page, items]) => {
+      lines.push(`## ${page}`, "");
+      items.forEach((item, index) => renderItemMarkdown(item, index).forEach((line) => lines.push(line)));
     });
+    lines.push("---", "", "## T\xF3m t\u1EAFt", "", "| Lo\u1EA1i | S\u1ED1 l\u01B0\u1EE3ng |", "|------|----------|");
+    lines.push(`| Feedback (ghi ch\xFA) | ${feedbackCount} |`);
+    lines.push(`| Edit (s\u1EEDa text) | ${state.comments.filter((item) => item.type === "edit").length} |`);
+    lines.push(`| CSS (B\u1ED9 giao di\u1EC7n) | ${state.comments.filter((item) => item.type === "css").length} |`);
+    lines.push(`| Image (thay \u1EA3nh) | ${state.comments.filter((item) => item.type === "image").length} |`, "");
+    lines.push("### Theo m\u1EE9c \u0111\u1ED9 (ch\u1EC9 feedback)", "| M\u1EE9c \u0111\u1ED9 | M\u1EDF | Xong | T\u1ED5ng |", "|--------|-----|------|------|");
+    ["high", "medium", "low"].forEach((priority) => {
+      const all = state.comments.filter((item) => !["edit", "css", "image"].includes(item.type) && (item.priority || "medium") === priority);
+      const resolved = all.filter((item) => item.resolved).length;
+      const label = priority === "high" ? "Cao" : priority === "medium" ? "Trung b\xECnh" : "Th\u1EA5p";
+      lines.push(`| ${label} | ${all.length - resolved} | ${resolved} | ${all.length} |`);
+    });
+    lines.push("");
+    const blob = new Blob([lines.join("\n").replace(/\n\n\n+/g, "\n\n")], { type: "text/markdown;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `ui-feedback-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.md`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    const exportedCount = state.comments.length;
+    state.comments = [];
+    state.undoStack = [];
+    ctx.persist();
+    ctx.clearMarkers();
+    state.panelOpen = false;
+    ctx.renderToolbar();
+    ctx.showToast(exportedCount ? `\u0110\xE3 xu\u1EA5t Markdown v\xE0 l\xE0m s\u1EA1ch ${exportedCount} m\u1EE5c` : "\u0110\xE3 xu\u1EA5t file Markdown");
   }
+  return { exportMarkdown, renderItemMarkdown };
+}
 
-  /* ── toolbar drag state ── */
-  let dragState = null;
-  let toolbarPos = { right: 20, top: null }; // null = bottom dock
-
-  function getToolbarStyle() {
-    const r = toolbarPos.right;
-    if (toolbarPos.top !== null) {
-      return `right:${r}px;top:${toolbarPos.top}px;transform:none;`;
+// src/features/github-issue.js
+function createGithubIssueController(ctx) {
+  const { state, config } = ctx;
+  function createGithubIssue() {
+    if (!config.githubRepo) return;
+    const unresolved = state.comments.filter((item) => !item.resolved);
+    if (!unresolved.length) {
+      ctx.showToast("Kh\xF4ng c\xF3 feedback n\xE0o \u0111ang m\u1EDF!");
+      return;
     }
-    return `right:${r}px;bottom:20px;`;
+    const lines = [
+      "# UI Feedback Review",
+      `
+**Context:** \`${window.innerWidth}x${window.innerHeight}\` \xB7 \`${state.theme}\``,
+      ""
+    ];
+    unresolved.forEach((item, index) => {
+      const typeLabel = item.type === "edit" ? "\u270F\uFE0F Edit" : item.type === "css" ? "\u2726 B\u1ED9 giao di\u1EC7n" : item.type === "image" ? "\u25A7 Image" : "\u{1F4AC} Feedback";
+      lines.push(`### ${index + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`);
+      if (item.type === "edit") {
+        lines.push(`- **Current text:** ${escapeMarkdown(item.targetText || "")}`);
+        lines.push(`- **New text:** ${escapeMarkdown(item.value || "")}`);
+      } else if (item.type === "css") {
+        lines.push(`- **Old CSS:** \`${escapeMarkdown(item.targetText || "")}\``);
+        lines.push(`- **New CSS:** \`${escapeMarkdown(item.value || "")}\``);
+      } else if (item.type === "image") {
+        lines.push(`- **Old image:** ${escapeMarkdown(item.targetText || "N/A")}`);
+        lines.push(`- **New image:** ${escapeMarkdown(item.value || "")}`);
+        lines.push(`- **Source:** ${item.imageSourceType === "upload" ? "Local upload" : "Website URL"}`);
+      } else {
+        lines.push(`- **Priority:** ${item.priority || "medium"}`);
+        lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || "")}`);
+      }
+      lines.push(`- **Category:** ${categoryLabel(item.category, item.type)}`);
+      lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || "N/A")}\``);
+      lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : "N/A"}\``, "");
+    });
+    const body = encodeURIComponent(lines.join("\n"));
+    window.open(`https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review&body=${body}`, "_blank");
+    ctx.showToast("\u0110ang m\u1EDF trang t\u1EA1o Issue");
   }
+  return { createGithubIssue };
+}
 
-  /* ── persistence ── */
-  function hasSeenCoachmark() {
-    try { return localStorage.getItem(`${config.storageKey}:coachmark`) === '1'; } catch { return false; }
+// src/features/css-editor.js
+function createCssEditor(ctx) {
+  const { state, root } = ctx;
+  function ensureGoogleFont(fontName) {
+    if (!fontName || fontName === "inherit") return;
+    const id = `ui-feedback-font-${fontName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+    if (document.getElementById(id)) return;
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName).replace(/%20/g, "+")}:wght@400;500;600;700&display=swap`;
+    document.head.appendChild(link);
   }
-  function dismissCoachmark() {
-    state.coachmarkVisible = false;
-    try { localStorage.setItem(`${config.storageKey}:coachmark`, '1'); } catch { /* ignore blocked storage */ }
-    renderToolbar();
+  function normalizeColor(value, fallback = "#ffffff") {
+    const raw = String(value || "").trim();
+    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
+    if (/^#[0-9a-f]{3}$/i.test(raw)) return raw.toLowerCase().replace(/^#(.)(.)(.)$/, "#$1$1$2$2$3$3");
+    const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+    if (match) return `#${[match[1], match[2], match[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
+    return fallback;
   }
-
-  function loadComments() {
+  function readCssValue(prop, fallback = "") {
+    if (!state.target) return fallback;
+    if (state.target.style?.[prop]) return state.target.style[prop];
     try {
-      return JSON.parse(localStorage.getItem(config.storageKey) || '[]');
+      return getComputedStyle(state.target)[prop] || fallback;
     } catch {
-      return [];
+      return fallback;
     }
   }
-
-    function persist() {
-    localStorage.setItem(config.storageKey, JSON.stringify(state.comments));
+  function applyCssProperty(prop, value) {
+    if (state.target && prop) state.target.style[prop] = value;
   }
-  function loadActive() {
-    if (!config.persistActive) return false;
+  function parseTranslatePosition(value) {
+    const raw = String(value || "").trim();
+    const translate = raw.match(/translate\(\s*(-?\d+(?:\.\d+)?)px(?:\s*,\s*|\s+)(-?\d+(?:\.\d+)?)px\s*\)/i);
+    if (translate) return { x: Number(translate[1]), y: Number(translate[2]) };
+    const pair = raw.match(/^\s*(-?\d+(?:\.\d+)?)px[\s,]+(-?\d+(?:\.\d+)?)px\s*$/i);
+    if (pair) return { x: Number(pair[1]), y: Number(pair[2]) };
+    const matrix = raw.match(/matrix(?:3d)?\(([^)]+)\)/i);
+    if (matrix) {
+      const values = matrix[1].split(",").map(Number);
+      if (values.length === 6) return { x: values[4] || 0, y: values[5] || 0 };
+      if (values.length === 16) return { x: values[12] || 0, y: values[13] || 0 };
+    }
+    return { x: 0, y: 0 };
+  }
+  function applyCssPosition(position = state.cssPosition) {
+    if (!state.target) return;
+    const x = Math.max(-200, Math.min(200, Number(position.x) || 0));
+    const y = Math.max(-200, Math.min(200, Number(position.y) || 0));
+    state.cssPosition = { x, y };
+    if ("translate" in state.target.style || typeof CSS === "undefined" || CSS.supports?.("translate", "0 0")) state.target.style.setProperty("translate", `${x}px ${y}px`);
+    else state.target.style.transform = `translate(${x}px, ${y}px)${state.cssTransformBase ? ` ${state.cssTransformBase}` : ""}`;
+    const pad = root.querySelector("[data-css-position-pad]");
+    if (pad) {
+      pad.style.setProperty("--pad-x", `${x * 0.3}px`);
+      pad.style.setProperty("--pad-y", `${y * 0.3}px`);
+    }
+    root.querySelectorAll("[data-css-x], [data-css-x-number]").forEach((input) => {
+      input.value = String(Math.round(x));
+    });
+    root.querySelectorAll("[data-css-y], [data-css-y-number]").forEach((input) => {
+      input.value = String(Math.round(y));
+    });
+    root.querySelector("[data-css-x-output]")?.replaceChildren(`${Math.round(x)}px`);
+    root.querySelector("[data-css-y-output]")?.replaceChildren(`${Math.round(y)}px`);
+  }
+  function updatePositionFromPointer(clientX, clientY) {
+    const pad = root.querySelector("[data-css-position-pad]");
+    if (!pad) return;
+    const rect = pad.getBoundingClientRect();
+    applyCssPosition({ x: ((clientX - rect.left) / rect.width - 0.5) * 400, y: ((clientY - rect.top) / rect.height - 0.5) * 400 });
+  }
+  return { ensureGoogleFont, normalizeColor, readCssValue, applyCssProperty, parseTranslatePosition, applyCssPosition, updatePositionFromPointer };
+}
+
+// src/features/image-editor.js
+function createImageEditor() {
+  function imageBackgroundSource(value) {
+    const match = String(value || "").trim().match(/url\((?:"|')?(.*?)(?:"|')?\)/i);
+    return match ? match[1] : "";
+  }
+  function parseImagePosition(value) {
+    const parts = String(value || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const convert = (part, fallback) => {
+      if (!part) return fallback;
+      if (part === "left" || part === "top") return 0;
+      if (part === "center") return 50;
+      if (part === "right" || part === "bottom") return 100;
+      const numeric = parseFloat(part);
+      return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : fallback;
+    };
+    return { x: convert(parts[0], 50), y: convert(parts[1], 50) };
+  }
+  function isImageElement(element) {
+    return element instanceof Element && (element instanceof HTMLImageElement || element.tagName.toLowerCase() === "img");
+  }
+  function captureImageState(element) {
+    if (!(element instanceof Element)) return { kind: "background", src: "", srcset: "", backgroundImage: "", backgroundPosition: "", backgroundSize: "" };
+    if (isImageElement(element)) {
+      let computed2 = {};
+      try {
+        computed2 = getComputedStyle(element);
+      } catch {
+      }
+      return { kind: "src", src: element.currentSrc || element.getAttribute("src") || "", srcset: element.getAttribute("srcset") || "", backgroundImage: "", objectPosition: element.style.objectPosition || "", objectFit: element.style.objectFit || "", effectiveObjectPosition: computed2.objectPosition || "50% 50%" };
+    }
+    const backgroundImage = element.style.backgroundImage || (() => {
+      try {
+        return getComputedStyle(element).backgroundImage || "";
+      } catch {
+        return "";
+      }
+    })();
+    let computed = {};
     try {
-      return sessionStorage.getItem(activeStorageKey) === '1';
+      computed = getComputedStyle(element);
+    } catch {
+    }
+    return { kind: "background", src: imageBackgroundSource(backgroundImage), srcset: "", backgroundImage: element.style.backgroundImage || "", backgroundPosition: element.style.backgroundPosition || "", backgroundSize: element.style.backgroundSize || "", effectiveBackgroundPosition: computed.backgroundPosition || "50% 50%" };
+  }
+  function applyImageSource(element, source) {
+    if (!(element instanceof Element)) return;
+    const safeSource = String(source || "").trim();
+    if (isImageElement(element)) {
+      element.setAttribute("src", safeSource);
+      if (element.hasAttribute("srcset")) element.removeAttribute("srcset");
+    } else {
+      element.style.backgroundImage = safeSource ? `url("${safeSource.replace(/"/g, '\\"')}")` : "";
+    }
+  }
+  function applyImagePosition(element, position = { x: 50, y: 50 }) {
+    if (!(element instanceof Element)) return;
+    const x = Math.max(0, Math.min(100, Number(position.x) || 0));
+    const y = Math.max(0, Math.min(100, Number(position.y) || 0));
+    if (isImageElement(element)) {
+      element.style.objectFit = "cover";
+      element.style.objectPosition = `${x}% ${y}%`;
+    } else element.style.backgroundPosition = `${x}% ${y}%`;
+  }
+  function applyImageState(element, snapshot) {
+    if (!(element instanceof Element) || !snapshot) return;
+    if (snapshot.kind === "src") {
+      if (snapshot.src) element.setAttribute("src", snapshot.src);
+      else element.removeAttribute("src");
+      if (snapshot.srcset) element.setAttribute("srcset", snapshot.srcset);
+      else element.removeAttribute("srcset");
+      if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition;
+      else if (snapshot.effectiveObjectPosition) element.style.objectPosition = snapshot.effectiveObjectPosition;
+      if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit;
+    } else {
+      element.style.backgroundImage = snapshot.backgroundImage || (snapshot.src ? `url("${snapshot.src.replace(/"/g, '\\"')}")` : "");
+      if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition;
+      else if (snapshot.effectiveBackgroundPosition) element.style.backgroundPosition = snapshot.effectiveBackgroundPosition;
+      if (snapshot.backgroundSize) element.style.backgroundSize = snapshot.backgroundSize;
+    }
+  }
+  function restoreImageState(element, snapshot) {
+    if (!(element instanceof Element) || !snapshot) return;
+    if (snapshot.kind === "src") {
+      if (snapshot.src) element.setAttribute("src", snapshot.src);
+      else element.removeAttribute("src");
+      if (snapshot.srcset) element.setAttribute("srcset", snapshot.srcset);
+      else element.removeAttribute("srcset");
+      if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition;
+      else element.style.removeProperty("object-position");
+      if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit;
+      else element.style.removeProperty("object-fit");
+    } else {
+      element.style.backgroundImage = snapshot.backgroundImage || "";
+      if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition;
+      else element.style.removeProperty("background-position");
+      if (snapshot.backgroundSize) element.style.backgroundSize = snapshot.backgroundSize;
+      else element.style.removeProperty("background-size");
+    }
+  }
+  function validateImageSource(source) {
+    const value = String(source || "").trim();
+    if (!value) return false;
+    if (value.startsWith("data:image/")) return value.length <= 1e6;
+    try {
+      return ["http:", "https:"].includes(new URL(value, location.href).protocol);
     } catch {
       return false;
     }
   }
-  function persistActive() {
-    if (!config.persistActive) return;
-    try {
-      sessionStorage.setItem(activeStorageKey, state.active ? '1' : '0');
-    } catch {
-      // Private browsing or a blocked storage API should not break the tool.
-    }
-  }
+  return { imageBackgroundSource, parseImagePosition, captureImageState, applyImageSource, applyImagePosition, applyImageState, restoreImageState, validateImageSource };
+}
 
-  function resolveSelector(selector) {
-    if (!selector) return null;
-    try { return document.querySelector(selector); } catch { return null; }
-  }
-
-  function applyPersistedChanges() {
-    if (!state.active) return;
-    const page = location.pathname || '/';
-    state.comments
-      .filter((item) => (item.page || '/') === page && ['edit', 'css', 'image'].includes(item.type))
-      .sort((a, b) => String(a.createdAt || '').localeCompare(String(b.createdAt || '')))
-      .forEach((item) => {
-        const element = resolveSelector(item.selector);
-        if (!element) return;
-        if (item.type === 'edit') element.textContent = item.value || '';
-        else if (item.type === 'css') element.style.cssText = item.value || '';
-        else if (item.type === 'image') applyImageState(element, item.newImageState || { kind: 'src', src: item.value || '' });
-      });
-  }
-  /* ── rendering ── */
-  function renderToolbar() {
-    if (!state.active) {
-      root.innerHTML = '';
-      return;
-    }
-    const undoCount = state.undoStack.length;
-    const undoBadge = undoCount ? `<span class="ui-feedback-badge ui-feedback-badge--undo">${undoCount}</span>` : '';
-    const updateLabel = state.updateBusy ? 'Đang kiểm tra' : 'Update';
-    const coachmark = state.coachmarkVisible ? `<aside class="ui-feedback-coachmark" role="status"><strong>Bắt đầu với UI Feedback</strong><p>Ghi nhận thay đổi ngay trên bản preview, không cần rời khỏi trang.</p><ol class="ui-feedback-coachmark__steps"><li>Chọn một công cụ trên thanh dock.</li><li>Rê chuột và bấm vào phần tử cần review.</li><li>Lưu feedback hoặc hoàn tác bằng nút Undo.</li></ol><button type="button" data-coachmark-dismiss>Đã hiểu</button></aside>` : '';
-    const bubble = `<button class="ui-feedback-toolbar-bubble" data-action="collapse" aria-label="Mở thanh công cụ" title="Mở thanh công cụ">${ICONS.grip}<span class="ui-feedback-badge" ${state.comments.length ? '' : 'hidden'}>${state.comments.length}</span></button>`;
-    const dock = `<div class="ui-feedback-toolbar" role="toolbar" aria-label="UI Feedback tools" style="${getToolbarStyle()}">
-      <div class="ui-feedback-toolbar-grip" data-drag-handle aria-label="Kéo để di chuyển toolbar">${ICONS.grip}</div>
-      <button class="ui-feedback-tool ${state.panelOpen ? 'is-active' : ''}" data-action="list" aria-label="Mở danh sách feedback" title="Danh sách feedback">${ICONS.clipboard}<span class="ui-feedback-tool__label">Feedback</span><span class="ui-feedback-badge" ${state.comments.length ? '' : 'hidden'}>${state.comments.length}</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'comment' ? 'is-active' : ''}" data-action="comment" aria-label="Thêm note" title="Thêm note">${ICONS.comment}<span class="ui-feedback-tool__label">Note</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'edit' ? 'is-active' : ''}" data-action="edit" aria-label="Sửa nội dung UI" title="Sửa text">${ICONS.pencil}<span class="ui-feedback-tool__label">Sửa text</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'css' ? 'is-active' : ''}" data-action="css" aria-label="Mở Bộ CSS" title="Bộ CSS">${ICONS.paintbrush}<span class="ui-feedback-tool__label">Bộ CSS</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === 'image' ? 'is-active' : ''}" data-action="image" aria-label="Thay ảnh" title="Thay ảnh">${ICONS.image}<span class="ui-feedback-tool__label">Thay ảnh</span></button>
-      <button class="ui-feedback-tool ui-feedback-tool--update ${state.updateBusy ? 'is-busy' : ''}" data-action="update" aria-label="Kiểm tra và cập nhật UI Feedback tool" title="Kiểm tra bản cập nhật" aria-busy="${state.updateBusy ? 'true' : 'false'}">${ICONS.refresh}<span class="ui-feedback-tool__label">${updateLabel}</span></button>
-      ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Hoàn tác thao tác gần nhất" title="Hoàn tác (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Undo</span>${undoBadge}</button>` : ''}
-      <button class="ui-feedback-tool" data-action="collapse" aria-label="Thu gọn thanh công cụ" title="Thu gọn">${ICONS.collapse}</button>
-    </div>`;
-    root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ''}${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div><div data-ui-feedback-toast></div>`;
-    if (state.panelOpen) renderPanel();
-    if (state.modalOpen) renderModal();
-  }
-
-  /* ── toolbar update ── */
-  function normalizeVersion(value) {
-    const match = String(value || '').match(/\d+(?:\.\d+){0,2}/);
-    return match ? match[0].split('.').map(Number) : [0];
-  }
-
-  function compareVersions(left, right) {
-    const a = normalizeVersion(left);
-    const b = normalizeVersion(right);
-    for (let i = 0; i < 3; i += 1) {
-      const delta = (a[i] || 0) - (b[i] || 0);
-      if (delta) return delta;
-    }
-    return 0;
-  }
-
-  function extractToolVersion(source) {
-    return String(source || '').match(/UI Feedback Tool v(\d+(?:\.\d+){2})/)?.[1] || '';
-  }
-
-  async function updateTool() {
-    if (state.updateBusy) return;
-    state.updateBusy = true;
-    let feedbackMessage = '';
-    renderToolbar();
-    try {
-      const candidateUrls = [...new Set([
-        ...(Array.isArray(config.updateMirrors) ? config.updateMirrors : []),
-        config.updateUrl,
-      ].filter(Boolean))];
-      const currentVersion = config.version || TOOL_VERSION;
-      let newest = null;
-      const failures = [];
-
-      for (const candidate of candidateUrls) {
-        try {
-          const updateUrl = new URL(candidate, document.baseURI);
-          updateUrl.searchParams.set('ui_feedback_update', String(Date.now()));
-          const response = await fetch(updateUrl.href, { cache: 'no-store', credentials: 'omit' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const source = await response.text();
-          const version = extractToolVersion(source);
-          if (!version) throw new Error('missing version');
-          if (!newest || compareVersions(version, newest.version) > 0) {
-            newest = { source, version, url: updateUrl.href };
-          }
-        } catch (error) {
-          failures.push(`${candidate}: ${error.message}`);
-        }
-      }
-
-      if (!newest) {
-        throw new Error(`No reachable update mirror. ${failures.join(' | ')}`);
-      }
-      const { source, version: latestVersion } = newest;
-      if (compareVersions(latestVersion, currentVersion) <= 0) {
-        feedbackMessage = `UI Feedback đang ở bản mới nhất · v${currentVersion}`;
-        return;
-      }
-
-      const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-      try {
-        const updatedModule = await import(`${blobUrl}#ui-feedback-${latestVersion}-${Date.now()}`);
-        if (typeof updatedModule.createUIFeedback !== 'function') throw new Error('Updated module is invalid');
-        const preservedOptions = { ...config, version: latestVersion, updateMirrors: config.updateMirrors, updateUrl: config.updateUrl };
-        dispose();
-        const updatedInstance = updatedModule.createUIFeedback(preservedOptions);
-        setTimeout(() => updatedInstance?.notify?.(`Đã cập nhật UI Feedback lên v${latestVersion}`), 0);
-      } finally {
-        URL.revokeObjectURL(blobUrl);
-      }
-    } catch (error) {
-      console.warn('[UI Feedback] Update failed:', error);
-      feedbackMessage = 'Không thể cập nhật tool từ các mirror. Kiểm tra kết nối rồi thử lại.';
-    } finally {
-      state.updateBusy = false;
-      if (root.isConnected) {
-        renderToolbar();
-        if (feedbackMessage) showToast(feedbackMessage);
-      }
-    }
-  }
-
-  /* ── toolbar actions ── */
-  let lastToolbarAction = '';
-  let lastToolbarActionAt = 0;
-
-  function dispatchToolbarAction(action) {
-    if (action === 'activate') toggle();
-    if (action === 'list') togglePanel();
-    if (action === 'undo') undoAction();
-    if (action === 'comment') toggleMode('comment');
-    if (action === 'edit') toggleMode('edit');
-    if (action === 'css') toggleMode('css');
-    if (action === 'image') toggleMode('image');
-    if (action === 'update') updateTool();
-    if (action === 'collapse') { state.collapsed = !state.collapsed; renderToolbar(); }
-  }
-
-  // Toggling behavior: clicking the same picking mode again turns it off.
-  // Clicking a different mode swaps to that mode without an intermediate
-  // "off" state.
-  function toggleMode(mode) {
-    if (state.picking && state.mode === mode) {
-      stopPicking({ rerender: true });
-      return;
-    }
-    beginPicking(mode);
-  }
-
-  function triggerToolbarAction(event, button) {
-    const action = button?.dataset?.action;
-    if (!action) return;
-    const now = performance.now();
-    if (action === lastToolbarAction && now - lastToolbarActionAt < 500) return;
-    lastToolbarAction = action;
-    lastToolbarActionAt = now;
-    event.preventDefault();
-    event.stopPropagation();
-    dispatchToolbarAction(action);
-  }
-
-  /* ── panel ── */
-  function togglePanel(force) {
-    state.panelOpen = typeof force === 'boolean' ? force : !state.panelOpen;
-    if (!state.panelOpen) {
-      renderToolbar();
-      // If picking was active before the panel opened, resume it now.
-      resumePickingIfNeeded();
-      return;
-    }
-    stopPicking();
-    renderToolbar();
-    renderPanel();
-  }
-
-  function getFilteredComments() {
-    let items = state.comments;
-    if (state.drawerTab === 'comment') items = items.filter((c) => c.type === 'comment');
-    if (state.drawerTab === 'edit') items = items.filter((c) => ['edit', 'css', 'image'].includes(c.type));
-    if (state.drawerTab === 'resolved') items = items.filter((c) => c.resolved);
-    if (state.filterPriority !== 'all') {
-      items = items.filter((c) => c.priority === state.filterPriority);
-    }
-    if (state.filterCategory !== 'all') {
-      items = items.filter((c) => (c.category || defaultCategoryForType(c.type)) === state.filterCategory);
-    }
-    if (state.searchQuery) {
-      const q = state.searchQuery.toLowerCase();
-      items = items.filter(
-        (c) =>
-          (c.comment || '').toLowerCase().includes(q) ||
-          (c.selector || '').toLowerCase().includes(q) ||
-          (c.tag || '').toLowerCase().includes(q) ||
-          (c.targetText || '').toLowerCase().includes(q) ||
-          (c.value || '').toLowerCase().includes(q),
-      );
-    }
-    return items;
-  }
-
-  function renderGroupedComments(items) {
-    const grouped = items.reduce((groups, item) => {
-      const page = item.page || location.pathname || '/';
-      const category = categoryLabel(item.category, item.type);
-      (groups[page] ||= {});
-      (groups[page][category] ||= []).push(item);
-      return groups;
-    }, {});
-    return Object.entries(grouped).map(([page, categories]) => {
-      const total = Object.values(categories).reduce((sum, items) => sum + items.length, 0);
-      const categoryContent = Object.entries(categories).map(([category, categoryItems]) =>
-        `<div class="ui-feedback-category-group"><span class="ui-feedback-category-label">${escapeHtml(category)} · ${categoryItems.length}</span>${categoryItems.map(renderItem).join('')}</div>`,
-      ).join('');
-      return `<section class="ui-feedback-group"><span class="ui-feedback-group__name">${escapeHtml(page)} · ${total} mục</span>${categoryContent}</section>`;
-    }).join('');
-  }
-
-  function renderCategoryOptions(selected = 'all') {
-    return `<option value="all" ${selected === 'all' ? 'selected' : ''}>Tất cả phân loại</option>${FEEDBACK_CATEGORIES.map((category) => `<option value="${category.value}" ${selected === category.value ? 'selected' : ''}>${category.label}</option>`).join('')}`;
-  }
-
-  function renderPanel() {
-    const mount = root.querySelector('[data-ui-feedback-panel]');
-    if (!mount || !state.panelOpen) return;
-    const filtered = getFilteredComments();
-    const resolvedCount = state.comments.filter((c) => c.resolved).length;
-    const openCount = state.comments.filter((c) => !c.resolved && !['edit', 'css', 'image'].includes(c.type)).length;
-    const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
-    const content = renderGroupedComments(filtered);
-    mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh sách feedback">
-      <header class="ui-feedback-panel__header" data-panel-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} đang mở · ${resolvedCount} đã xong · ${editCount} chỉnh sửa <span class="ui-feedback-drag-hint">Kéo để di chuyển</span></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="Đưa cửa sổ về vị trí mặc định" title="Đặt lại vị trí">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng cửa sổ">${ICONS.close}</button></span></header>
-      <div class="ui-feedback-panel__tabs" role="tablist"><button class="ui-feedback-panel__tab ${state.drawerTab === 'all' ? 'is-active' : ''}" data-panel-tab="all" role="tab">Tất cả <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'comment' ? 'is-active' : ''}" data-panel-tab="comment" role="tab">Ghi chú <span>${state.comments.filter((c) => c.type === 'comment').length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'edit' ? 'is-active' : ''}" data-panel-tab="edit" role="tab">Chỉnh sửa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'resolved' ? 'is-active' : ''}" data-panel-tab="resolved" role="tab">Đã xong <span>${resolvedCount}</span></button></div>
-      <div class="ui-feedback-panel__filter">
-        <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="Tìm feedback…" value="${escapeAttribute(state.searchQuery)}" /></div>
-        <select class="ui-feedback-filter-select" data-panel-filter aria-label="Lọc theo mức độ">
-          <option value="all" ${state.filterPriority === 'all' ? 'selected' : ''}>Mức độ</option>
-          <option value="high" ${state.filterPriority === 'high' ? 'selected' : ''}>Cao</option>
-          <option value="medium" ${state.filterPriority === 'medium' ? 'selected' : ''}>Trung bình</option>
-          <option value="low" ${state.filterPriority === 'low' ? 'selected' : ''}>Thấp</option>
-        </select>
-        <select class="ui-feedback-filter-select ui-feedback-filter-select--category" data-panel-category aria-label="Lọc theo phân loại">${renderCategoryOptions(state.filterCategory)}</select>
-      </div>
-      <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' || state.filterCategory !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback. Chọn biểu tượng comment rồi bấm vào một phần tử trên trang.'}</div>`}</div>
-    </aside>`;
-    applyPanelPosition();
-    mount.onclick = handlePanelClick;
-    mount.onpointerdown = handlePanelPointerDown;
-    mount.oninput = handlePanelInput;
-    mount.onchange = handlePanelChange;
-  }
-
-  function applyPanelPosition() {
-    const panel = root.querySelector('.ui-feedback-panel');
-    if (!panel) return;
-    const position = state.panelPosition || { x: 0, y: 0 };
-    panel.style.setProperty('--ui-feedback-panel-x', `${position.x}px`);
-    panel.style.setProperty('--ui-feedback-panel-y', `${position.y}px`);
-  }
-
-  function getWindowDragHandle(event, selector) {
-    if (event.pointerType === 'mouse' && event.button !== 0) return null;
-    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
-    const elements = path.filter((node) => node && node.nodeType === 1);
-    const target = elements[0] || event.target;
-    const interactive = elements.find((node) => node.matches?.('button, a, input, textarea, select, option, [contenteditable="true"], [data-no-drag]'));
-    if (interactive) return null;
-    return elements.find((node) => node.matches?.(selector)) || target?.closest?.(selector) || null;
-  }
-
-  function handlePanelPointerDown(event) {
-    const handle = getWindowDragHandle(event, '[data-panel-drag-handle]');
-    if (!handle) return;
-    event.preventDefault();
-    event.stopPropagation();
-    const panel = root.querySelector('.ui-feedback-panel');
-    const position = state.panelPosition || { x: 0, y: 0 };
-    const drag = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
-    handle.classList.add('is-dragging');
-    try { handle.setPointerCapture?.(event.pointerId); } catch { /* ignore unsupported capture */ }
-    const onMove = (moveEvent) => {
-      if (moveEvent.pointerId !== drag.pointerId) return;
-      const maxX = Math.max(0, window.innerWidth - 80);
-      const maxY = Math.max(0, window.innerHeight - 80);
-      state.panelPosition = {
-        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
-        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY)),
-      };
-      applyPanelPosition();
-    };
-    const onBlur = () => onEnd();
-    const onEnd = (endEvent) => {
-      if (endEvent?.pointerId != null && endEvent.pointerId !== drag.pointerId) return;
-      handle.classList.remove('is-dragging');
-      try { handle.releasePointerCapture?.(drag.pointerId); } catch { /* ignore */ }
-      document.removeEventListener('pointermove', onMove, true);
-      document.removeEventListener('pointerup', onEnd, true);
-      document.removeEventListener('pointercancel', onEnd, true);
-      window.removeEventListener('blur', onBlur);
-      if (panel) panel.classList.remove('is-dragging');
-    };
-    document.addEventListener('pointermove', onMove, true);
-    document.addEventListener('pointerup', onEnd, true);
-    document.addEventListener('pointercancel', onEnd, true);
-    window.addEventListener('blur', onBlur);
-  }
-
-  function handlePanelClick(event) {
-    const target = event.target.closest('[data-panel-action], [data-panel-tab], [data-edit-comment], [data-delete-comment], [data-resolve-comment], [data-copy-selector], [data-comment-id]');
-    if (!target) return;
-    event.stopPropagation();
-    if (target.dataset.panelTab) { state.drawerTab = target.dataset.panelTab; renderPanel(); return; }
-    if (target.dataset.panelAction === 'reset-position') { state.panelPosition = { x: 0, y: 0 }; applyPanelPosition(); showToast('Đã đặt lại vị trí cửa sổ'); return; }
-    if (target.dataset.copySelector) { const copyResult = navigator.clipboard?.writeText?.(target.dataset.copySelector); Promise.resolve(copyResult).then(() => showToast('Đã copy selector')).catch(() => showToast('Không thể copy selector')); return; }
-    if (target.dataset.panelAction === 'close') togglePanel(false);
-    else if (target.dataset.panelAction === 'export') exportMarkdown();
-    else if (target.dataset.panelAction === 'github') createGithubIssue();
-    else if (target.dataset.editComment) editComment(target.dataset.editComment);
-    else if (target.dataset.deleteComment) deleteComment(target.dataset.deleteComment);
-    else if (target.dataset.resolveComment) resolveComment(target.dataset.resolveComment);
-    else {
-      const card = event.target.closest('[data-comment-id]');
-      if (card) focusComment(card.dataset.commentId);
-    }
-  }
-
-  function handlePanelInput(event) {
-    if (event.target.matches('[data-panel-search]')) {
-      state.searchQuery = event.target.value;
-      // Re-render body only
-      const body = root.querySelector('.ui-feedback-panel__body');
-      if (body) {
-        const filtered = getFilteredComments();
-        const content = renderGroupedComments(filtered);
-        body.innerHTML = content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback.'}</div>`;
-      }
-    }
-  }
-
-  function handlePanelChange(event) {
-    if (event.target.matches('[data-panel-filter]')) {
-      state.filterPriority = event.target.value;
-      renderPanel();
-    } else if (event.target.matches('[data-panel-category]')) {
-      state.filterCategory = event.target.value;
-      renderPanel();
-    }
-  }
-
-  function getItemCodeLine(item) {
-    const element = resolveSelector(item.selector);
-    return firstCodeLine(element) || item.codeLine || '';
-  }
-
-  function renderItem(item) {
-    const priority = item.priority || 'medium';
-    const resolved = item.resolved;
-    const timeStr = relativeTime(item.updatedAt || item.createdAt);
-    const contextTags = [];
-    if (item.viewport) contextTags.push(`📱 ${item.viewport}`);
-    if (item.scrollY !== undefined) contextTags.push(`↕️ ${item.scrollY}px`);
-
-    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
-      <div class="ui-feedback-item__meta">
-        <span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">⧉</button>
-        <span class="ui-feedback-category-chip">${escapeHtml(categoryLabel(item.category, item.type))}</span>
-        <span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span>
-        <span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span>
-      </div>
-      ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map(t => `<span class="ui-feedback-context-tag">${escapeHtml(t)}</span>`).join('')}</div>` : ''}
-      ${timeStr ? `<div class="ui-feedback-item__time">${escapeHtml(timeStr)}</div>` : ''}
-      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} · ${escapeHtml(item.targetText || 'Không có nội dung xem trước')}</p>
-      <div class="ui-feedback-item__code" title="Dòng code đầu của component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || 'Không xác định')}</code></div>
-      ${item.type === 'edit' ? `<p class="ui-feedback-item__comment">✏️ Thay đổi text: <code>${escapeHtml(item.value)}</code></p>` : item.type === 'css' ? `<p class="ui-feedback-item__comment">✦ Bộ giao diện: <code>${escapeHtml(item.value)}</code></p>` : item.type === 'image' ? `<p class="ui-feedback-item__comment">▧ Thay ảnh (${item.imageSourceType === 'upload' ? 'upload' : 'URL'}): <code>${escapeHtml(item.value)}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`}
-      <div class="ui-feedback-item__actions">
-        <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${item.id}" title="${resolved ? 'Mở lại' : 'Đánh dấu xong'}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? 'Mở lại' : 'Xong'}</button>
-        ${!['edit', 'css', 'image'].includes(item.type) ? `<button class="ui-feedback-mini" data-edit-comment="${item.id}">${ICONS.edit} Sửa</button>` : ''}
-        <button class="ui-feedback-mini" data-delete-comment="${item.id}">${ICONS.trash} Xóa</button>
-      </div>
-    </article>`;
-  }
-
-  /* ── picking ── */
+// src/features/picker.js
+function createPickerController(ctx) {
+  const { state, root, config } = ctx;
   function clearResumeTimer() {
     if (state._resumeTimer) {
       clearTimeout(state._resumeTimer);
       state._resumeTimer = null;
     }
   }
-
+  function clearHighlight() {
+    if (!state.highlight) return;
+    state.highlight.element.setAttribute("style", state.highlight.style || "");
+    if (!state.highlight.style) state.highlight.element.removeAttribute("style");
+    state.highlight = null;
+  }
+  function highlight(element) {
+    if (!(element instanceof Element) || element.closest("#ui-feedback-host")) return;
+    if (state.highlight?.element === element) return;
+    clearHighlight();
+    state.highlight = { element, style: element.getAttribute("style") };
+    element.style.setProperty("outline", `2px solid ${config.accent}`, "important");
+    element.style.setProperty("outline-offset", "3px", "important");
+  }
   function beginPicking(mode, opts = {}) {
     clearResumeTimer();
     state.panelOpen = false;
     state.mode = mode;
     state.picking = true;
     state.pickingLocked = false;
-    // Once picking is being explicitly entered, the previous resume context
-    // is no longer relevant.
     state._modeBeforePickingStop = null;
-    root.classList.add('ui-feedback-picking');
-    renderToolbar();
-    if (!opts.silent) {
-      showToast(mode === 'comment' ? 'Chọn phần tử để ghi comment' : mode === 'edit' ? 'Chọn phần tử để sửa nội dung' : mode === 'image' ? 'Chọn phần tử ảnh để thay ảnh' : 'Chọn phần tử để mở Bộ giao diện');
-    }
+    root.classList.add("ui-feedback-picking");
+    ctx.renderToolbar();
+    if (!opts.silent) ctx.showToast(mode === "comment" ? "Ch\u1ECDn ph\u1EA7n t\u1EED \u0111\u1EC3 ghi comment" : mode === "edit" ? "Ch\u1ECDn ph\u1EA7n t\u1EED \u0111\u1EC3 s\u1EEDa n\u1ED9i dung" : mode === "image" ? "Ch\u1ECDn ph\u1EA7n t\u1EED \u1EA3nh \u0111\u1EC3 thay \u1EA3nh" : "Ch\u1ECDn ph\u1EA7n t\u1EED \u0111\u1EC3 m\u1EDF B\u1ED9 giao di\u1EC7n");
   }
-
   function stopPicking(opts = {}) {
     clearResumeTimer();
-    if (state.picking) {
-      // Only remember the mode if picking was actually active — avoids
-      // stomping on a previously saved context.
-      state._modeBeforePickingStop = state.mode;
-    }
+    if (state.picking) state._modeBeforePickingStop = state.mode;
     state.picking = false;
     state.pickingLocked = false;
-    root.classList.remove('ui-feedback-picking');
+    root.classList.remove("ui-feedback-picking");
     clearHighlight();
-    // Some callers (e.g. the modal close path) need the toolbar to
-    // re-render so the active state is cleared immediately.
-    if (opts.rerender) renderToolbar();
+    if (opts.rerender) ctx.renderToolbar();
   }
-
   function resumePickingIfNeeded() {
     if (!state.active || state.modalOpen) return;
     const mode = state._modeBeforePickingStop;
@@ -1769,391 +1741,689 @@ export function createUIFeedback(options = {}) {
       beginPicking(mode, { silent: true });
     }, 80);
   }
+  return { clearResumeTimer, clearHighlight, highlight, beginPicking, stopPicking, resumePickingIfNeeded };
+}
 
-  function clearHighlight() {
-    if (state.highlight) {
-      state.highlight.element.setAttribute('style', state.highlight.style || '');
-      if (!state.highlight.style) state.highlight.element.removeAttribute('style');
-      state.highlight = null;
+// src/ui/panel.js
+function createPanelController(ctx) {
+  const { state, root } = ctx;
+  function getWindowDragHandle(event, selector) {
+    if (event.pointerType === "mouse" && event.button !== 0) return null;
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    const elements = path.filter((node) => node && node.nodeType === 1);
+    const target = elements[0] || event.target;
+    const interactive = elements.find((node) => node.matches?.('button, a, input, textarea, select, option, [contenteditable="true"], [data-no-drag]'));
+    if (interactive) return null;
+    return elements.find((node) => node.matches?.(selector)) || target?.closest?.(selector) || null;
+  }
+  function applyPanelPosition() {
+    const panel = root.querySelector(".ui-feedback-panel");
+    if (!panel) return;
+    const position = state.panelPosition || { x: 0, y: 0 };
+    panel.style.setProperty("--ui-feedback-panel-x", `${position.x}px`);
+    panel.style.setProperty("--ui-feedback-panel-y", `${position.y}px`);
+  }
+  function resetPosition() {
+    state.panelPosition = { x: 0, y: 0 };
+    applyPanelPosition();
+    ctx.showToast("\u0110\xE3 \u0111\u1EB7t l\u1EA1i v\u1ECB tr\xED c\u1EEDa s\u1ED5");
+  }
+  function handlePointerDown(event) {
+    const handle = getWindowDragHandle(event, "[data-panel-drag-handle]");
+    if (!handle) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const panel = root.querySelector(".ui-feedback-panel");
+    const position = state.panelPosition || { x: 0, y: 0 };
+    const drag = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
+    handle.classList.add("is-dragging");
+    panel?.classList.add("is-dragging");
+    try {
+      handle.setPointerCapture?.(event.pointerId);
+    } catch {
+    }
+    const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== drag.pointerId) return;
+      const maxX = Math.max(0, window.innerWidth - 80);
+      const maxY = Math.max(0, window.innerHeight - 80);
+      state.panelPosition = {
+        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
+        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY))
+      };
+      applyPanelPosition();
+    };
+    const onEnd = (endEvent) => {
+      if (endEvent?.pointerId != null && endEvent.pointerId !== drag.pointerId) return;
+      handle.classList.remove("is-dragging");
+      panel?.classList.remove("is-dragging");
+      try {
+        handle.releasePointerCapture?.(drag.pointerId);
+      } catch {
+      }
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onEnd, true);
+      document.removeEventListener("pointercancel", onEnd, true);
+      window.removeEventListener("blur", onBlur);
+    };
+    const onBlur = () => onEnd();
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onEnd, true);
+    document.addEventListener("pointercancel", onEnd, true);
+    window.addEventListener("blur", onBlur);
+  }
+  return { applyPanelPosition, resetPosition, handlePointerDown, getWindowDragHandle };
+}
+
+// src/ui/modal.js
+function createModalController(ctx) {
+  const { state, root } = ctx;
+  function applyModalPosition() {
+    const modal = root.querySelector(".ui-feedback-modal");
+    if (!modal) return;
+    const position = state.modalPosition || { x: 0, y: 0 };
+    modal.style.setProperty("--ui-feedback-modal-x", `${position.x}px`);
+    modal.style.setProperty("--ui-feedback-modal-y", `${position.y}px`);
+  }
+  function resetPosition() {
+    state.modalPosition = { x: 0, y: 0 };
+    applyModalPosition();
+    ctx.showToast("\u0110\xE3 \u0111\u1EB7t l\u1EA1i v\u1ECB tr\xED c\u1EEDa s\u1ED5");
+  }
+  function handlePointerDown(event) {
+    if (event.pointerType === "mouse" && event.button !== 0) return;
+    const path = typeof event.composedPath === "function" ? event.composedPath() : [];
+    const elements = path.filter((node) => node && node.nodeType === 1);
+    const target = elements[0] || event.target;
+    const interactive = elements.find((node) => node.matches?.('button, a, input, textarea, select, option, [contenteditable="true"], [data-no-drag]'));
+    if (interactive) return;
+    const handle = elements.find((node) => node.matches?.("[data-modal-drag-handle]")) || target?.closest?.("[data-modal-drag-handle]");
+    if (!handle) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const modal = root.querySelector(".ui-feedback-modal");
+    const position = state.modalPosition || { x: 0, y: 0 };
+    const drag = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
+    handle.classList.add("is-dragging");
+    modal?.classList.add("is-dragging");
+    try {
+      handle.setPointerCapture?.(event.pointerId);
+    } catch {
+    }
+    const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== drag.pointerId) return;
+      const maxX = Math.max(0, window.innerWidth - 100);
+      const maxY = Math.max(0, window.innerHeight - 100);
+      state.modalPosition = {
+        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
+        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY))
+      };
+      applyModalPosition();
+    };
+    const onEnd = (endEvent) => {
+      if (endEvent?.pointerId != null && endEvent.pointerId !== drag.pointerId) return;
+      handle.classList.remove("is-dragging");
+      modal?.classList.remove("is-dragging");
+      try {
+        handle.releasePointerCapture?.(drag.pointerId);
+      } catch {
+      }
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onEnd, true);
+      document.removeEventListener("pointercancel", onEnd, true);
+      window.removeEventListener("blur", onBlur);
+    };
+    const onBlur = () => onEnd();
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onEnd, true);
+    document.addEventListener("pointercancel", onEnd, true);
+    window.addEventListener("blur", onBlur);
+  }
+  return { applyModalPosition, resetPosition, handlePointerDown };
+}
+
+// src/ui/toolbar.js
+function renderToolbar(ctx) {
+  const {
+    state,
+    root,
+    getToolbarStyle,
+    dismissCoachmark,
+    renderPanel,
+    renderModal
+  } = ctx;
+  if (!state.active) {
+    root.innerHTML = "";
+    return;
+  }
+  const undoCount = state.undoStack.length;
+  const undoBadge = undoCount ? `<span class="ui-feedback-badge ui-feedback-badge--undo">${undoCount}</span>` : "";
+  const updateLabel = state.updateBusy ? "\u0110ang ki\u1EC3m tra" : "Update";
+  const coachmark = state.coachmarkVisible ? '<aside class="ui-feedback-coachmark" role="status"><strong>B\u1EAFt \u0111\u1EA7u v\u1EDBi UI Feedback</strong><p>Ghi nh\u1EADn thay \u0111\u1ED5i ngay tr\xEAn b\u1EA3n preview, kh\xF4ng c\u1EA7n r\u1EDDi kh\u1ECFi trang.</p><ol class="ui-feedback-coachmark__steps"><li>Ch\u1ECDn m\u1ED9t c\xF4ng c\u1EE5 tr\xEAn thanh dock.</li><li>R\xEA chu\u1ED9t v\xE0 b\u1EA5m v\xE0o ph\u1EA7n t\u1EED c\u1EA7n review.</li><li>L\u01B0u feedback ho\u1EB7c ho\xE0n t\xE1c b\u1EB1ng n\xFAt Undo.</li></ol><button type="button" data-coachmark-dismiss>\u0110\xE3 hi\u1EC3u</button></aside>' : "";
+  const bubble = `<button class="ui-feedback-toolbar-bubble" data-action="collapse" aria-label="M\u1EDF thanh c\xF4ng c\u1EE5" title="M\u1EDF thanh c\xF4ng c\u1EE5">${ICONS.grip}<span class="ui-feedback-badge" ${state.comments.length ? "" : "hidden"}>${state.comments.length}</span></button>`;
+  const dock = `<div class="ui-feedback-toolbar" role="toolbar" aria-label="UI Feedback tools" style="${getToolbarStyle()}">
+      <div class="ui-feedback-toolbar-grip" data-drag-handle aria-label="K\xE9o \u0111\u1EC3 di chuy\u1EC3n toolbar">${ICONS.grip}</div>
+      <button class="ui-feedback-tool ${state.panelOpen ? "is-active" : ""}" data-action="list" aria-label="M\u1EDF danh s\xE1ch feedback" title="Danh s\xE1ch feedback">${ICONS.clipboard}<span class="ui-feedback-tool__label">Feedback</span><span class="ui-feedback-badge" ${state.comments.length ? "" : "hidden"}>${state.comments.length}</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "comment" ? "is-active" : ""}" data-action="comment" aria-label="Th\xEAm note" title="Th\xEAm note">${ICONS.comment}<span class="ui-feedback-tool__label">Note</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "edit" ? "is-active" : ""}" data-action="edit" aria-label="S\u1EEDa n\u1ED9i dung UI" title="S\u1EEDa text">${ICONS.pencil}<span class="ui-feedback-tool__label">S\u1EEDa text</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "css" ? "is-active" : ""}" data-action="css" aria-label="M\u1EDF B\u1ED9 CSS" title="B\u1ED9 CSS">${ICONS.paintbrush}<span class="ui-feedback-tool__label">B\u1ED9 CSS</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "image" ? "is-active" : ""}" data-action="image" aria-label="Thay \u1EA3nh" title="Thay \u1EA3nh">${ICONS.image}<span class="ui-feedback-tool__label">Thay \u1EA3nh</span></button>
+      <button class="ui-feedback-tool ui-feedback-tool--update ${state.updateBusy ? "is-busy" : ""}" data-action="update" aria-label="Ki\u1EC3m tra v\xE0 c\u1EADp nh\u1EADt UI Feedback tool" title="Ki\u1EC3m tra b\u1EA3n c\u1EADp nh\u1EADt" aria-busy="${state.updateBusy ? "true" : "false"}">${ICONS.refresh}<span class="ui-feedback-tool__label">${updateLabel}</span></button>
+      ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Ho\xE0n t\xE1c thao t\xE1c g\u1EA7n nh\u1EA5t" title="Ho\xE0n t\xE1c (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Undo</span>${undoBadge}</button>` : ""}
+      <button class="ui-feedback-tool" data-action="collapse" aria-label="Thu g\u1ECDn thanh c\xF4ng c\u1EE5" title="Thu g\u1ECDn">${ICONS.collapse}</button>
+    </div>`;
+  root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ""}${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div><div data-ui-feedback-toast></div>`;
+  if (state.panelOpen) renderPanel();
+  if (state.modalOpen) renderModal();
+}
+
+// src/ui/toast.js
+function createToastController(ctx) {
+  let toastTimer;
+  function showToast(message, opts = {}) {
+    const mount = ctx.root.querySelector("[data-ui-feedback-toast]");
+    if (!mount) return;
+    clearTimeout(toastTimer);
+    const undoButton = opts.undo ? '<button class="ui-feedback-toast__undo" data-toast-undo>Ho\xE0n t\xE1c</button>' : "";
+    mount.innerHTML = `<div class="ui-feedback-toast" role="status">${escapeHtml(message)}${undoButton}</div>`;
+    if (opts.undo) {
+      mount.querySelector("[data-toast-undo]")?.addEventListener("click", (event) => {
+        event.stopPropagation();
+        ctx.undoAction();
+        mount.innerHTML = "";
+      });
+    }
+    toastTimer = setTimeout(() => {
+      const toast = mount.querySelector(".ui-feedback-toast");
+      if (!toast) return;
+      toast.classList.add("is-leaving");
+      setTimeout(() => {
+        mount.innerHTML = "";
+      }, 220);
+    }, opts.undo ? 5e3 : 2400);
+  }
+  function dispose() {
+    clearTimeout(toastTimer);
+    const mount = ctx.root.querySelector("[data-ui-feedback-toast]");
+    if (mount) mount.innerHTML = "";
+  }
+  return { showToast, dispose };
+}
+
+// src/index.js
+function createUIFeedback(options = {}) {
+  if (typeof window === "undefined" || typeof document === "undefined") return null;
+  if (window.__uiFeedbackInstance) return window.__uiFeedbackInstance;
+  const config = mergeConfig(options);
+  const pressed = /* @__PURE__ */ new Set();
+  const recentShortcutKeys = [];
+  let shortcutTimer;
+  const stateStore = createFeedbackState(config);
+  const { state, persist, persistActive, hasSeenCoachmark, dismissCoachmark: persistCoachmark } = stateStore;
+  const markers = [];
+  let commentsController;
+  let toastController;
+  let markdownExporter;
+  let githubIssueController;
+  let panelController;
+  let modalController;
+  let cssEditor;
+  const imageEditor = createImageEditor();
+  let pickerController;
+  const host = document.createElement("div");
+  host.id = "ui-feedback-host";
+  host.dataset.uiFeedbackIgnore = "true";
+  const shadow = host.attachShadow({ mode: "open" });
+  shadow.innerHTML = `<style>${STYLESHEET}</style><div class="ui-feedback-root${state.theme === "dark" ? " is-dark" : ""}" style="--ui-feedback-accent:${config.accent}"></div>`;
+  const root = shadow.querySelector(".ui-feedback-root");
+  document.documentElement.appendChild(host);
+  if (config.theme === "auto") {
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+      state.theme = e.matches ? "dark" : "light";
+      root.classList.toggle("is-dark", state.theme === "dark");
+    });
+  }
+  let dragState = null;
+  let toolbarPos = { right: 20, top: null };
+  function getToolbarStyle() {
+    const r = toolbarPos.right;
+    if (toolbarPos.top !== null) {
+      return `right:${r}px;top:${toolbarPos.top}px;transform:none;`;
+    }
+    return `right:${r}px;bottom:20px;`;
+  }
+  function dismissCoachmark() {
+    state.coachmarkVisible = false;
+    persistCoachmark();
+    renderToolbar2();
+  }
+  function applyPersistedChanges() {
+    if (!state.active) return;
+    const page = location.pathname || "/";
+    state.comments.filter((item) => (item.page || "/") === page && ["edit", "css", "image"].includes(item.type)).sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || ""))).forEach((item) => {
+      const element = resolveSelector(item.selector);
+      if (!element) return;
+      if (item.type === "edit") element.textContent = item.value || "";
+      else if (item.type === "css") element.style.cssText = item.value || "";
+      else if (item.type === "image") applyImageState(element, item.newImageState || { kind: "src", src: item.value || "" });
+    });
+  }
+  function renderToolbar2() {
+    renderToolbar({
+      state,
+      root,
+      getToolbarStyle,
+      renderPanel,
+      renderModal
+    });
+  }
+  function normalizeVersion(value) {
+    const match = String(value || "").match(/\d+(?:\.\d+){0,2}/);
+    return match ? match[0].split(".").map(Number) : [0];
+  }
+  function compareVersions(left, right) {
+    const a = normalizeVersion(left);
+    const b = normalizeVersion(right);
+    for (let i = 0; i < 3; i += 1) {
+      const delta = (a[i] || 0) - (b[i] || 0);
+      if (delta) return delta;
+    }
+    return 0;
+  }
+  function extractToolVersion(source) {
+    return String(source || "").match(/UI Feedback Tool v(\d+(?:\.\d+){2})/)?.[1] || "";
+  }
+  async function updateTool() {
+    if (state.updateBusy) return;
+    state.updateBusy = true;
+    let feedbackMessage = "";
+    renderToolbar2();
+    try {
+      const candidateUrls = [...new Set([
+        ...Array.isArray(config.updateMirrors) ? config.updateMirrors : [],
+        config.updateUrl
+      ].filter(Boolean))];
+      const currentVersion = config.version || TOOL_VERSION;
+      let newest = null;
+      const failures = [];
+      for (const candidate of candidateUrls) {
+        try {
+          const updateUrl = new URL(candidate, document.baseURI);
+          updateUrl.searchParams.set("ui_feedback_update", String(Date.now()));
+          const response = await fetch(updateUrl.href, { cache: "no-store", credentials: "omit" });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          const source2 = await response.text();
+          const version = extractToolVersion(source2);
+          if (!version) throw new Error("missing version");
+          if (!newest || compareVersions(version, newest.version) > 0) {
+            newest = { source: source2, version, url: updateUrl.href };
+          }
+        } catch (error) {
+          failures.push(`${candidate}: ${error.message}`);
+        }
+      }
+      if (!newest) {
+        throw new Error(`No reachable update mirror. ${failures.join(" | ")}`);
+      }
+      const { source, version: latestVersion } = newest;
+      if (compareVersions(latestVersion, currentVersion) <= 0) {
+        feedbackMessage = `UI Feedback \u0111ang \u1EDF b\u1EA3n m\u1EDBi nh\u1EA5t \xB7 v${currentVersion}`;
+        return;
+      }
+      const blobUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
+      try {
+        const updatedModule = await import(`${blobUrl}#ui-feedback-${latestVersion}-${Date.now()}`);
+        if (typeof updatedModule.createUIFeedback !== "function") throw new Error("Updated module is invalid");
+        const preservedOptions = { ...config, version: latestVersion, updateMirrors: config.updateMirrors, updateUrl: config.updateUrl };
+        dispose();
+        const updatedInstance = updatedModule.createUIFeedback(preservedOptions);
+        setTimeout(() => updatedInstance?.notify?.(`\u0110\xE3 c\u1EADp nh\u1EADt UI Feedback l\xEAn v${latestVersion}`), 0);
+      } finally {
+        URL.revokeObjectURL(blobUrl);
+      }
+    } catch (error) {
+      console.warn("[UI Feedback] Update failed:", error);
+      feedbackMessage = "Kh\xF4ng th\u1EC3 c\u1EADp nh\u1EADt tool t\u1EEB c\xE1c mirror. Ki\u1EC3m tra k\u1EBFt n\u1ED1i r\u1ED3i th\u1EED l\u1EA1i.";
+    } finally {
+      state.updateBusy = false;
+      if (root.isConnected) {
+        renderToolbar2();
+        if (feedbackMessage) showToast(feedbackMessage);
+      }
     }
   }
-
-  function highlight(element) {
-    if (!(element instanceof Element) || element.closest('#ui-feedback-host')) return;
-    if (state.highlight?.element === element) return;
-    clearHighlight();
-    state.highlight = { element, style: element.getAttribute('style') };
-    element.style.setProperty('outline', `2px solid ${config.accent}`, 'important');
-    element.style.setProperty('outline-offset', '3px', 'important');
+  let lastToolbarAction = "";
+  let lastToolbarActionAt = 0;
+  function dispatchToolbarAction(action) {
+    if (action === "activate") toggle();
+    if (action === "list") togglePanel();
+    if (action === "undo") undoAction();
+    if (action === "comment") toggleMode("comment");
+    if (action === "edit") toggleMode("edit");
+    if (action === "css") toggleMode("css");
+    if (action === "image") toggleMode("image");
+    if (action === "update") updateTool();
+    if (action === "collapse") {
+      state.collapsed = !state.collapsed;
+      renderToolbar2();
+    }
   }
-
-  /* ── comment markers on page ── */
+  function toggleMode(mode) {
+    if (state.picking && state.mode === mode) {
+      stopPicking({ rerender: true });
+      return;
+    }
+    beginPicking(mode);
+  }
+  function triggerToolbarAction(event, button) {
+    const action = button?.dataset?.action;
+    if (!action) return;
+    const now = performance.now();
+    if (action === lastToolbarAction && now - lastToolbarActionAt < 500) return;
+    lastToolbarAction = action;
+    lastToolbarActionAt = now;
+    event.preventDefault();
+    event.stopPropagation();
+    dispatchToolbarAction(action);
+  }
+  function togglePanel(force) {
+    state.panelOpen = typeof force === "boolean" ? force : !state.panelOpen;
+    if (!state.panelOpen) {
+      renderToolbar2();
+      resumePickingIfNeeded();
+      return;
+    }
+    stopPicking();
+    renderToolbar2();
+    renderPanel();
+  }
+  function getFilteredComments() {
+    return commentsController.getFilteredComments();
+  }
+  function renderGroupedComments(items) {
+    return commentsController.renderGroupedComments(items);
+  }
+  function renderCategoryOptions(selected = "all") {
+    return commentsController.renderCategoryOptions(selected);
+  }
+  function renderPanel() {
+    const mount = root.querySelector("[data-ui-feedback-panel]");
+    if (!mount || !state.panelOpen) return;
+    const filtered = getFilteredComments();
+    const resolvedCount = state.comments.filter((c) => c.resolved).length;
+    const openCount = state.comments.filter((c) => !c.resolved && !["edit", "css", "image"].includes(c.type)).length;
+    const editCount = state.comments.filter((c) => ["edit", "css", "image"].includes(c.type)).length;
+    const content = renderGroupedComments(filtered);
+    mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh s\xE1ch feedback">
+      <header class="ui-feedback-panel__header" data-panel-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} \u0111ang m\u1EDF \xB7 ${resolvedCount} \u0111\xE3 xong \xB7 ${editCount} ch\u1EC9nh s\u1EEDa <span class="ui-feedback-drag-hint">K\xE9o \u0111\u1EC3 di chuy\u1EC3n</span></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="T\u1EA1o GitHub Issue" title="T\u1EA1o GitHub Issue">${ICONS.github}</button>` : ""}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xu\u1EA5t Markdown" title="Xu\u1EA5t Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh" title="\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5">${ICONS.close}</button></span></header>
+      <div class="ui-feedback-panel__tabs" role="tablist"><button class="ui-feedback-panel__tab ${state.drawerTab === "all" ? "is-active" : ""}" data-panel-tab="all" role="tab">T\u1EA5t c\u1EA3 <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "comment" ? "is-active" : ""}" data-panel-tab="comment" role="tab">Ghi ch\xFA <span>${state.comments.filter((c) => c.type === "comment").length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "edit" ? "is-active" : ""}" data-panel-tab="edit" role="tab">Ch\u1EC9nh s\u1EEDa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "resolved" ? "is-active" : ""}" data-panel-tab="resolved" role="tab">\u0110\xE3 xong <span>${resolvedCount}</span></button></div>
+      <div class="ui-feedback-panel__filter">
+        <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="T\xECm feedback\u2026" value="${escapeAttribute(state.searchQuery)}" /></div>
+        <select class="ui-feedback-filter-select" data-panel-filter aria-label="L\u1ECDc theo m\u1EE9c \u0111\u1ED9">
+          <option value="all" ${state.filterPriority === "all" ? "selected" : ""}>M\u1EE9c \u0111\u1ED9</option>
+          <option value="high" ${state.filterPriority === "high" ? "selected" : ""}>Cao</option>
+          <option value="medium" ${state.filterPriority === "medium" ? "selected" : ""}>Trung b\xECnh</option>
+          <option value="low" ${state.filterPriority === "low" ? "selected" : ""}>Th\u1EA5p</option>
+        </select>
+        <select class="ui-feedback-filter-select ui-feedback-filter-select--category" data-panel-category aria-label="L\u1ECDc theo ph\xE2n lo\u1EA1i">${renderCategoryOptions(state.filterCategory)}</select>
+      </div>
+      <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== "all" || state.filterCategory !== "all" ? "Kh\xF4ng t\xECm th\u1EA5y feedback ph\xF9 h\u1EE3p." : "Ch\u01B0a c\xF3 feedback. Ch\u1ECDn bi\u1EC3u t\u01B0\u1EE3ng comment r\u1ED3i b\u1EA5m v\xE0o m\u1ED9t ph\u1EA7n t\u1EED tr\xEAn trang."}</div>`}</div>
+    </aside>`;
+    applyPanelPosition();
+    mount.onclick = handlePanelClick;
+    mount.onpointerdown = handlePanelPointerDown;
+    mount.oninput = handlePanelInput;
+    mount.onchange = handlePanelChange;
+  }
+  function applyPanelPosition() {
+    return panelController.applyPanelPosition();
+  }
+  function getWindowDragHandle(event, selector) {
+    return panelController.getWindowDragHandle(event, selector);
+  }
+  function handlePanelPointerDown(event) {
+    return panelController.handlePointerDown(event);
+  }
+  function handlePanelClick(event) {
+    const target = event.target.closest("[data-panel-action], [data-panel-tab], [data-edit-comment], [data-delete-comment], [data-resolve-comment], [data-copy-selector], [data-comment-id]");
+    if (!target) return;
+    event.stopPropagation();
+    if (target.dataset.panelTab) {
+      state.drawerTab = target.dataset.panelTab;
+      renderPanel();
+      return;
+    }
+    if (target.dataset.panelAction === "reset-position") {
+      state.panelPosition = { x: 0, y: 0 };
+      applyPanelPosition();
+      showToast("\u0110\xE3 \u0111\u1EB7t l\u1EA1i v\u1ECB tr\xED c\u1EEDa s\u1ED5");
+      return;
+    }
+    if (target.dataset.copySelector) {
+      const copyResult = navigator.clipboard?.writeText?.(target.dataset.copySelector);
+      Promise.resolve(copyResult).then(() => showToast("\u0110\xE3 copy selector")).catch(() => showToast("Kh\xF4ng th\u1EC3 copy selector"));
+      return;
+    }
+    if (target.dataset.panelAction === "close") togglePanel(false);
+    else if (target.dataset.panelAction === "export") exportMarkdown();
+    else if (target.dataset.panelAction === "github") createGithubIssue();
+    else if (target.dataset.editComment) editComment(target.dataset.editComment);
+    else if (target.dataset.deleteComment) deleteComment(target.dataset.deleteComment);
+    else if (target.dataset.resolveComment) resolveComment(target.dataset.resolveComment);
+    else {
+      const card = event.target.closest("[data-comment-id]");
+      if (card) focusComment(card.dataset.commentId);
+    }
+  }
+  function handlePanelInput(event) {
+    if (event.target.matches("[data-panel-search]")) {
+      state.searchQuery = event.target.value;
+      const body = root.querySelector(".ui-feedback-panel__body");
+      if (body) {
+        const filtered = getFilteredComments();
+        const content = renderGroupedComments(filtered);
+        body.innerHTML = content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== "all" ? "Kh\xF4ng t\xECm th\u1EA5y feedback ph\xF9 h\u1EE3p." : "Ch\u01B0a c\xF3 feedback."}</div>`;
+      }
+    }
+  }
+  function handlePanelChange(event) {
+    if (event.target.matches("[data-panel-filter]")) {
+      state.filterPriority = event.target.value;
+      renderPanel();
+    } else if (event.target.matches("[data-panel-category]")) {
+      state.filterCategory = event.target.value;
+      renderPanel();
+    }
+  }
+  function getItemCodeLine(item) {
+    return commentsController.getItemCodeLine(item);
+  }
+  function renderItem(item) {
+    return commentsController.renderItem(item);
+  }
+  function clearResumeTimer() {
+    return pickerController.clearResumeTimer();
+  }
+  function beginPicking(mode, opts = {}) {
+    return pickerController.beginPicking(mode, opts);
+  }
+  function stopPicking(opts = {}) {
+    return pickerController.stopPicking(opts);
+  }
+  function resumePickingIfNeeded() {
+    return pickerController.resumePickingIfNeeded();
+  }
+  function clearHighlight() {
+    return pickerController.clearHighlight();
+  }
+  function highlight(element) {
+    return pickerController.highlight(element);
+  }
   function focusComment(id) {
     const item = state.comments.find((comment) => comment.id === id);
     if (!item) return;
     const element = resolveSelector(item.selector);
-    if (!element) { showToast('Không tìm thấy phần tử trên trang hiện tại'); return; }
-    element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    if (!element) {
+      showToast("Kh\xF4ng t\xECm th\u1EA5y ph\u1EA7n t\u1EED tr\xEAn trang hi\u1EC7n t\u1EA1i");
+      return;
+    }
+    element.scrollIntoView({ behavior: "smooth", block: "center" });
     highlight(element);
     setTimeout(clearHighlight, 1200);
-    showToast('Đã focus đến phần tử feedback');
+    showToast("\u0110\xE3 focus \u0111\u1EBFn ph\u1EA7n t\u1EED feedback");
   }
-
   function placeMarkers() {
-    // remove old markers
     markers.forEach((m) => m.markerEl?.remove());
     markers.length = 0;
     if (!state.active) return;
     state.comments.forEach((comment, index) => {
       let el;
-      try { el = document.querySelector(comment.selector); } catch { el = null; }
+      try {
+        el = document.querySelector(comment.selector);
+      } catch {
+        el = null;
+      }
       if (!el) return;
-      const marker = document.createElement('div');
-      const typeClass = comment.type === 'edit'
-        ? ' is-edit'
-        : comment.type === 'css'
-          ? ' is-css'
-          : comment.type === 'image'
-            ? ' is-image'
-            : '';
-      const resolvedClass = comment.resolved ? ' is-resolved' : '';
+      const marker = document.createElement("div");
+      const typeClass = comment.type === "edit" ? " is-edit" : comment.type === "css" ? " is-css" : comment.type === "image" ? " is-image" : "";
+      const resolvedClass = comment.resolved ? " is-resolved" : "";
       marker.className = `ui-feedback-marker${typeClass}${resolvedClass}`;
-      // Use a glyph for edit/css so they read as "touched", comment items
-      // keep their numeric index for ordering.
-      if (comment.type === 'edit') marker.textContent = '✎';
-      else if (comment.type === 'css') marker.textContent = '✦';
-      else if (comment.type === 'image') marker.textContent = '▧';
+      if (comment.type === "edit") marker.textContent = "\u270E";
+      else if (comment.type === "css") marker.textContent = "\u2726";
+      else if (comment.type === "image") marker.textContent = "\u25A7";
       else marker.textContent = index + 1;
-      marker.title = comment.type === 'edit'
-        ? `Đã sửa text: ${safeText(comment.value, 80)}`
-        : comment.type === 'css'
-          ? `Đã sửa CSS: ${safeText(comment.value, 80)}`
-          : comment.type === 'image'
-            ? `Đã thay ảnh: ${safeText(comment.value, 80)}`
-            : `Feedback #${index + 1}`;
+      marker.title = comment.type === "edit" ? `\u0110\xE3 s\u1EEDa text: ${safeText(comment.value, 80)}` : comment.type === "css" ? `\u0110\xE3 s\u1EEDa CSS: ${safeText(comment.value, 80)}` : comment.type === "image" ? `\u0110\xE3 thay \u1EA3nh: ${safeText(comment.value, 80)}` : `Feedback #${index + 1}`;
       marker.dataset.commentId = comment.id;
-      marker.setAttribute('role', 'button');
-      marker.setAttribute('aria-label', marker.title);
-      marker.addEventListener('click', (event) => { event.preventDefault(); event.stopPropagation(); focusComment(comment.id); });
-      marker.style.position = 'absolute';
-      // position relative to the element
+      marker.setAttribute("role", "button");
+      marker.setAttribute("aria-label", marker.title);
+      marker.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        focusComment(comment.id);
+      });
+      marker.style.position = "absolute";
       positionMarker(el, marker);
       document.body.appendChild(marker);
       markers.push({ element: el, markerEl: marker, commentId: comment.id });
     });
   }
-
   function positionMarker(el, marker) {
     const rect = el.getBoundingClientRect();
     marker.style.top = `${window.scrollY + rect.top - 8}px`;
     marker.style.left = `${window.scrollX + rect.left - 8}px`;
   }
-
   function refreshMarkerPositions() {
     markers.forEach((m) => {
       if (m.element && m.markerEl) positionMarker(m.element, m.markerEl);
     });
   }
-
   function clearMarkers() {
     markers.forEach((m) => m.markerEl?.remove());
     markers.length = 0;
   }
-
-  /* ── modal ── */
   function openModal(element, mode, existing = null) {
-    // stopPicking() records state._modeBeforePickingStop so closeModal()
-    // can resume the same mode after save/cancel.
     stopPicking();
     state.target = element;
     state.mode = mode;
-    state.modalSnapshot = mode === 'css' ? { styleCssText: element?.style?.cssText || '' } : mode === 'image' ? captureImageState(element) : null;
-    state.modalImageSource = mode === 'image' ? (state.modalSnapshot?.src || '') : '';
-    const initialPosition = mode === 'image' ? (state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || '50% 50%') : '50% 50%';
-    state.modalImagePosition = mode === 'image' ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
+    state.modalSnapshot = mode === "css" ? { styleCssText: element?.style?.cssText || "" } : mode === "image" ? captureImageState(element) : null;
+    state.modalImageSource = mode === "image" ? state.modalSnapshot?.src || "" : "";
+    const initialPosition = mode === "image" ? state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || "50% 50%" : "50% 50%";
+    state.modalImagePosition = mode === "image" ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
     state.modalCommitted = false;
-    state.cssTab = 'advanced';
-    state.cssTransformBase = mode === 'css' ? (element?.style?.transform || '') : '';
-    state.cssPosition = mode === 'css' ? parseTranslatePosition(element?.style?.translate || element?.style?.transform || (element ? getComputedStyle(element).translate : '') || (element ? getComputedStyle(element).transform : '') || '') : { x: 0, y: 0 };
+    state.cssTab = "advanced";
+    state.cssTransformBase = mode === "css" ? element?.style?.transform || "" : "";
+    state.cssPosition = mode === "css" ? parseTranslatePosition(element?.style?.translate || element?.style?.transform || (element ? getComputedStyle(element).translate : "") || (element ? getComputedStyle(element).transform : "") || "") : { x: 0, y: 0 };
     state.modalImageZoom = 100;
     state.modalPosition = { x: 0, y: 0 };
     state.modalOpen = true;
-    renderToolbar();
+    renderToolbar2();
     renderModal(existing);
-    setTimeout(() => root.querySelector('[data-feedback-input]')?.focus(), 0);
+    setTimeout(() => root.querySelector("[data-feedback-input]")?.focus(), 0);
   }
-
-  const CSS_COLOR_FIELDS = [
-    { key: 'primary', label: 'Màu chính', prop: 'backgroundColor', fallback: '#cb0236', hint: 'background-color' },
-    { key: 'primaryText', label: 'Chữ trên màu chính', prop: 'color', fallback: '#ffffff', hint: 'color' },
-    { key: 'pageBackground', label: 'Nền trang', prop: 'backgroundColor', fallback: '#f4f8f8', hint: 'background-color' },
-    { key: 'text', label: 'Màu chữ', prop: 'color', fallback: '#1b212b', hint: 'color' },
-  ];
-  const EXTRA_COLOR_FIELDS = [
-    { key: 'border', label: 'Viền', prop: 'borderColor', fallback: '#d1d5db', hint: 'border-color' },
-    { key: 'outline', label: 'Outline', prop: 'outlineColor', fallback: '#f5a623', hint: 'outline-color' },
-    { key: 'decoration', label: 'Gạch chân', prop: 'textDecorationColor', fallback: '#f5a623', hint: 'text-decoration-color' },
-    { key: 'caret', label: 'Caret', prop: 'caretColor', fallback: '#f5a623', hint: 'caret-color' },
-    { key: 'accent', label: 'Accent', prop: 'accentColor', fallback: '#f5a623', hint: 'accent-color' },
-    { key: 'columnRule', label: 'Column rule', prop: 'columnRuleColor', fallback: '#d1d5db', hint: 'column-rule-color' },
-    { key: 'marker', label: 'Marker', prop: 'markerColor', fallback: '#f5a623', hint: 'marker-color' },
-    { key: 'fill', label: 'SVG fill', prop: 'fill', fallback: '#f5a623', hint: 'fill' },
-  ];
-  const FONT_OPTIONS = [
-    { value: '', label: 'Mặc định website' },
-    { value: 'Inter', label: 'Inter' },
-    { value: 'DM Sans', label: 'DM Sans' },
-    { value: 'Montserrat', label: 'Montserrat' },
-    { value: 'Roboto', label: 'Roboto' },
-    { value: 'Playfair Display', label: 'Playfair Display' },
-    { value: 'Lora', label: 'Lora' },
-  ];
-
   function ensureGoogleFont(fontName) {
-    if (!fontName || fontName === 'inherit') return;
-    const id = `ui-feedback-font-${fontName.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
-    if (document.getElementById(id)) return;
-    const link = document.createElement('link');
-    link.id = id;
-    link.rel = 'stylesheet';
-    link.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(fontName).replace(/%20/g, '+')}:wght@400;500;600;700&display=swap`;
-    document.head.appendChild(link);
+    return cssEditor.ensureGoogleFont(fontName);
   }
-
-  function normalizeColor(value, fallback = '#ffffff') {
-    const raw = String(value || '').trim();
-    if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
-    if (/^#[0-9a-f]{3}$/i.test(raw)) return raw.toLowerCase().replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3');
-    const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-    if (match) return `#${[match[1], match[2], match[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`;
-    return fallback;
+  function normalizeColor(value, fallback = "#ffffff") {
+    return cssEditor.normalizeColor(value, fallback);
   }
-
-  function readCssValue(prop, fallback = '') {
-    if (!state.target) return fallback;
-    const inline = state.target.style?.[prop];
-    if (inline) return inline;
-    try { return getComputedStyle(state.target)[prop] || fallback; } catch { return fallback; }
+  function readCssValue(prop, fallback = "") {
+    return cssEditor.readCssValue(prop, fallback);
   }
-
   function applyCssProperty(prop, value) {
-    if (!state.target || !prop) return;
-    state.target.style[prop] = value;
+    return cssEditor.applyCssProperty(prop, value);
   }
-
   function imageBackgroundSource(value) {
-    const raw = String(value || '').trim();
-    const match = raw.match(/url\((?:"|')?(.*?)(?:"|')?\)/i);
-    return match ? match[1] : '';
+    return imageEditor.imageBackgroundSource(value);
   }
-
   function parseTranslatePosition(value) {
-    const raw = String(value || '').trim();
-    const translate = raw.match(/translate\(\s*(-?\d+(?:\.\d+)?)px(?:\s*,\s*|\s+)(-?\d+(?:\.\d+)?)px\s*\)/i);
-    if (translate) return { x: Number(translate[1]), y: Number(translate[2]) };
-    const pair = raw.match(/^\s*(-?\d+(?:\.\d+)?)px[\s,]+(-?\d+(?:\.\d+)?)px\s*$/i);
-    if (pair) return { x: Number(pair[1]), y: Number(pair[2]) };
-    const matrix = raw.match(/matrix(?:3d)?\(([^)]+)\)/i);
-    if (matrix) {
-      const values = matrix[1].split(',').map(Number);
-      if (values.length === 6) return { x: values[4] || 0, y: values[5] || 0 };
-      if (values.length === 16) return { x: values[12] || 0, y: values[13] || 0 };
-    }
-    return { x: 0, y: 0 };
+    return cssEditor.parseTranslatePosition(value);
   }
-
   function applyCssPosition(position = state.cssPosition) {
-    if (!state.target) return;
-    const x = Math.max(-200, Math.min(200, Number(position.x) || 0));
-    const y = Math.max(-200, Math.min(200, Number(position.y) || 0));
-    state.cssPosition = { x, y };
-    if ('translate' in state.target.style || typeof CSS === 'undefined' || CSS.supports?.('translate', '0 0')) {
-      state.target.style.setProperty('translate', `${x}px ${y}px`);
-    } else {
-      const baseTransform = state.cssTransformBase && state.cssTransformBase !== 'none' ? state.cssTransformBase : '';
-      state.target.style.transform = `translate(${x}px, ${y}px)${baseTransform ? ` ${baseTransform}` : ''}`;
-    }
-    const pad = root.querySelector('[data-css-position-pad]');
-    if (pad) { pad.style.setProperty('--pad-x', `${x * 0.3}px`); pad.style.setProperty('--pad-y', `${y * 0.3}px`); }
-    root.querySelectorAll('[data-css-x], [data-css-x-number]').forEach((input) => { input.value = String(Math.round(x)); });
-    root.querySelectorAll('[data-css-y], [data-css-y-number]').forEach((input) => { input.value = String(Math.round(y)); });
-    const xOutput = root.querySelector('[data-css-x-output]');
-    const yOutput = root.querySelector('[data-css-y-output]');
-    if (xOutput) xOutput.textContent = `${Math.round(x)}px`;
-    if (yOutput) yOutput.textContent = `${Math.round(y)}px`;
+    return cssEditor.applyCssPosition(position);
   }
-
   function applyModalPosition() {
-    const modal = root.querySelector('.ui-feedback-modal');
-    if (!modal) return;
-    const position = state.modalPosition || { x: 0, y: 0 };
-    modal.style.setProperty('--ui-feedback-modal-x', `${position.x}px`);
-    modal.style.setProperty('--ui-feedback-modal-y', `${position.y}px`);
+    return modalController.applyModalPosition();
   }
-
   function updateCssPositionFromPointer(clientX, clientY) {
-    const pad = root.querySelector('[data-css-position-pad]');
-    if (!pad) return;
-    const rect = pad.getBoundingClientRect();
-    state.cssPosition = { x: ((clientX - rect.left) / rect.width - 0.5) * 400, y: ((clientY - rect.top) / rect.height - 0.5) * 400 };
-    applyCssPosition();
+    return cssEditor.updatePositionFromPointer(clientX, clientY);
   }
-
   function parseImagePosition(value) {
-    const raw = String(value || '').trim().toLowerCase();
-    const parts = raw ? raw.split(/\s+/) : [];
-    const convert = (part, fallback) => {
-      if (!part) return fallback;
-      if (part === 'left' || part === 'top') return 0;
-      if (part === 'center') return 50;
-      if (part === 'right' || part === 'bottom') return 100;
-      const numeric = parseFloat(part);
-      return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : fallback;
-    };
-    return { x: convert(parts[0], 50), y: convert(parts[1], 50) };
+    return imageEditor.parseImagePosition(value);
   }
-
   function captureImageState(element) {
-    if (!(element instanceof Element)) return { kind: 'background', src: '', srcset: '', backgroundImage: '', backgroundPosition: '', backgroundSize: '' };
-    const isImg = element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img';
-    if (isImg) {
-      let computed = {};
-      try { computed = getComputedStyle(element); } catch { /* ignore inaccessible styles */ }
-      return {
-        kind: 'src',
-        src: element.currentSrc || element.getAttribute('src') || '',
-        srcset: element.getAttribute('srcset') || '',
-        backgroundImage: '',
-        objectPosition: element.style.objectPosition || '',
-        objectFit: element.style.objectFit || '',
-        effectiveObjectPosition: computed.objectPosition || '50% 50%',
-      };
-    }
-    const backgroundImage = element.style.backgroundImage || (() => { try { return getComputedStyle(element).backgroundImage || ''; } catch { return ''; } })();
-    let computed = {};
-    try { computed = getComputedStyle(element); } catch { /* ignore inaccessible styles */ }
-    return {
-      kind: 'background',
-      src: imageBackgroundSource(backgroundImage),
-      srcset: '',
-      backgroundImage: element.style.backgroundImage || '',
-      backgroundPosition: element.style.backgroundPosition || '',
-      backgroundSize: element.style.backgroundSize || '',
-      effectiveBackgroundPosition: computed.backgroundPosition || '50% 50%',
-    };
+    return imageEditor.captureImageState(element);
   }
-
   function applyImageSource(element, source) {
-    if (!(element instanceof Element)) return;
-    const safeSource = String(source || '').trim();
-    const isImg = element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img';
-    if (isImg) {
-      element.setAttribute('src', safeSource);
-      if (element.hasAttribute('srcset')) element.removeAttribute('srcset');
-      return;
-    }
-    element.style.backgroundImage = safeSource ? `url("${safeSource.replace(/"/g, '\\"')}")` : '';
+    return imageEditor.applyImageSource(element, source);
   }
-
   function applyImagePosition(element, position = { x: 50, y: 50 }) {
-    if (!(element instanceof Element)) return;
-    const x = Math.max(0, Math.min(100, Number(position.x) || 0));
-    const y = Math.max(0, Math.min(100, Number(position.y) || 0));
-    const isImg = element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img';
-    if (isImg) {
-      element.style.objectFit = 'cover';
-      element.style.objectPosition = `${x}% ${y}%`;
-    } else {
-      element.style.backgroundPosition = `${x}% ${y}%`;
-    }
+    return imageEditor.applyImagePosition(element, position);
   }
-
   function applyImageState(element, snapshot) {
-    if (!(element instanceof Element) || !snapshot) return;
-    if (snapshot.kind === 'src') {
-      if (snapshot.src) element.setAttribute('src', snapshot.src); else element.removeAttribute('src');
-      if (snapshot.srcset) element.setAttribute('srcset', snapshot.srcset); else element.removeAttribute('srcset');
-      if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition; else if (snapshot.effectiveObjectPosition) element.style.objectPosition = snapshot.effectiveObjectPosition;
-      if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit;
-    } else {
-      element.style.backgroundImage = snapshot.backgroundImage || (snapshot.src ? `url("${snapshot.src.replace(/"/g, '\"')}")` : '');
-      if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition; else if (snapshot.effectiveBackgroundPosition) element.style.backgroundPosition = snapshot.effectiveBackgroundPosition;
-      if (snapshot.backgroundSize) element.style.backgroundSize = snapshot.backgroundSize;
-    }
+    return imageEditor.applyImageState(element, snapshot);
   }
-
   function restoreImageState(element, snapshot) {
-    if (!(element instanceof Element) || !snapshot) return;
-    const isImg = snapshot.kind === 'src';
-    if (isImg) {
-      if (snapshot.src) element.setAttribute('src', snapshot.src); else element.removeAttribute('src');
-      if (snapshot.srcset) element.setAttribute('srcset', snapshot.srcset); else element.removeAttribute('srcset');
-      if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition; else element.style.removeProperty('object-position');
-      if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit; else element.style.removeProperty('object-fit');
-    } else {
-      element.style.backgroundImage = snapshot.backgroundImage || '';
-      if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition; else element.style.removeProperty('background-position');
-      if (snapshot.backgroundSize) element.style.backgroundSize = snapshot.backgroundSize; else element.style.removeProperty('background-size');
-    }
+    return imageEditor.restoreImageState(element, snapshot);
   }
-
   function validateImageSource(source) {
-    const value = String(source || '').trim();
-    if (!value) return false;
-    if (value.startsWith('data:image/')) return value.length <= 1000000;
-    try {
-      const url = new URL(value, location.href);
-      return ['http:', 'https:'].includes(url.protocol);
-    } catch { return false; }
+    return imageEditor.validateImageSource(source);
   }
-
   function renderCssColorCard(field) {
     const current = normalizeColor(readCssValue(field.prop), field.fallback);
-    return `<div class="ui-feedback-theme-card" data-css-card="${field.key}"><span class="ui-feedback-theme-card__swatch" style="background:${current}"></span><div class="ui-feedback-theme-card__copy"><span class="ui-feedback-theme-card__label">${field.label}</span><span class="ui-feedback-theme-card__hint">${field.hint}</span></div><input type="color" data-css-color="${field.prop}" data-css-key="${field.key}" value="${current}" aria-label="${field.label}" /><input type="text" data-css-hex="${field.prop}" data-css-key="${field.key}" value="${current}" maxlength="7" aria-label="Mã màu ${field.label}" /></div>`;
+    return `<div class="ui-feedback-theme-card" data-css-card="${field.key}"><span class="ui-feedback-theme-card__swatch" style="background:${current}"></span><div class="ui-feedback-theme-card__copy"><span class="ui-feedback-theme-card__label">${field.label}</span><span class="ui-feedback-theme-card__hint">${field.hint}</span></div><input type="color" data-css-color="${field.prop}" data-css-key="${field.key}" value="${current}" aria-label="${field.label}" /><input type="text" data-css-hex="${field.prop}" data-css-key="${field.key}" value="${current}" maxlength="7" aria-label="M\xE3 m\xE0u ${field.label}" /></div>`;
   }
-
   function renderFontRow(label, prop) {
-    const current = String(readCssValue(prop, '') || '').replace(/^['"]|['"]$/g, '');
+    const current = String(readCssValue(prop, "") || "").replace(/^['"]|['"]$/g, "");
     const selected = FONT_OPTIONS.find((font) => current.toLowerCase().includes(font.value.toLowerCase()) && font.value);
-    const value = selected?.value || '';
-    return `<div class="ui-feedback-font-row"><div class="ui-feedback-font-row__copy"><span class="ui-feedback-font-row__label">${label}</span><span class="ui-feedback-font-row__value">${escapeHtml(value || 'Mặc định của website')}</span></div><select data-css-font="${prop}" aria-label="Font ${label}">${FONT_OPTIONS.map((font) => `<option value="${escapeAttribute(font.value)}" ${font.value === value ? 'selected' : ''}>${font.label}</option>`).join('')}</select></div>`;
+    const value = selected?.value || "";
+    return `<div class="ui-feedback-font-row"><div class="ui-feedback-font-row__copy"><span class="ui-feedback-font-row__label">${label}</span><span class="ui-feedback-font-row__value">${escapeHtml(value || "M\u1EB7c \u0111\u1ECBnh c\u1EE7a website")}</span></div><select data-css-font="${prop}" aria-label="Font ${label}">${FONT_OPTIONS.map((font) => `<option value="${escapeAttribute(font.value)}" ${font.value === value ? "selected" : ""}>${font.label}</option>`).join("")}</select></div>`;
   }
-
   function renderCssContent() {
-    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font chữ (Google Fonts)</div>${renderFontRow('Tiêu đề', 'fontFamily')} ${renderFontRow('Nội dung', 'fontFamily')}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo góc & độ mờ</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue('borderRadius', '0'), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue('borderRadius', '0'), 10) || 0))}" /></div><div class="ui-feedback-range-row" style="margin-top:7px"><div class="ui-feedback-range-row__head"><span>Opacity</span><output data-css-opacity-output>${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}%</output></div><input type="range" min="0" max="100" step="1" data-css-opacity value="${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}" /></div></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Vị trí 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="Điều chỉnh vị trí X Y"></div>      <div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">Đặt lại (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
-    const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bộ có sẵn</div><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>Gọn gàng</span><small>Không bóng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, đổ bóng nhẹ</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Viền accent nổi bật</small></button></div></div>`;
-    return `<div class="ui-feedback-css-tabs"><button class="ui-feedback-css-tab ${state.cssTab === 'preset' ? 'is-active' : ''}" data-css-tab="preset" type="button">✦ Bộ có sẵn</button><button class="ui-feedback-css-tab ${state.cssTab === 'advanced' ? 'is-active' : ''}" data-css-tab="advanced" type="button">☷ Nâng cao</button></div>${state.cssTab === 'preset' ? presets : advanced}`;
+    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">M\xE0u s\u1EAFc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join("")}<details class="ui-feedback-more-colors"><summary>\u2304 Th\xEAm 8 m\xE0u kh\xE1c</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join("")}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font ch\u1EEF (Google Fonts)</div>${renderFontRow("Ti\xEAu \u0111\u1EC1", "fontFamily")} ${renderFontRow("N\u1ED9i dung", "fontFamily")}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo g\xF3c & \u0111\u1ED9 m\u1EDD</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue("borderRadius", "0"), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue("borderRadius", "0"), 10) || 0))}" /></div><div class="ui-feedback-range-row" style="margin-top:7px"><div class="ui-feedback-range-row__head"><span>Opacity</span><output data-css-opacity-output>${Math.round((parseFloat(readCssValue("opacity", "1")) || 1) * 100)}%</output></div><input type="range" min="0" max="100" step="1" data-css-opacity value="${Math.round((parseFloat(readCssValue("opacity", "1")) || 1) * 100)}" /></div></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">V\u1ECB tr\xED 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="\u0110i\u1EC1u ch\u1EC9nh v\u1ECB tr\xED X Y"></div>      <div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">\u0110\u1EB7t l\u1EA1i (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">\u21B6 Kh\xF4i ph\u1EE5c m\u1EB7c \u0111\u1ECBnh</button>`;
+    const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1ED9 c\xF3 s\u1EB5n</div><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>G\u1ECDn g\xE0ng</span><small>Kh\xF4ng b\xF3ng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, \u0111\u1ED5 b\xF3ng nh\u1EB9</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Vi\u1EC1n accent n\u1ED5i b\u1EADt</small></button></div></div>`;
+    return `<div class="ui-feedback-css-tabs"><button class="ui-feedback-css-tab ${state.cssTab === "preset" ? "is-active" : ""}" data-css-tab="preset" type="button">\u2726 B\u1ED9 c\xF3 s\u1EB5n</button><button class="ui-feedback-css-tab ${state.cssTab === "advanced" ? "is-active" : ""}" data-css-tab="advanced" type="button">\u2637 N\xE2ng cao</button></div>${state.cssTab === "preset" ? presets : advanced}`;
   }
-
   function renderImageContent() {
     const snapshot = state.modalSnapshot || captureImageState(state.target);
-    const source = state.modalImageSource || snapshot.src || '';
+    const source = state.modalImageSource || snapshot.src || "";
     const position = state.modalImagePosition || { x: 50, y: 50 };
     const zoom = state.modalImageZoom || 100;
     const positionStyle = `object-position:${position.x}% ${position.y}%;transform:scale(${zoom / 100});`;
-    const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="${positionStyle}" />` : '<span data-image-preview>Phần tử này chưa có ảnh URL trực tiếp. Hãy nhập URL hoặc chọn file.</span>';
-    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="Kéo ảnh để căn chỉnh">${preview}<span class="ui-feedback-image-canvas-hint">Kéo để căn chỉnh</span></div><div class="ui-feedback-image-zoom"><button type="button" data-image-zoom-step="-" aria-label="Thu nhỏ ảnh">−</button><input type="range" min="30" max="300" step="5" data-image-zoom value="${zoom}" aria-label="Zoom ảnh" /><button type="button" data-image-zoom-step="+" aria-label="Phóng to ảnh">+</button><output data-image-zoom-output>${zoom}%</output></div><div class="ui-feedback-image-position"><span>Vị trí ảnh</span><output data-image-position>${Math.round(position.x)}% · ${Math.round(position.y)}%</output></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><button type="button" class="ui-feedback-image-paste" data-image-paste>Dán ảnh từ clipboard (Ctrl/Cmd + V)</button><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
+    const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="\u1EA2nh preview" style="${positionStyle}" />` : "<span data-image-preview>Ph\u1EA7n t\u1EED n\xE0y ch\u01B0a c\xF3 \u1EA3nh URL tr\u1EF1c ti\u1EBFp. H\xE3y nh\u1EADp URL ho\u1EB7c ch\u1ECDn file.</span>";
+    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>\u0110\u01B0\u1EDDng d\u1EABn \u1EA3nh \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? "\u0111\xE3 \u0111\u1ED5i" : "ch\u01B0a \u0111\u1ED5i"}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="K\xE9o \u1EA3nh \u0111\u1EC3 c\u0103n ch\u1EC9nh">${preview}<span class="ui-feedback-image-canvas-hint">K\xE9o \u0111\u1EC3 c\u0103n ch\u1EC9nh</span></div><div class="ui-feedback-image-zoom"><button type="button" data-image-zoom-step="-" aria-label="Thu nh\u1ECF \u1EA3nh">\u2212</button><input type="range" min="30" max="300" step="5" data-image-zoom value="${zoom}" aria-label="Zoom \u1EA3nh" /><button type="button" data-image-zoom-step="+" aria-label="Ph\xF3ng to \u1EA3nh">+</button><output data-image-zoom-output>${zoom}%</output></div><div class="ui-feedback-image-position"><span>V\u1ECB tr\xED \u1EA3nh</span><output data-image-position>${Math.round(position.x)}% \xB7 ${Math.round(position.y)}%</output></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL \u1EA3nh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><button type="button" class="ui-feedback-image-paste" data-image-paste>D\xE1n \u1EA3nh t\u1EEB clipboard (Ctrl/Cmd + V)</button><label class="ui-feedback-label" for="ui-feedback-image-file">Ho\u1EB7c upload t\u1EEB m\xE1y</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL g\u1ED1c: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || "Kh\xF4ng c\xF3", 150))}</small><small class="ui-feedback-image-original">Upload local \u0111\u01B0\u1EE3c gi\u1EEF t\u1ED1i \u0111a 1 MB \u0111\u1EC3 tr\xE1nh l\xE0m \u0111\u1EA7y localStorage.</small></div>`;
   }
-
   function renderModal(existing = null) {
-    const mount = root.querySelector('[data-ui-feedback-modal]');
+    const mount = root.querySelector("[data-ui-feedback-modal]");
     if (!mount || !state.modalOpen) return;
-    const isEdit = state.mode === 'edit';
-    const isCss = state.mode === 'css';
-    const isImage = state.mode === 'image';
-    const currentText = existing?.comment || (isEdit ? safeText(state.target?.textContent, 500) : '');
-    const priorityValue = existing?.priority || 'medium';
-    const title = isEdit ? 'Sửa nội dung UI' : isCss ? 'Bộ giao diện' : isImage ? 'Thay ảnh' : 'Ghi chú feedback';
-    const commentContent = isEdit
-      ? `<label class="ui-feedback-label" for="ui-feedback-input">Nội dung hiển thị</label><input class="ui-feedback-field" data-feedback-input value="${escapeAttribute(currentText)}" />`
-      : isCss
-        ? renderCssContent()
-        : isImage
-          ? renderImageContent()
-          : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Phân loại</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || 'other')}</select></div></div>`;
-    const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
-    const modalClass = isCss || isImage ? 'ui-feedback-modal is-inspector' : 'ui-feedback-modal is-mini';
-    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">Kéo để di chuyển</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
+    const isEdit = state.mode === "edit";
+    const isCss = state.mode === "css";
+    const isImage = state.mode === "image";
+    const currentText = existing?.comment || (isEdit ? safeText(state.target?.textContent, 500) : "");
+    const priorityValue = existing?.priority || "medium";
+    const title = isEdit ? "S\u1EEDa n\u1ED9i dung UI" : isCss ? "B\u1ED9 giao di\u1EC7n" : isImage ? "Thay \u1EA3nh" : "Ghi ch\xFA feedback";
+    const commentContent = isEdit ? `<label class="ui-feedback-label" for="ui-feedback-input">N\u1ED9i dung hi\u1EC3n th\u1ECB</label><input class="ui-feedback-field" data-feedback-input value="${escapeAttribute(currentText)}" />` : isCss ? renderCssContent() : isImage ? renderImageContent() : `<label class="ui-feedback-label" for="ui-feedback-input">Element n\xE0y c\u1EA7n s\u1EEDa g\xEC?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="V\xED d\u1EE5: T\u0103ng kho\u1EA3ng c\xE1ch gi\u1EEFa ti\xEAu \u0111\u1EC1 v\xE0 danh s\xE1ch\u2026">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">M\u1EE9c \u0111\u1ED9 \u01B0u ti\xEAn</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === "high" ? "selected" : ""}>Cao</option><option value="medium" ${priorityValue === "medium" ? "selected" : ""}>Trung b\xECnh</option><option value="low" ${priorityValue === "low" ? "selected" : ""}>Th\u1EA5p</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Ph\xE2n lo\u1EA1i</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || "other")}</select></div></div>`;
+    const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">\u0110\xF3ng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button" data-image-restore type="button">Kh\xF4i ph\u1EE5c</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u \u1EA3nh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">H\u1EE7y</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u</button>`;
+    const modalClass = isCss || isImage ? "ui-feedback-modal is-inspector" : "ui-feedback-modal is-mini";
+    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">K\xE9o \u0111\u1EC3 di chuy\u1EC3n</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
     applyModalPosition();
     mount.onclick = handleModalClick;
     mount.onpointerdown = handleModalPointerDown;
@@ -2162,699 +2432,504 @@ export function createUIFeedback(options = {}) {
     mount.onkeydown = handleModalKeydown;
     mount.onwheel = handleModalWheel;
   }
-
   function applyPreviewImagePosition() {
-    const preview = root.querySelector('[data-image-preview]');
+    const preview = root.querySelector("[data-image-preview]");
     const position = state.modalImagePosition || { x: 50, y: 50 };
-    if (preview?.tagName?.toLowerCase() === 'img') preview.style.objectPosition = `${position.x}% ${position.y}%`;
-    const output = root.querySelector('[data-image-position]');
-    if (output) output.textContent = `${Math.round(position.x)}% · ${Math.round(position.y)}%`;
+    if (preview?.tagName?.toLowerCase() === "img") preview.style.objectPosition = `${position.x}% ${position.y}%`;
+    const output = root.querySelector("[data-image-position]");
+    if (output) output.textContent = `${Math.round(position.x)}% \xB7 ${Math.round(position.y)}%`;
   }
-
   function previewImageSource(source) {
-    const preview = root.querySelector('[data-image-preview]');
+    const preview = root.querySelector("[data-image-preview]");
     if (!preview) return;
-    if (!source) { preview.outerHTML = '<span data-image-preview>Hãy nhập URL hoặc chọn file để xem preview.</span>'; return; }
-    if (preview.tagName?.toLowerCase() === 'img') preview.src = source;
-    else preview.outerHTML = `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="object-position:${state.modalImagePosition?.x || 50}% ${state.modalImagePosition?.y || 50}%;" />`;
+    if (!source) {
+      preview.outerHTML = "<span data-image-preview>H\xE3y nh\u1EADp URL ho\u1EB7c ch\u1ECDn file \u0111\u1EC3 xem preview.</span>";
+      return;
+    }
+    if (preview.tagName?.toLowerCase() === "img") preview.src = source;
+    else preview.outerHTML = `<img data-image-preview src="${escapeAttribute(source)}" alt="\u1EA2nh preview" style="object-position:${state.modalImagePosition?.x || 50}% ${state.modalImagePosition?.y || 50}%;" />`;
     applyPreviewImagePosition();
   }
-
   function applyCssPreset(name) {
     if (!state.target) return;
-    if (name === 'clean') {
-      applyCssProperty('borderRadius', '4px');
-      applyCssProperty('boxShadow', 'none');
-      applyCssProperty('borderWidth', '1px');
-    } else if (name === 'soft') {
-      applyCssProperty('borderRadius', '14px');
-      applyCssProperty('boxShadow', '0 10px 30px rgba(0,0,0,.12)');
-    } else if (name === 'focus') {
-      applyCssProperty('borderColor', config.accent);
-      applyCssProperty('outlineColor', config.accent);
-      applyCssProperty('outlineStyle', 'solid');
-      applyCssProperty('outlineWidth', '2px');
-      applyCssProperty('outlineOffset', '2px');
+    if (name === "clean") {
+      applyCssProperty("borderRadius", "4px");
+      applyCssProperty("boxShadow", "none");
+      applyCssProperty("borderWidth", "1px");
+    } else if (name === "soft") {
+      applyCssProperty("borderRadius", "14px");
+      applyCssProperty("boxShadow", "0 10px 30px rgba(0,0,0,.12)");
+    } else if (name === "focus") {
+      applyCssProperty("borderColor", config.accent);
+      applyCssProperty("outlineColor", config.accent);
+      applyCssProperty("outlineStyle", "solid");
+      applyCssProperty("outlineWidth", "2px");
+      applyCssProperty("outlineOffset", "2px");
     }
     renderModal();
   }
-
   let imageDragState = null;
   let modalDragState = null;
-
   function updateModalPositionFromPointer(clientX, clientY) {
     if (!modalDragState || !state.modalOpen) return;
     const maxX = Math.max(0, window.innerWidth - 80);
     const maxY = Math.max(0, window.innerHeight - 80);
     state.modalPosition = {
       x: Math.max(-maxX, Math.min(maxX, modalDragState.x + clientX - modalDragState.clientX)),
-      y: Math.max(-maxY, Math.min(maxY, modalDragState.y + clientY - modalDragState.clientY)),
+      y: Math.max(-maxY, Math.min(maxY, modalDragState.y + clientY - modalDragState.clientY))
     };
     applyModalPosition();
   }
-
   function updateImagePositionFromPointer(clientX, clientY) {
-    if (!imageDragState || !state.modalOpen || state.mode !== 'image') return;
+    if (!imageDragState || !state.modalOpen || state.mode !== "image") return;
     const rect = imageDragState.canvas.getBoundingClientRect();
     const position = {
-      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
+      x: Math.max(0, Math.min(100, (clientX - rect.left) / rect.width * 100)),
+      y: Math.max(0, Math.min(100, (clientY - rect.top) / rect.height * 100))
     };
     state.modalImagePosition = position;
     applyPreviewImagePosition();
     applyImagePosition(state.target, position);
   }
-
   function handleModalPointerDown(event) {
-    const dragHandle = getWindowDragHandle(event, '[data-modal-drag-handle]');
-    if (dragHandle) {
-      event.preventDefault();
-      event.stopPropagation();
-      const position = state.modalPosition || { x: 0, y: 0 };
-      modalDragState = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
-      dragHandle.classList.add('is-dragging');
-      try { dragHandle.setPointerCapture?.(event.pointerId); } catch { /* ignore unsupported capture */ }
-      const onMove = (moveEvent) => {
-        if (moveEvent.pointerId !== modalDragState?.pointerId) return;
-        updateModalPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
-      };
-      const onBlur = () => onEnd();
-      const onEnd = (endEvent) => {
-        if (endEvent?.pointerId != null && endEvent.pointerId !== modalDragState?.pointerId) return;
-        dragHandle.classList.remove('is-dragging');
-        try { dragHandle.releasePointerCapture?.(modalDragState?.pointerId); } catch { /* ignore */ }
-        modalDragState = null;
-        document.removeEventListener('pointermove', onMove, true);
-        document.removeEventListener('pointerup', onEnd, true);
-        document.removeEventListener('pointercancel', onEnd, true);
-        window.removeEventListener('blur', onBlur);
-      };
-      document.addEventListener('pointermove', onMove, true);
-      document.addEventListener('pointerup', onEnd, true);
-      document.addEventListener('pointercancel', onEnd, true);
-      window.addEventListener('blur', onBlur);
-      return;
-    }
-    const pad = event.target.closest('[data-css-position-pad]');
-    if (pad && state.mode === 'css') {
-      event.preventDefault();
-      event.stopPropagation();
-      updateCssPositionFromPointer(event.clientX, event.clientY);
-      const onMove = (moveEvent) => updateCssPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
-      const onEnd = () => { document.removeEventListener('pointermove', onMove, true); document.removeEventListener('pointerup', onEnd, true); document.removeEventListener('pointercancel', onEnd, true); };
-      document.addEventListener('pointermove', onMove, true);
-      document.addEventListener('pointerup', onEnd, true);
-      document.addEventListener('pointercancel', onEnd, true);
-      return;
-    }
-    const canvas = event.target.closest('[data-image-canvas]');
-    if (!canvas || state.mode !== 'image') return;
-    event.preventDefault();
-    event.stopPropagation();
-    imageDragState = { canvas };
-    updateImagePositionFromPointer(event.clientX, event.clientY);
-    const onMove = (moveEvent) => updateImagePositionFromPointer(moveEvent.clientX, moveEvent.clientY);
-    const onEnd = () => {
-      imageDragState = null;
-      document.removeEventListener('pointermove', onMove, true);
-      document.removeEventListener('pointerup', onEnd, true);
-      document.removeEventListener('pointercancel', onEnd, true);
-    };
-    document.addEventListener('pointermove', onMove, true);
-    document.addEventListener('pointerup', onEnd, true);
-    document.addEventListener('pointercancel', onEnd, true);
+    return modalController.handlePointerDown(event);
   }
-
   function applyPreviewImageZoom() {
-    const preview = root.querySelector('[data-image-preview]');
+    const preview = root.querySelector("[data-image-preview]");
     const zoom = state.modalImageZoom || 100;
-    if (preview?.tagName?.toLowerCase() === 'img') preview.style.transform = `scale(${zoom / 100})`;
-    const output = root.querySelector('[data-image-zoom-output]');
+    if (preview?.tagName?.toLowerCase() === "img") preview.style.transform = `scale(${zoom / 100})`;
+    const output = root.querySelector("[data-image-zoom-output]");
     if (output) output.textContent = `${zoom}%`;
   }
-
   function handleModalWheel(event) {
-    if (state.mode !== 'image' || !event.target.closest('[data-image-canvas]')) return;
+    if (state.mode !== "image" || !event.target.closest("[data-image-canvas]")) return;
     event.preventDefault();
     state.modalImageZoom = Math.max(30, Math.min(300, (state.modalImageZoom || 100) + (event.deltaY < 0 ? 10 : -10)));
-    const input = root.querySelector('[data-image-zoom]');
+    const input = root.querySelector("[data-image-zoom]");
     if (input) input.value = state.modalImageZoom;
     applyPreviewImageZoom();
   }
-
   async function pasteImageFromClipboard() {
-    if (!navigator.clipboard?.read) { showToast('Trình duyệt chưa cho phép đọc clipboard'); return; }
+    if (!navigator.clipboard?.read) {
+      showToast("Tr\xECnh duy\u1EC7t ch\u01B0a cho ph\xE9p \u0111\u1ECDc clipboard");
+      return;
+    }
     try {
       const items = await navigator.clipboard.read();
       for (const item of items) {
-        const type = item.types.find((value) => value.startsWith('image/'));
+        const type = item.types.find((value) => value.startsWith("image/"));
         if (type) {
           const blob = await item.getType(type);
           loadImageFile(blob);
           return;
         }
       }
-      showToast('Clipboard chưa có dữ liệu ảnh');
-    } catch { showToast('Không thể đọc ảnh từ clipboard'); }
+      showToast("Clipboard ch\u01B0a c\xF3 d\u1EEF li\u1EC7u \u1EA3nh");
+    } catch {
+      showToast("Kh\xF4ng th\u1EC3 \u0111\u1ECDc \u1EA3nh t\u1EEB clipboard");
+    }
   }
-
   function loadImageFile(file) {
-    if (!file?.type?.startsWith('image/')) { showToast('Vui lòng chọn file ảnh'); return; }
+    if (!file?.type?.startsWith("image/")) {
+      showToast("Vui l\xF2ng ch\u1ECDn file \u1EA3nh");
+      return;
+    }
     const reader = new FileReader();
     reader.onload = () => {
-      const source = String(reader.result || '');
-      if (!validateImageSource(source)) { showToast('Ảnh upload vượt giới hạn 1 MB'); return; }
+      const source = String(reader.result || "");
+      if (!validateImageSource(source)) {
+        showToast("\u1EA2nh upload v\u01B0\u1EE3t gi\u1EDBi h\u1EA1n 1 MB");
+        return;
+      }
       state.modalImageSource = source;
-      const urlInput = root.querySelector('[data-image-url]');
+      const urlInput = root.querySelector("[data-image-url]");
       if (urlInput) urlInput.value = source;
       previewImageSource(source);
     };
     reader.readAsDataURL(file);
   }
-
   function handleModalClick(event) {
-    const zoomStep = event.target.closest('[data-image-zoom-step]');
-    if (zoomStep) { event.stopPropagation(); state.modalImageZoom = Math.max(30, Math.min(300, (state.modalImageZoom || 100) + (zoomStep.dataset.imageZoomStep === '+' ? 15 : -15))); const input = root.querySelector('[data-image-zoom]'); if (input) input.value = state.modalImageZoom; applyPreviewImageZoom(); return; }
-    const paste = event.target.closest('[data-image-paste]');
-    if (paste) { event.stopPropagation(); pasteImageFromClipboard(); return; }
-    const positionReset = event.target.closest('[data-css-position-reset]');
-    if (positionReset) { event.stopPropagation(); applyCssPosition({ x: 0, y: 0 }); return; }
-    const tab = event.target.closest('[data-css-tab]');
-    if (tab) { event.stopPropagation(); state.cssTab = tab.dataset.cssTab; renderModal(); return; }
-    const preset = event.target.closest('[data-css-preset]');
-    if (preset) { event.stopPropagation(); applyCssPreset(preset.dataset.cssPreset); return; }
-    const reset = event.target.closest('[data-css-reset]');
-    if (reset && state.target && state.modalSnapshot) { event.stopPropagation(); state.target.style.cssText = state.modalSnapshot.styleCssText || ''; renderModal(); return; }
-    const restore = event.target.closest('[data-image-restore]');
-    if (restore && state.target && state.modalSnapshot) { event.stopPropagation(); restoreImageState(state.target, state.modalSnapshot); state.modalImageSource = state.modalSnapshot.src || ''; renderModal(); return; }
-    const target = event.target.closest('[data-modal-action]');
+    const zoomStep = event.target.closest("[data-image-zoom-step]");
+    if (zoomStep) {
+      event.stopPropagation();
+      state.modalImageZoom = Math.max(30, Math.min(300, (state.modalImageZoom || 100) + (zoomStep.dataset.imageZoomStep === "+" ? 15 : -15)));
+      const input = root.querySelector("[data-image-zoom]");
+      if (input) input.value = state.modalImageZoom;
+      applyPreviewImageZoom();
+      return;
+    }
+    const paste = event.target.closest("[data-image-paste]");
+    if (paste) {
+      event.stopPropagation();
+      pasteImageFromClipboard();
+      return;
+    }
+    const positionReset = event.target.closest("[data-css-position-reset]");
+    if (positionReset) {
+      event.stopPropagation();
+      applyCssPosition({ x: 0, y: 0 });
+      return;
+    }
+    const tab = event.target.closest("[data-css-tab]");
+    if (tab) {
+      event.stopPropagation();
+      state.cssTab = tab.dataset.cssTab;
+      renderModal();
+      return;
+    }
+    const preset = event.target.closest("[data-css-preset]");
+    if (preset) {
+      event.stopPropagation();
+      applyCssPreset(preset.dataset.cssPreset);
+      return;
+    }
+    const reset = event.target.closest("[data-css-reset]");
+    if (reset && state.target && state.modalSnapshot) {
+      event.stopPropagation();
+      state.target.style.cssText = state.modalSnapshot.styleCssText || "";
+      renderModal();
+      return;
+    }
+    const restore = event.target.closest("[data-image-restore]");
+    if (restore && state.target && state.modalSnapshot) {
+      event.stopPropagation();
+      restoreImageState(state.target, state.modalSnapshot);
+      state.modalImageSource = state.modalSnapshot.src || "";
+      renderModal();
+      return;
+    }
+    const target = event.target.closest("[data-modal-action]");
     if (!target) return;
     event.stopPropagation();
-    if (target.dataset.modalAction === 'cancel') closeModal(true);
-    else if (target.dataset.modalAction === 'reset-position') { state.modalPosition = { x: 0, y: 0 }; applyModalPosition(); showToast('Đã đặt lại vị trí cửa sổ'); }
-    else if (target.dataset.modalAction === 'save') saveModal();
+    if (target.dataset.modalAction === "cancel") closeModal(true);
+    else if (target.dataset.modalAction === "reset-position") {
+      state.modalPosition = { x: 0, y: 0 };
+      applyModalPosition();
+      showToast("\u0110\xE3 \u0111\u1EB7t l\u1EA1i v\u1ECB tr\xED c\u1EEDa s\u1ED5");
+    } else if (target.dataset.modalAction === "save") saveModal();
   }
-
   function handleModalInput(event) {
     const target = event.target;
-    if (target.matches('[data-css-color]')) {
+    if (target.matches("[data-css-color]")) {
       applyCssProperty(target.dataset.cssColor, target.value);
-      const card = target.closest('[data-css-card]');
-      const hex = card?.querySelector('[data-css-hex]');
-      const swatch = card?.querySelector('.ui-feedback-theme-card__swatch');
+      const card = target.closest("[data-css-card]");
+      const hex = card?.querySelector("[data-css-hex]");
+      const swatch = card?.querySelector(".ui-feedback-theme-card__swatch");
       if (hex) hex.value = target.value;
       if (swatch) swatch.style.background = target.value;
-    } else if (target.matches('[data-css-hex]')) {
+    } else if (target.matches("[data-css-hex]")) {
       const value = target.value.trim();
       if (/^#[0-9a-f]{6}$/i.test(value)) {
         applyCssProperty(target.dataset.cssHex, value);
-        const card = target.closest('[data-css-card]');
-        const color = card?.querySelector('[data-css-color]');
-        const swatch = card?.querySelector('.ui-feedback-theme-card__swatch');
+        const card = target.closest("[data-css-card]");
+        const color = card?.querySelector("[data-css-color]");
+        const swatch = card?.querySelector(".ui-feedback-theme-card__swatch");
         if (color) color.value = value;
         if (swatch) swatch.style.background = value;
       }
-    } else if (target.matches('[data-css-opacity]')) {
-      applyCssProperty('opacity', String(Number(target.value) / 100));
-      const output = root.querySelector('[data-css-opacity-output]');
+    } else if (target.matches("[data-css-opacity]")) {
+      applyCssProperty("opacity", String(Number(target.value) / 100));
+      const output = root.querySelector("[data-css-opacity-output]");
       if (output) output.textContent = `${target.value}%`;
-    } else if (target.matches('[data-css-x], [data-css-y], [data-css-x-number], [data-css-y-number]')) {
-      const isX = target.matches('[data-css-x], [data-css-x-number]');
-      state.cssPosition[isX ? 'x' : 'y'] = Number(target.value);
+    } else if (target.matches("[data-css-x], [data-css-y], [data-css-x-number], [data-css-y-number]")) {
+      const isX = target.matches("[data-css-x], [data-css-x-number]");
+      state.cssPosition[isX ? "x" : "y"] = Number(target.value);
       applyCssPosition();
-    } else if (target.matches('[data-image-zoom]')) {
+    } else if (target.matches("[data-image-zoom]")) {
       state.modalImageZoom = Number(target.value);
       applyPreviewImageZoom();
-    } else if (target.matches('[data-css-radius]')) {
-      applyCssProperty('borderRadius', `${target.value}px`);
-      const output = root.querySelector('[data-css-radius-output]');
+    } else if (target.matches("[data-css-radius]")) {
+      applyCssProperty("borderRadius", `${target.value}px`);
+      const output = root.querySelector("[data-css-radius-output]");
       if (output) output.value = `${target.value}px`;
       if (output) output.textContent = `${target.value}px`;
-    } else if (target.matches('[data-image-url]')) {
+    } else if (target.matches("[data-image-url]")) {
       state.modalImageSource = target.value.trim();
       previewImageSource(state.modalImageSource);
     }
   }
-
   function handleModalChange(event) {
     const target = event.target;
-    if (target.matches('[data-css-font]')) {
+    if (target.matches("[data-css-font]")) {
       const value = target.value;
-      if (value) { ensureGoogleFont(value); applyCssProperty(target.dataset.cssFont, `'${value}', sans-serif`); }
-      else applyCssProperty(target.dataset.cssFont, '');
+      if (value) {
+        ensureGoogleFont(value);
+        applyCssProperty(target.dataset.cssFont, `'${value}', sans-serif`);
+      } else applyCssProperty(target.dataset.cssFont, "");
       renderModal();
       return;
     }
-    if (target.matches('[data-image-file]') && target.files?.[0]) loadImageFile(target.files[0]);
+    if (target.matches("[data-image-file]") && target.files?.[0]) loadImageFile(target.files[0]);
   }
-
   function handleModalKeydown(event) {
-    if (event.key === 'Escape') {
+    if (event.key === "Escape") {
       event.preventDefault();
-      closeModal(true); // resume picking on Escape
+      closeModal(true);
     }
-    if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+    if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
       saveModal();
     }
   }
-
-  // Track existing item being edited
   let editingExisting = null;
-
   function openModalWithExisting(element, mode, existing) {
     editingExisting = existing || null;
     openModal(element, mode, existing);
   }
-
   function saveModal() {
-    const input = root.querySelector('[data-feedback-input]');
-    const value = input?.value?.trim() || '';
+    const input = root.querySelector("[data-feedback-input]");
+    const value = input?.value?.trim() || "";
     const existing = editingExisting;
     const modeUsed = state.mode;
-    if (modeUsed === 'image') {
+    if (modeUsed === "image") {
       const source = state.modalImageSource || value;
       if (!validateImageSource(source)) {
         input?.focus();
-        showToast('URL ảnh không hợp lệ hoặc ảnh upload vượt giới hạn 1 MB');
+        showToast("URL \u1EA3nh kh\xF4ng h\u1EE3p l\u1EC7 ho\u1EB7c \u1EA3nh upload v\u01B0\u1EE3t gi\u1EDBi h\u1EA1n 1 MB");
         return;
       }
       const oldImageState = state.modalSnapshot || captureImageState(state.target);
       applyImageSource(state.target, source);
       applyImagePosition(state.target, state.modalImagePosition || { x: 50, y: 50 });
       const item = {
-        id: generateId(), type: 'image', category: 'image', selector: cssPath(state.target), tag: targetLabel(state.target),
+        id: generateId(),
+        type: "image",
+        category: "image",
+        selector: cssPath(state.target),
+        tag: targetLabel(state.target),
         codeLine: firstCodeLine(state.target),
-        targetText: oldImageState.src || oldImageState.backgroundImage || '', value: source,
-        imageSourceType: source.startsWith('data:image/') ? 'upload' : 'url',
-        oldImageState, newImageState: captureImageState(state.target), page: location.pathname || '/',
-        viewport: `${window.innerWidth}x${window.innerHeight}`, scrollY: Math.round(window.scrollY),
-        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        targetText: oldImageState.src || oldImageState.backgroundImage || "",
+        value: source,
+        imageSourceType: source.startsWith("data:image/") ? "upload" : "url",
+        oldImageState,
+        newImageState: captureImageState(state.target),
+        page: location.pathname || "/",
+        viewport: `${window.innerWidth}x${window.innerHeight}`,
+        scrollY: Math.round(window.scrollY),
+        createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: (/* @__PURE__ */ new Date()).toISOString()
       };
       state.comments.push(item);
-      state.undoStack.push({ type: 'image', id: item.id, selector: item.selector, oldImageState });
+      state.undoStack.push({ type: "image", id: item.id, selector: item.selector, oldImageState });
       persist();
       state.modalCommitted = true;
-      showToast('Đã thay ảnh trên trang', { undo: true });
+      showToast("\u0110\xE3 thay \u1EA3nh tr\xEAn trang", { undo: true });
       editingExisting = null;
       closeModal(true);
       return;
     }
-    if (modeUsed !== 'css' && !value) {
+    if (modeUsed !== "css" && !value) {
       input?.focus();
-      showToast('Vui lòng nhập nội dung trước khi lưu');
+      showToast("Vui l\xF2ng nh\u1EADp n\u1ED9i dung tr\u01B0\u1EDBc khi l\u01B0u");
       return;
     }
-    if (modeUsed === 'edit' || modeUsed === 'css') {
+    if (modeUsed === "edit" || modeUsed === "css") {
       if (state.target) {
-        const oldValue = modeUsed === 'edit' ? state.target.textContent : (state.modalSnapshot?.styleCssText || state.target.style.cssText);
-        if (modeUsed === 'edit') state.target.textContent = value;
-        const newValue = modeUsed === 'edit' ? value : state.target.style.cssText;
-        
+        const oldValue = modeUsed === "edit" ? state.target.textContent : state.modalSnapshot?.styleCssText || state.target.style.cssText;
+        if (modeUsed === "edit") state.target.textContent = value;
+        const newValue = modeUsed === "edit" ? value : state.target.style.cssText;
         const item = {
           id: generateId(),
           type: modeUsed,
           selector: cssPath(state.target),
           tag: targetLabel(state.target),
-          category: modeUsed === 'edit' ? 'content' : 'color',
+          category: modeUsed === "edit" ? "content" : "color",
           codeLine: firstCodeLine(state.target),
           targetText: safeText(oldValue, 120),
           value: newValue,
-          page: location.pathname || '/',
+          page: location.pathname || "/",
           viewport: `${window.innerWidth}x${window.innerHeight}`,
           scrollY: Math.round(window.scrollY),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
         };
         state.comments.push(item);
-        
         state.undoStack.push({
           type: modeUsed,
           id: item.id,
           selector: item.selector,
-          oldValue: oldValue
+          oldValue
         });
       }
       persist();
       state.modalCommitted = true;
-      showToast(modeUsed === 'edit' ? 'Đã cập nhật nội dung trên trang' : 'Đã apply Bộ giao diện', { undo: true });
+      showToast(modeUsed === "edit" ? "\u0110\xE3 c\u1EADp nh\u1EADt n\u1ED9i dung tr\xEAn trang" : "\u0110\xE3 apply B\u1ED9 giao di\u1EC7n", { undo: true });
     } else {
-      const item = existing || { id: generateId(), createdAt: new Date().toISOString(), type: 'comment' };
+      const item = existing || { id: generateId(), createdAt: (/* @__PURE__ */ new Date()).toISOString(), type: "comment" };
       item.comment = value;
-      item.priority = root.querySelector('[data-feedback-priority]')?.value || item.priority || 'medium';
-      item.category = root.querySelector('[data-feedback-category]')?.value || item.category || 'other';
+      item.priority = root.querySelector("[data-feedback-priority]")?.value || item.priority || "medium";
+      item.category = root.querySelector("[data-feedback-category]")?.value || item.category || "other";
       item.selector = cssPath(state.target);
       item.tag = targetLabel(state.target);
       item.codeLine = firstCodeLine(state.target);
       item.targetText = safeText(state.target?.textContent, 120);
-      item.page = location.pathname || '/';
+      item.page = location.pathname || "/";
       item.viewport = `${window.innerWidth}x${window.innerHeight}`;
       item.scrollY = Math.round(window.scrollY);
-      item.updatedAt = new Date().toISOString();
+      item.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
       if (!existing) state.comments.push(item);
       persist();
       state.modalCommitted = true;
-      showToast(existing ? 'Đã cập nhật feedback' : 'Đã lưu feedback');
-      // Pulse the badge
+      showToast(existing ? "\u0110\xE3 c\u1EADp nh\u1EADt feedback" : "\u0110\xE3 l\u01B0u feedback");
       setTimeout(() => {
-        const badge = root.querySelector('.ui-feedback-badge');
+        const badge = root.querySelector(".ui-feedback-badge");
         if (badge) {
-          badge.classList.remove('is-pulse');
+          badge.classList.remove("is-pulse");
           void badge.offsetWidth;
-          badge.classList.add('is-pulse');
+          badge.classList.add("is-pulse");
         }
       }, 50);
     }
     editingExisting = null;
-    closeModal(true); // true = came from save, should resume picking
+    closeModal(true);
   }
-
   function closeModal(resumePicking = false) {
-    if (!state.modalCommitted && state.mode === 'css' && state.target && state.modalSnapshot) {
-      state.target.style.cssText = state.modalSnapshot.styleCssText || '';
+    if (!state.modalCommitted && state.mode === "css" && state.target && state.modalSnapshot) {
+      state.target.style.cssText = state.modalSnapshot.styleCssText || "";
     }
-    if (!state.modalCommitted && state.mode === 'image' && state.target && state.modalSnapshot) {
+    if (!state.modalCommitted && state.mode === "image" && state.target && state.modalSnapshot) {
       restoreImageState(state.target, state.modalSnapshot);
     }
     state.modalOpen = false;
     state.target = null;
     state.modalSnapshot = null;
-    state.modalImageSource = '';
+    state.modalImageSource = "";
     state.modalImagePosition = { x: 50, y: 50 };
     state.modalCommitted = false;
     editingExisting = null;
-    renderToolbar();
-    // Place markers after comment save
+    renderToolbar2();
     placeMarkers();
-    // Resume picking mode if came from a save
     if (resumePicking) {
       resumePickingIfNeeded();
     }
   }
-
-  /* ── comment CRUD ── */
   function editComment(id) {
-    const item = state.comments.find((c) => c.id === id);
-    if (!item) return;
-    let target = null;
-    try {
-      target = document.querySelector(item.selector);
-    } catch { /* selector may have changed */ }
-    openModalWithExisting(target || document.body, item.type === 'css' || item.type === 'image' ? item.type : 'comment', item);
+    return commentsController.editComment(id);
   }
-
   function deleteComment(id) {
-    const index = state.comments.findIndex((c) => c.id === id);
-    if (index === -1) return;
-    const deleted = state.comments.splice(index, 1)[0];
-    state.undoStack.push({ type: 'delete', item: deleted, index });
-    persist();
-    renderToolbar();
-    state.panelOpen = true;
-    renderPanel();
-    showToast('Đã xóa feedback', { undo: true });
+    return commentsController.deleteComment(id);
   }
-
   function undoAction() {
-    const entry = state.undoStack.pop();
-    if (!entry) return;
-
-    if (entry.type === 'delete') {
-      state.comments.splice(entry.index, 0, entry.item);
-      persist();
-      renderToolbar();
-      state.panelOpen = true;
-      renderPanel();
-      showToast('Đã hoàn tác xóa');
-    } else if (entry.type === 'edit' || entry.type === 'css' || entry.type === 'image') {
-      try {
-        const el = document.querySelector(entry.selector);
-        if (el) {
-          if (entry.type === 'edit') el.textContent = entry.oldValue;
-          if (entry.type === 'css') el.style.cssText = entry.oldValue;
-          if (entry.type === 'image') restoreImageState(el, entry.oldImageState);
-        }
-      } catch (e) { console.error('Undo DOM error', e); }
-      const idx = state.comments.findIndex(c => c.id === entry.id);
-      if (idx !== -1) state.comments.splice(idx, 1);
-      persist();
-      renderToolbar();
-      renderPanel();
-      placeMarkers();
-      showToast('Đã hoàn tác chỉnh sửa');
-    }
+    return commentsController.undoAction();
   }
-
   function resolveComment(id) {
-    const item = state.comments.find((c) => c.id === id);
-    if (!item) return;
-    item.resolved = !item.resolved;
-    item.updatedAt = new Date().toISOString();
-    persist();
-    renderPanel();
-    showToast(item.resolved ? 'Đã đánh dấu xong' : 'Đã mở lại feedback');
+    return commentsController.resolveComment(id);
   }
-
-  /* ── export ── */
   function renderItemMarkdown(item, index) {
     const lines = [];
-    const status = item.resolved ? '✅ Đã xử lý' : '⏳ Chưa xử lý';
-    const typeLabel = item.type === 'edit' ? '✏️ Edit' : item.type === 'css' ? '✦ Bộ giao diện' : item.type === 'image' ? '▧ Image' : '💬 Feedback';
-    const title = item.type === 'edit' ? 'Sửa text' : item.type === 'css' ? 'Bộ giao diện' : item.type === 'image' ? 'Thay ảnh' : 'Feedback';
-    lines.push(`### ${index + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`, '', `- **Tiêu đề:** ${title}`);
-    if (item.type === 'edit') {
-      lines.push(`- **Text hiện tại:** ${escapeMarkdown(item.targetText || '')}`);
-      lines.push(`- **Text mới:** ${escapeMarkdown(item.value || '')}`);
-    } else if (item.type === 'css') {
-      lines.push(`- **CSS cũ:** \`${escapeMarkdown(item.targetText || '')}\``);
-      lines.push(`- **CSS mới:** \`${escapeMarkdown(item.value || '')}\``);
-    } else if (item.type === 'image') {
-      lines.push(`- **Ảnh cũ:** ${escapeMarkdown(item.targetText || 'Không có')}`);
-      lines.push(`- **Ảnh mới:** ${escapeMarkdown(item.value || '')}`);
-      lines.push(`- **Nguồn:** ${item.imageSourceType === 'upload' ? 'Upload từ máy' : 'URL website'}`);
+    const status = item.resolved ? "\u2705 \u0110\xE3 x\u1EED l\xFD" : "\u23F3 Ch\u01B0a x\u1EED l\xFD";
+    const typeLabel = item.type === "edit" ? "\u270F\uFE0F Edit" : item.type === "css" ? "\u2726 B\u1ED9 giao di\u1EC7n" : item.type === "image" ? "\u25A7 Image" : "\u{1F4AC} Feedback";
+    const title = item.type === "edit" ? "S\u1EEDa text" : item.type === "css" ? "B\u1ED9 giao di\u1EC7n" : item.type === "image" ? "Thay \u1EA3nh" : "Feedback";
+    lines.push(`### ${index + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`, "", `- **Ti\xEAu \u0111\u1EC1:** ${title}`);
+    if (item.type === "edit") {
+      lines.push(`- **Text hi\u1EC7n t\u1EA1i:** ${escapeMarkdown(item.targetText || "")}`);
+      lines.push(`- **Text m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
+    } else if (item.type === "css") {
+      lines.push(`- **CSS c\u0169:** \`${escapeMarkdown(item.targetText || "")}\``);
+      lines.push(`- **CSS m\u1EDBi:** \`${escapeMarkdown(item.value || "")}\``);
+    } else if (item.type === "image") {
+      lines.push(`- **\u1EA2nh c\u0169:** ${escapeMarkdown(item.targetText || "Kh\xF4ng c\xF3")}`);
+      lines.push(`- **\u1EA2nh m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
+      lines.push(`- **Ngu\u1ED3n:** ${item.imageSourceType === "upload" ? "Upload t\u1EEB m\xE1y" : "URL website"}`);
     } else {
-      lines.push(`- **Ưu tiên:** ${item.priority || 'medium'}`);
-      lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
+      lines.push(`- **\u01AFu ti\xEAn:** ${item.priority || "medium"}`);
+      lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || "")}`);
     }
-    lines.push(`- **Phân loại:** ${categoryLabel(item.category, item.type)}`);
-    lines.push(`- **Dòng code đầu:** \`${escapeMarkdown(item.codeLine || getItemCodeLine(item) || item.tag || '')}\``);
+    lines.push(`- **Ph\xE2n lo\u1EA1i:** ${categoryLabel(item.category, item.type)}`);
+    lines.push(`- **D\xF2ng code \u0111\u1EA7u:** \`${escapeMarkdown(item.codeLine || getItemCodeLine(item) || item.tag || "")}\``);
     lines.push(`- **Selector:** \`${item.selector}\``);
-    lines.push(`- **Trạng thái:** ${status}`);
-    if (item.viewport) lines.push(`- **Context:** \`${item.viewport}\` · \`${item.scrollY}px\``);
-    lines.push(`- **Tạo lúc:** ${item.createdAt ? formatDate(new Date(item.createdAt)) : 'N/A'}`);
-    lines.push(`- **Cập nhật:** ${item.updatedAt ? formatDate(new Date(item.updatedAt)) : 'N/A'}`);
-    lines.push('');
+    lines.push(`- **Tr\u1EA1ng th\xE1i:** ${status}`);
+    if (item.viewport) lines.push(`- **Context:** \`${item.viewport}\` \xB7 \`${item.scrollY}px\``);
+    lines.push(`- **T\u1EA1o l\xFAc:** ${item.createdAt ? formatDate(new Date(item.createdAt)) : "N/A"}`);
+    lines.push(`- **C\u1EADp nh\u1EADt:** ${item.updatedAt ? formatDate(new Date(item.updatedAt)) : "N/A"}`);
+    lines.push("");
     return lines;
   }
-
   function exportMarkdown() {
-    const resolvedCount = state.comments.filter((c) => c.resolved).length;
-    const openCount = state.comments.length - resolvedCount;
-    const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
-    const feedbackCount = state.comments.length - editCount;
-    const lines = [
-      `# UI/UX Feedback`,
-      '',
-      `- **URL:** ${location.href}`,
-      `- **Ngày xuất:** ${formatDate(new Date())}`,
-      `- **Tổng feedback:** ${state.comments.length} (${feedbackCount} ghi chú, ${editCount} chỉnh sửa, ${openCount} mở, ${resolvedCount} đã xử lý)`,
-      '',
-    ];
-    const grouped = state.comments.reduce((groups, item) => {
-      const key = item.page || '/';
-      (groups[key] ||= []).push(item);
-      return groups;
-    }, {});
-    Object.entries(grouped).forEach(([page, items]) => {
-      lines.push(`## ${page}`, '');
-      items.forEach((item, index) => {
-        renderItemMarkdown(item, index).forEach((l) => lines.push(l));
-      });
-    });
-    // Summary table — only buckets comment items (edit/css lack priority).
-    lines.push('---', '', '## Tóm tắt', '');
-    lines.push(`| Loại | Số lượng |`);
-    lines.push(`|------|----------|`);
-    lines.push(`| 💬 Feedback (ghi chú) | ${feedbackCount} |`);
-    lines.push(`| ✏️ Edit (sửa text) | ${state.comments.filter((c) => c.type === 'edit').length} |`);
-    lines.push(`| 🎨 CSS (Bộ giao diện) | ${state.comments.filter((c) => c.type === 'css').length} |`);
-    lines.push(`| ▧ Image (thay ảnh) | ${state.comments.filter((c) => c.type === 'image').length} |`);
-    lines.push('');
-    lines.push(`### Theo mức độ (chỉ feedback)`);
-    lines.push(`| Mức độ | Mở | Xong | Tổng |`);
-    lines.push(`|--------|-----|------|------|`);
-    ['high', 'medium', 'low'].forEach((p) => {
-      const all = state.comments.filter((c) => !['edit', 'css', 'image'].includes(c.type) && (c.priority || 'medium') === p);
-      const res = all.filter((c) => c.resolved).length;
-      const label = p === 'high' ? 'Cao' : p === 'medium' ? 'Trung bình' : 'Thấp';
-      lines.push(`| ${label} | ${all.length - res} | ${res} | ${all.length} |`);
-    });
-    lines.push('');
-
-    const blob = new Blob([lines.join('\n').replace(/\n\n\n+/g, '\n\n')], { type: 'text/markdown;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `ui-feedback-${new Date().toISOString().slice(0, 10)}.md`;
-    anchor.click();
-    URL.revokeObjectURL(url);
-    const exportedCount = state.comments.length;
-    state.comments = [];
-    state.undoStack = [];
-    persist();
-    clearMarkers();
-    state.panelOpen = false;
-    renderToolbar();
-    showToast(exportedCount ? `Đã xuất Markdown và làm sạch ${exportedCount} mục` : 'Đã xuất file Markdown');
+    return markdownExporter.exportMarkdown();
   }
-
-  /* ── toast ── */
-  let toastTimer;
   function showToast(message, opts = {}) {
-    const mount = root.querySelector('[data-ui-feedback-toast]');
-    if (!mount) return;
-    clearTimeout(toastTimer);
-    const undoBtn = opts.undo
-      ? `<button class="ui-feedback-toast__undo" data-toast-undo>Hoàn tác</button>`
-      : '';
-    mount.innerHTML = `<div class="ui-feedback-toast" role="status">${escapeHtml(message)}${undoBtn}</div>`;
-    if (opts.undo) {
-      mount.querySelector('[data-toast-undo]')?.addEventListener('click', (e) => {
-        e.stopPropagation();
-        undoAction();
-        mount.innerHTML = '';
-      });
-    }
-    toastTimer = setTimeout(() => {
-      const toast = mount.querySelector('.ui-feedback-toast');
-      if (toast) {
-        toast.classList.add('is-leaving');
-        setTimeout(() => { mount.innerHTML = ''; }, 220);
-      }
-    }, opts.undo ? 5000 : 2400);
+    return toastController?.showToast(message, opts);
   }
-
-  /* ── github issue ── */
   function createGithubIssue() {
-    if (!config.githubRepo) return;
-    const unresolved = state.comments.filter((c) => !c.resolved);
-    if (!unresolved.length) {
-      showToast('Không có feedback nào đang mở!');
-      return;
-    }
-    const lines = [
-      `# UI Feedback Review`,
-      `\n**Context:** \`${window.innerWidth}x${window.innerHeight}\` · \`${state.theme}\``,
-      '',
-    ];
-    unresolved.forEach((item, i) => {
-      const typeLabel = item.type === 'edit' ? '✏️ Edit' : item.type === 'css' ? '✦ Bộ giao diện' : item.type === 'image' ? '▧ Image' : '💬 Feedback';
-      lines.push(`### ${i + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`);
-      if (item.type === 'edit') {
-        lines.push(`- **Current text:** ${escapeMarkdown(item.targetText || '')}`);
-        lines.push(`- **New text:** ${escapeMarkdown(item.value || '')}`);
-      } else if (item.type === 'css') {
-        lines.push(`- **Old CSS:** \`${escapeMarkdown(item.targetText || '')}\``);
-        lines.push(`- **New CSS:** \`${escapeMarkdown(item.value || '')}\``);
-      } else if (item.type === 'image') {
-        lines.push(`- **Old image:** ${escapeMarkdown(item.targetText || 'N/A')}`);
-        lines.push(`- **New image:** ${escapeMarkdown(item.value || '')}`);
-        lines.push(`- **Source:** ${item.imageSourceType === 'upload' ? 'Local upload' : 'Website URL'}`);
-      } else {
-        lines.push(`- **Priority:** ${item.priority || 'medium'}`);
-        lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
-      }
-      lines.push(`- **Category:** ${categoryLabel(item.category, item.type)}`);
-      lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || getItemCodeLine(item) || item.tag || 'N/A')}\``);
-      lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : 'N/A'}\``);
-      lines.push('');
-    });
-    const body = encodeURIComponent(lines.join('\n'));
-    const url = `https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review&body=${body}`;
-    window.open(url, '_blank');
-    showToast('Đang mở trang tạo Issue');
+    return githubIssueController.createGithubIssue();
   }
-
-  /* ── toggle ── */
   function toggle() {
     state.active = !state.active;
     if (state.active) state.coachmarkVisible = config.coachmark !== false && !hasSeenCoachmark();
     persistActive();
     state.panelOpen = false;
     state.modalOpen = false;
-    // Don't carry over picking context across a hard toggle on/off.
     state._modeBeforePickingStop = null;
     clearResumeTimer();
     stopPicking();
-    renderToolbar();
+    renderToolbar2();
     if (state.active) {
       placeMarkers();
     } else {
       clearMarkers();
     }
-    showToast(state.active ? 'UI Feedback đã bật' : 'UI Feedback đã tắt');
+    showToast(state.active ? "UI Feedback \u0111\xE3 b\u1EADt" : "UI Feedback \u0111\xE3 t\u1EAFt");
   }
-
-  /* ── keyboard shortcut ── */
   function normalizeShortcutKey(event) {
-    const fromCode = typeof event.code === 'string' && event.code.startsWith('Key') ? event.code.slice(3) : '';
-    return (fromCode || event.key || '').toLowerCase();
+    const fromCode = typeof event.code === "string" && event.code.startsWith("Key") ? event.code.slice(3) : "";
+    return (fromCode || event.key || "").toLowerCase();
   }
-
   function keydown(event) {
-    // Escape closes modal or panel when active
-    if (event.key === 'Escape' && state.active) {
-      if (state.modalOpen) { closeModal(true); event.preventDefault(); return; }
-      if (state.panelOpen) { togglePanel(false); event.preventDefault(); return; }
+    if (event.key === "Escape" && state.active) {
+      if (state.modalOpen) {
+        closeModal(true);
+        event.preventDefault();
+        return;
+      }
+      if (state.panelOpen) {
+        togglePanel(false);
+        event.preventDefault();
+        return;
+      }
       if (state.picking) {
-        // Stop cleanly but keep the mode so the next toolbar click
-        // resumes (or the user can hit the same button to re-enter).
         stopPicking({ rerender: true });
         event.preventDefault();
         return;
       }
     }
-
     const key = normalizeShortcutKey(event);
-
-    // Quick Tagging during picking
     if (state.picking && state.highlight?.element && !state.pickingLocked) {
       const char = key.toUpperCase();
-      if (['T', 'C', 'S'].includes(char)) {
+      if (["T", "C", "S"].includes(char)) {
         event.preventDefault();
-        const tags = { 'T': '[Typography]', 'C': '[Color]', 'S': '[Spacing]' };
+        const tags = { "T": "[Typography]", "C": "[Color]", "S": "[Spacing]" };
         const item = {
           id: generateId(),
-          createdAt: new Date().toISOString(),
+          createdAt: (/* @__PURE__ */ new Date()).toISOString(),
           comment: tags[char],
-          priority: 'high',
+          priority: "high",
           selector: cssPath(state.highlight.element),
           tag: targetLabel(state.highlight.element),
-          category: char === 'T' ? 'typography' : char === 'C' ? 'color' : 'spacing',
+          category: char === "T" ? "typography" : char === "C" ? "color" : "spacing",
           codeLine: firstCodeLine(state.highlight.element),
           targetText: safeText(state.highlight.element.textContent, 120),
-          page: location.pathname || '/',
+          page: location.pathname || "/",
           viewport: `${window.innerWidth}x${window.innerHeight}`,
           scrollY: Math.round(window.scrollY),
-          updatedAt: new Date().toISOString()
+          updatedAt: (/* @__PURE__ */ new Date()).toISOString()
         };
         state.comments.push(item);
         persist();
         stopPicking();
-        renderToolbar();
-        showToast(`Đã note ${tags[char]}`);
+        renderToolbar2();
+        showToast(`\u0110\xE3 note ${tags[char]}`);
         setTimeout(() => {
-          const badge = root.querySelector('.ui-feedback-badge');
+          const badge = root.querySelector(".ui-feedback-badge");
           if (badge) {
-            badge.classList.remove('is-pulse');
+            badge.classList.remove("is-pulse");
             void badge.offsetWidth;
-            badge.classList.add('is-pulse');
+            badge.classList.add("is-pulse");
           }
         }, 50);
         return;
       }
     }
-
     if (!config.shortcut.includes(key)) return;
     pressed.add(key);
     if (!event.repeat) {
@@ -2875,89 +2950,67 @@ export function createUIFeedback(options = {}) {
       }
     }
   }
-
   function keyup(event) {
     pressed.delete(normalizeShortcutKey(event));
   }
-
-  /* ── element picking ── */
   function imageTargetFor(element) {
     if (!(element instanceof Element)) return null;
-    if (element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img') return element;
-    const directPictureImage = element.closest('picture')?.querySelector('img');
+    if (element instanceof HTMLImageElement || element.tagName.toLowerCase() === "img") return element;
+    const directPictureImage = element.closest("picture")?.querySelector("img");
     if (directPictureImage) return directPictureImage;
-    const nestedImages = element.querySelectorAll?.('img');
+    const nestedImages = element.querySelectorAll?.("img");
     if (nestedImages?.length === 1) return nestedImages[0];
     return element;
   }
-
   function targetForMode(element, mode = state.mode) {
-    return mode === 'image' ? imageTargetFor(element) : element;
+    return mode === "image" ? imageTargetFor(element) : element;
   }
-
   function elementAtPoint(clientX, clientY) {
-    const picker = root.querySelector('[data-picker-layer]');
-    if (picker) picker.style.display = 'none';
-    const stack = typeof document.elementsFromPoint === 'function' ? document.elementsFromPoint(clientX, clientY) : [];
-    const element = stack.find((candidate) => candidate instanceof Element && candidate !== document.documentElement && candidate !== document.body && !candidate.closest('#ui-feedback-host')) || document.elementFromPoint(clientX, clientY);
-    if (picker) picker.style.display = '';
-    if (
-      !(element instanceof Element) ||
-      element === document.documentElement ||
-      element === document.body ||
-      element.closest('#ui-feedback-host')
-    )
+    const picker = root.querySelector("[data-picker-layer]");
+    if (picker) picker.style.display = "none";
+    const stack = typeof document.elementsFromPoint === "function" ? document.elementsFromPoint(clientX, clientY) : [];
+    const element = stack.find((candidate) => candidate instanceof Element && candidate !== document.documentElement && candidate !== document.body && !candidate.closest("#ui-feedback-host")) || document.elementFromPoint(clientX, clientY);
+    if (picker) picker.style.display = "";
+    if (!(element instanceof Element) || element === document.documentElement || element === document.body || element.closest("#ui-feedback-host"))
       return null;
     return element;
   }
-
   function pointerMove(event) {
     if (!state.picking) return;
     const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (element) highlight(element);
   }
-
-  /* ── unified host-level event delegation ── */
-  // All click/pointerdown events are handled here to prevent double-fire issues.
   function handleHostEvent(event) {
     const path = event.composedPath();
-
-    // 1) coachmark
-    const coachmarkDismiss = path.find((node) => node instanceof Element && node.matches?.('[data-coachmark-dismiss]'));
-    if (coachmarkDismiss) { event.preventDefault(); event.stopPropagation(); dismissCoachmark(); return; }
-
-    // 2) toolbar buttons
+    const coachmarkDismiss = path.find((node) => node instanceof Element && node.matches?.("[data-coachmark-dismiss]"));
+    if (coachmarkDismiss) {
+      event.preventDefault();
+      event.stopPropagation();
+      dismissCoachmark();
+      return;
+    }
     const button = path.find(
-      (node) => node instanceof HTMLButtonElement && node.dataset?.action,
+      (node) => node instanceof HTMLButtonElement && node.dataset?.action
     );
     if (button) {
       triggerToolbarAction(event, button);
       return;
     }
-
-    // 3) picker layer interactions
     if (!state.picking || state.pickingLocked) return;
     const picker = path.find(
-      (node) => node instanceof Element && node.matches?.('[data-picker-layer]'),
+      (node) => node instanceof Element && node.matches?.("[data-picker-layer]")
     );
     if (!picker) return;
-
     const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (!element) return;
-
     event.preventDefault();
     event.stopPropagation();
-
-    // Lock to prevent the companion click from also firing
     state.pickingLocked = true;
-    setTimeout(() => { state.pickingLocked = false; }, 600);
-
+    setTimeout(() => {
+      state.pickingLocked = false;
+    }, 600);
     openModal(element, state.mode);
   }
-
-  /* ── document-level picking fallback ── */
-  // Only fires for elements NOT inside the shadow host, in case the picker
-  // layer fails to intercept (e.g. on elements with pointer-events:none above it).
   function documentPickHandler(event) {
     if (!state.picking || state.pickingLocked) return;
     if (event.composedPath().includes(host)) return;
@@ -2967,32 +3020,28 @@ export function createUIFeedback(options = {}) {
     event.preventDefault();
     event.stopPropagation();
     state.pickingLocked = true;
-    setTimeout(() => { state.pickingLocked = false; }, 600);
+    setTimeout(() => {
+      state.pickingLocked = false;
+    }, 600);
     openModal(element, state.mode);
   }
-
-  /* ── drag & drop toolbar ── */
   function handleDragStart(event) {
     const path = event.composedPath();
     const grip = path.find(
-      (node) => node instanceof Element && node.matches?.('[data-drag-handle]'),
+      (node) => node instanceof Element && node.matches?.("[data-drag-handle]")
     );
     if (!grip) return;
-
     event.preventDefault();
     event.stopPropagation();
-
-    const toolbar = root.querySelector('.ui-feedback-toolbar');
+    const toolbar = root.querySelector(".ui-feedback-toolbar");
     if (!toolbar) return;
-
     const rect = toolbar.getBoundingClientRect();
     dragState = {
       startX: event.clientX,
       startY: event.clientY,
       startRight: window.innerWidth - rect.right,
-      startTop: rect.top,
+      startTop: rect.top
     };
-
     function onMove(e) {
       if (!dragState) return;
       const dx = e.clientX - dragState.startX;
@@ -3001,81 +3050,97 @@ export function createUIFeedback(options = {}) {
       toolbarPos.top = Math.max(40, Math.min(window.innerHeight - 100, dragState.startTop + dy));
       toolbar.style.cssText = getToolbarStyle();
     }
-
     function onEnd() {
       dragState = null;
-      document.removeEventListener('pointermove', onMove, true);
-      document.removeEventListener('pointerup', onEnd, true);
-      document.removeEventListener('pointercancel', onEnd, true);
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onEnd, true);
+      document.removeEventListener("pointercancel", onEnd, true);
     }
-
-    document.addEventListener('pointermove', onMove, true);
-    document.addEventListener('pointerup', onEnd, true);
-    document.addEventListener('pointercancel', onEnd, true);
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onEnd, true);
+    document.addEventListener("pointercancel", onEnd, true);
   }
-
-  /* ── dispose ── */
   function dispose() {
     stopPicking();
     clearMarkers();
-    window.removeEventListener('scroll', refreshMarkerPositions);
-    window.removeEventListener('resize', refreshMarkerPositions);
-    window.removeEventListener('pageshow', reapplyPageChanges);
-    window.removeEventListener('popstate', reapplyPageChanges);
-    document.removeEventListener('visibilitychange', reapplyPageChanges);
-    document.removeEventListener('keydown', keydown, true);
-    document.removeEventListener('keyup', keyup, true);
-    window.removeEventListener('blur', blurHandler);
-    document.removeEventListener('pointermove', pointerMove, true);
-    document.removeEventListener('pointerdown', documentPickHandler, true);
-    document.removeEventListener('click', documentPickHandler, true);
-    host.removeEventListener('pointerdown', handleHostEvent, true);
-    host.removeEventListener('click', handleHostEvent, true);
-    host.removeEventListener('pointerdown', handleDragStart, true);
+    window.removeEventListener("scroll", refreshMarkerPositions);
+    window.removeEventListener("resize", refreshMarkerPositions);
+    window.removeEventListener("pageshow", reapplyPageChanges);
+    window.removeEventListener("popstate", reapplyPageChanges);
+    document.removeEventListener("visibilitychange", reapplyPageChanges);
+    document.removeEventListener("keydown", keydown, true);
+    document.removeEventListener("keyup", keyup, true);
+    window.removeEventListener("blur", blurHandler);
+    document.removeEventListener("pointermove", pointerMove, true);
+    document.removeEventListener("pointerdown", documentPickHandler, true);
+    document.removeEventListener("click", documentPickHandler, true);
+    host.removeEventListener("pointerdown", handleHostEvent, true);
+    host.removeEventListener("click", handleHostEvent, true);
+    host.removeEventListener("pointerdown", handleDragStart, true);
     host.remove();
     delete window.__uiFeedbackInstance;
   }
-
-  /* ── bind global listeners ── */
   const blurHandler = () => pressed.clear();
   const reapplyPageChanges = () => {
     if (!state.active) return;
-    setTimeout(() => { applyPersistedChanges(); placeMarkers(); }, 0);
+    setTimeout(() => {
+      applyPersistedChanges();
+      placeMarkers();
+    }, 0);
   };
-
-  document.addEventListener('keydown', keydown, true);
-  document.addEventListener('keyup', keyup, true);
-  window.addEventListener('blur', blurHandler);
-  // Keep markers positioned on scroll/resize
-  window.addEventListener('scroll', refreshMarkerPositions, { passive: true });
-  window.addEventListener('resize', refreshMarkerPositions, { passive: true });
-  window.addEventListener('pageshow', reapplyPageChanges);
-  window.addEventListener('popstate', reapplyPageChanges);
-  document.addEventListener('visibilitychange', reapplyPageChanges);
-  document.addEventListener('pointermove', pointerMove, true);
-  // Document-level pick fallback (capture)
-  document.addEventListener('pointerdown', documentPickHandler, true);
-  document.addEventListener('click', documentPickHandler, true);
-  // Host-level delegation — handles toolbar buttons + picker layer
-  host.addEventListener('pointerdown', handleHostEvent, true);
-  host.addEventListener('click', handleHostEvent, true);
-  // Drag
-  host.addEventListener('pointerdown', handleDragStart, true);
-
+  panelController = createPanelController({ state, root, showToast });
+  modalController = createModalController({ state, root, showToast });
+  cssEditor = createCssEditor({ state, root });
+  pickerController = createPickerController({ state, root, config, renderToolbar: renderToolbar2, showToast });
+  const featureContext = {
+    state,
+    root,
+    config,
+    persist,
+    renderToolbar: renderToolbar2,
+    renderPanel,
+    renderModal,
+    placeMarkers,
+    clearMarkers,
+    getItemCodeLine,
+    openModalWithExisting,
+    restoreImageState,
+    showToast: (...args) => toastController?.showToast(...args)
+  };
+  toastController = createToastController({ root, undoAction: (...args) => commentsController?.undoAction(...args) });
+  commentsController = createCommentsController(featureContext);
+  markdownExporter = createMarkdownExporter(featureContext);
+  githubIssueController = createGithubIssueController(featureContext);
+  document.addEventListener("keydown", keydown, true);
+  document.addEventListener("keyup", keyup, true);
+  window.addEventListener("blur", blurHandler);
+  window.addEventListener("scroll", refreshMarkerPositions, { passive: true });
+  window.addEventListener("resize", refreshMarkerPositions, { passive: true });
+  window.addEventListener("pageshow", reapplyPageChanges);
+  window.addEventListener("popstate", reapplyPageChanges);
+  document.addEventListener("visibilitychange", reapplyPageChanges);
+  document.addEventListener("pointermove", pointerMove, true);
+  document.addEventListener("pointerdown", documentPickHandler, true);
+  document.addEventListener("click", documentPickHandler, true);
+  host.addEventListener("pointerdown", handleHostEvent, true);
+  host.addEventListener("click", handleHostEvent, true);
+  host.addEventListener("pointerdown", handleDragStart, true);
   window.__uiFeedbackInstance = {
     toggle,
     exportMarkdown,
     getComments: () => [...state.comments],
     updateTool,
     notify: showToast,
-    dispose,
+    dispose
   };
   if (state.active) applyPersistedChanges();
-  renderToolbar();
+  renderToolbar2();
   if (state.active) placeMarkers();
   return window.__uiFeedbackInstance;
 }
-
-if (typeof window !== 'undefined') {
+if (typeof window !== "undefined") {
   window.UIFeedback = { createUIFeedback };
 }
+export {
+  createUIFeedback
+};

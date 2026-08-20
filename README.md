@@ -18,7 +18,7 @@ Phiên bản v0.5 hỗ trợ marker tương tác để focus lại phần tử, 
 
   createUIFeedback({
     storageKey: 'atelier-ui-feedback',
-    accent: '#f5a623',
+    accent: '#ffffff',
     githubRepo: 'Ngh1aa/Atelier'
   });
 </script>
@@ -35,7 +35,23 @@ createUIFeedback({
 });
 ```
 
-Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên ngoài. Nếu project không dùng module, có thể copy file vào thư mục public rồi nạp bằng `type="module"`.
+Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên ngoài. Accent mặc định là **trắng (`#ffffff`)**; có thể ghi đè bằng `accent` khi cần. Nếu project không dùng module, có thể copy file bundle vào thư mục public rồi nạp bằng `type="module"`.
+
+## Kiến trúc source v0.8
+
+Source phát triển nằm trong `src/index.js` và các module con; `src/ui-feedback.js` là bundle ESM một file được tạo bởi `npm run build` để giữ tương thích với GitHub Pages và workflow đồng bộ hiện tại. Không nên sửa trực tiếp bundle nếu thay đổi cần tồn tại lâu dài.
+
+```text
+src/
+├── core/                 # config, state/persistence, DOM utilities
+├── features/             # comments, export Markdown, GitHub Issue và các feature editor
+├── ui/                   # toolbar, panel/modal drag controller, toast và icons
+├── stylesheet.js         # stylesheet Shadow DOM
+├── index.js              # createUIFeedback() và lifecycle orchestration
+└── ui-feedback.js       # generated deploy artifact
+```
+
+Sau khi sửa module, chạy `npm run check:all`, `npm test` và `npm run build`. Commit luôn `src/ui-feedback.js` sau khi build vì workflow downstream lấy chính artifact này để copy sang các project.
 
 ## Luồng sử dụng
 
@@ -47,7 +63,7 @@ Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên n
 
 ## Đồng bộ tự động giữa các repository
 
-`Ngh1aa/ui-feedback-tool` là repository nguồn canonical của `src/ui-feedback.js`. Mỗi khi file này được push lên nhánh `main`, workflow nguồn sẽ quét các repository thuộc organization `Ngh1aa` và gửi event cập nhật **chỉ tới những repository đã đăng ký opt-in**.
+`Ngh1aa/ui-feedback-tool` là repository nguồn canonical của source modules và bundle `src/ui-feedback.js`. Mỗi khi file này được push lên nhánh `main`, workflow nguồn sẽ quét các repository thuộc organization `Ngh1aa` và gửi event cập nhật **chỉ tới những repository đã đăng ký opt-in**.
 
 Một repository được đăng ký bằng file:
 
