@@ -1,4 +1,4 @@
-export const TOOL_VERSION = '0.8.0';
+export const TOOL_VERSION = '0.8.1';
 
 export const DEFAULTS = {
   version: TOOL_VERSION,
@@ -68,6 +68,28 @@ export const FONT_OPTIONS = [
   { value: 'Roboto', label: 'Roboto' },
   { value: 'Playfair Display', label: 'Playfair Display' },
   { value: 'Lora', label: 'Lora' },
+];
+
+export const FONT_WEIGHT_OPTIONS = [
+  { value: '400', label: '400 · Regular' },
+  { value: '500', label: '500 · Medium' },
+  { value: '600', label: '600 · Semibold' },
+  { value: '700', label: '700 · Bold' },
+  { value: '800', label: '800 · Extra bold' },
+];
+
+export const TEXT_ALIGN_OPTIONS = [
+  { value: 'left', label: 'Trái', icon: '⇤' },
+  { value: 'center', label: 'Giữa', icon: '≡' },
+  { value: 'right', label: 'Phải', icon: '⇥' },
+  { value: 'justify', label: 'Đều', icon: '☰' },
+];
+
+export const CSS_SPACING_SIDES = [
+  { key: 'top', label: 'Trên', prop: 'Top' },
+  { key: 'right', label: 'Phải', prop: 'Right' },
+  { key: 'bottom', label: 'Dưới', prop: 'Bottom' },
+  { key: 'left', label: 'Trái', prop: 'Left' },
 ];
 
 export function defaultCategoryForType(type) {

@@ -1,5 +1,5 @@
 // src/core/config.js
-var TOOL_VERSION = "0.8.0";
+var TOOL_VERSION = "0.8.1";
 var DEFAULTS = {
   version: TOOL_VERSION,
   updateUrl: "https://ngh1aa.github.io/Atelier/ui-feedback.js",
@@ -62,6 +62,25 @@ var FONT_OPTIONS = [
   { value: "Roboto", label: "Roboto" },
   { value: "Playfair Display", label: "Playfair Display" },
   { value: "Lora", label: "Lora" }
+];
+var FONT_WEIGHT_OPTIONS = [
+  { value: "400", label: "400 \xB7 Regular" },
+  { value: "500", label: "500 \xB7 Medium" },
+  { value: "600", label: "600 \xB7 Semibold" },
+  { value: "700", label: "700 \xB7 Bold" },
+  { value: "800", label: "800 \xB7 Extra bold" }
+];
+var TEXT_ALIGN_OPTIONS = [
+  { value: "left", label: "Tr\xE1i", icon: "\u21E4" },
+  { value: "center", label: "Gi\u1EEFa", icon: "\u2261" },
+  { value: "right", label: "Ph\u1EA3i", icon: "\u21E5" },
+  { value: "justify", label: "\u0110\u1EC1u", icon: "\u2630" }
+];
+var CSS_SPACING_SIDES = [
+  { key: "top", label: "Tr\xEAn", prop: "Top" },
+  { key: "right", label: "Ph\u1EA3i", prop: "Right" },
+  { key: "bottom", label: "D\u01B0\u1EDBi", prop: "Bottom" },
+  { key: "left", label: "Tr\xE1i", prop: "Left" }
 ];
 function defaultCategoryForType(type) {
   if (type === "image") return "image";
@@ -940,7 +959,7 @@ button { cursor: pointer; }
 /* \u2500\u2500 advanced CSS editor \u2500\u2500 */
 .ui-feedback-css-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   margin: -4px -4px 14px;
@@ -948,9 +967,10 @@ button { cursor: pointer; }
   background: var(--_bg-alt);
 }
 .ui-feedback-css-tab {
+  min-width: 0;
   border: 0;
   border-radius: 6px;
-  padding: 8px 6px;
+  padding: 8px 4px;
   color: var(--_text-secondary);
   background: transparent;
   font-size: 11px;
@@ -1051,6 +1071,27 @@ button { cursor: pointer; }
 .ui-feedback-range-row { padding: 10px 9px 5px; border: 1px solid var(--_border); border-radius: 8px; background: var(--_bg-item); }
 .ui-feedback-range-row__head { display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--_text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .ui-feedback-range-row input[type=range] { width: 100%; accent-color: var(--ui-feedback-accent); }
+.ui-feedback-css-help { margin: -2px 0 10px; color: var(--_text-muted); font-size: 10px; line-height: 1.45; }
+.ui-feedback-css-subsection { margin-top: 12px; }
+.ui-feedback-css-subtitle { margin-bottom: 6px; color: var(--_text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.ui-feedback-css-select-row,
+.ui-feedback-css-text-row { display: flex; align-items: center; justify-content: space-between; gap: 9px; min-height: 40px; margin-top: 6px; padding: 7px 9px; border: 1px solid var(--_border); border-radius: 8px; color: var(--_text-secondary); background: var(--_bg-item); font-size: 10px; font-weight: 700; }
+.ui-feedback-css-select-row select,
+.ui-feedback-css-text-row input { min-width: 0; max-width: 190px; border: 1px solid var(--_border); border-radius: 6px; padding: 6px 7px; color: var(--_text); background: var(--_bg-panel); font: inherit; font-weight: 500; outline: none; }
+.ui-feedback-css-text-row input { flex: 1; text-align: right; }
+.ui-feedback-css-select-row select:focus,
+.ui-feedback-css-text-row input:focus { border-color: var(--ui-feedback-accent); outline: 2px solid color-mix(in srgb, var(--ui-feedback-accent), transparent 78%); }
+.ui-feedback-spacing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ui-feedback-spacing-grid label { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 5px; min-width: 0; padding: 7px 8px; border: 1px solid var(--_border); border-radius: 7px; color: var(--_text-muted); background: var(--_bg-item); font-size: 10px; }
+.ui-feedback-spacing-grid input { min-width: 0; width: 100%; box-sizing: border-box; border: 1px solid var(--_border); border-radius: 5px; padding: 5px; color: var(--_text); background: var(--_bg-input); font: inherit; }
+.ui-feedback-spacing-grid input:focus { border-color: var(--ui-feedback-accent); outline: 2px solid color-mix(in srgb, var(--ui-feedback-accent), transparent 78%); }
+.ui-feedback-spacing-grid output { color: var(--_text-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+.ui-feedback-align-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.ui-feedback-align-button { display: grid; gap: 2px; justify-items: center; border: 1px solid var(--_border); border-radius: 7px; padding: 7px 3px; color: var(--_text-secondary); background: var(--_bg-item); }
+.ui-feedback-align-button span { font-size: 16px; line-height: 1; }
+.ui-feedback-align-button small { font-size: 9px; }
+.ui-feedback-align-button:hover,
+.ui-feedback-align-button.is-active { border-color: var(--ui-feedback-accent); color: var(--_accent-ink); background: var(--ui-feedback-accent); }
 .ui-feedback-css-presets { display: grid; gap: 7px; }
 .ui-feedback-css-preset {
   display: flex;
@@ -1113,6 +1154,9 @@ button { cursor: pointer; }
 
 /* \u2500\u2500 responsive \u2500\u2500 */
 @media (max-width: 640px) {
+  .ui-feedback-css-tabs { grid-template-columns: repeat(5, minmax(72px, 1fr)); overflow-x: auto; scrollbar-width: thin; }
+  .ui-feedback-css-select-row select { max-width: 145px; }
+  .ui-feedback-spacing-grid { grid-template-columns: 1fr; }
   .ui-feedback-toolbar { right: 10px !important; left: 10px; bottom: 10px; justify-content: space-between; }
   .ui-feedback-toolbar-grip { display: none; }
   .ui-feedback-tool { min-width: 38px; width: 38px; padding: 0; }
@@ -2329,7 +2373,7 @@ function createUIFeedback(options = {}) {
     const initialPosition = mode === "image" ? state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || "50% 50%" : "50% 50%";
     state.modalImagePosition = mode === "image" ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
     state.modalCommitted = false;
-    state.cssTab = "advanced";
+    state.cssTab = mode === "css" ? "colors" : "advanced";
     state.cssTransformBase = mode === "css" ? element?.style?.transform || "" : "";
     state.cssPosition = mode === "css" ? parseTranslatePosition(element?.style?.translate || element?.style?.transform || (element ? getComputedStyle(element).translate : "") || (element ? getComputedStyle(element).transform : "") || "") : { x: 0, y: 0 };
     state.modalImageZoom = 100;
@@ -2397,10 +2441,46 @@ function createUIFeedback(options = {}) {
     const value = selected?.value || "";
     return `<div class="ui-feedback-font-row"><div class="ui-feedback-font-row__copy"><span class="ui-feedback-font-row__label">${label}</span><span class="ui-feedback-font-row__value">${escapeHtml(value || "M\u1EB7c \u0111\u1ECBnh c\u1EE7a website")}</span></div><select data-css-font="${prop}" aria-label="Font ${label}">${FONT_OPTIONS.map((font) => `<option value="${escapeAttribute(font.value)}" ${font.value === value ? "selected" : ""}>${font.label}</option>`).join("")}</select></div>`;
   }
+  function cssNumberValue(prop, fallback = 0) {
+    const parsed = parseFloat(readCssValue(prop, ""));
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+  function renderCssRange(label, prop, min, max, step, unit, fallback, formatter = (value) => `${value}${unit}`) {
+    const value = Math.max(min, Math.min(max, cssNumberValue(prop, fallback)));
+    const output = formatter(value);
+    return `<div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>${label}</span><output data-css-output="${prop}">${output}</output></div><input type="range" min="${min}" max="${max}" step="${step}" data-css-range-prop="${prop}" data-css-range-unit="${unit}" data-css-range-output="${prop}" value="${value}" aria-label="${label}" /></div>`;
+  }
+  function renderCssSelect(label, prop, options2, fallback) {
+    const current = String(readCssValue(prop, fallback) || fallback);
+    return `<label class="ui-feedback-css-select-row"><span>${label}</span><select data-css-select-prop="${prop}" aria-label="${label}">${options2.map((option) => `<option value="${escapeAttribute(option.value)}" ${option.value === current ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label>`;
+  }
+  function renderSpacingGroup(label, prop) {
+    return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">${label}</div><div class="ui-feedback-spacing-grid">${CSS_SPACING_SIDES.map((side) => {
+      const cssProp = `${prop}${side.prop}`;
+      const value = Math.max(0, Math.min(160, cssNumberValue(cssProp, 0)));
+      return `<label><span>${side.label}</span><input type="number" min="0" max="160" step="1" data-css-spacing="${cssProp}" value="${Math.round(value)}" inputmode="numeric" aria-label="${label} ${side.label}" /><output>${Math.round(value)}px</output></label>`;
+    }).join("")}</div></div>`;
+  }
+  function renderTextAlign() {
+    const current = String(readCssValue("textAlign", "left") || "left");
+    return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">C\u0103n ch\u1EEF</div><div class="ui-feedback-align-grid" role="group" aria-label="C\u0103n ch\u1EEF">${TEXT_ALIGN_OPTIONS.map((option) => `<button type="button" class="ui-feedback-align-button ${current === option.value ? "is-active" : ""}" data-css-align="${option.value}" aria-label="${option.label}" aria-pressed="${current === option.value}"><span aria-hidden="true">${option.icon}</span><small>${option.label}</small></button>`).join("")}</div></div>`;
+  }
   function renderCssContent() {
-    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">M\xE0u s\u1EAFc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join("")}<details class="ui-feedback-more-colors"><summary>\u2304 Th\xEAm 8 m\xE0u kh\xE1c</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join("")}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font ch\u1EEF (Google Fonts)</div>${renderFontRow("Ti\xEAu \u0111\u1EC1", "fontFamily")} ${renderFontRow("N\u1ED9i dung", "fontFamily")}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo g\xF3c & \u0111\u1ED9 m\u1EDD</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue("borderRadius", "0"), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue("borderRadius", "0"), 10) || 0))}" /></div><div class="ui-feedback-range-row" style="margin-top:7px"><div class="ui-feedback-range-row__head"><span>Opacity</span><output data-css-opacity-output>${Math.round((parseFloat(readCssValue("opacity", "1")) || 1) * 100)}%</output></div><input type="range" min="0" max="100" step="1" data-css-opacity value="${Math.round((parseFloat(readCssValue("opacity", "1")) || 1) * 100)}" /></div></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">V\u1ECB tr\xED 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="\u0110i\u1EC1u ch\u1EC9nh v\u1ECB tr\xED X Y"></div>      <div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">\u0110\u1EB7t l\u1EA1i (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">\u21B6 Kh\xF4i ph\u1EE5c m\u1EB7c \u0111\u1ECBnh</button>`;
-    const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1ED9 c\xF3 s\u1EB5n</div><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>G\u1ECDn g\xE0ng</span><small>Kh\xF4ng b\xF3ng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, \u0111\u1ED5 b\xF3ng nh\u1EB9</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Vi\u1EC1n accent n\u1ED5i b\u1EADt</small></button></div></div>`;
-    return `<div class="ui-feedback-css-tabs"><button class="ui-feedback-css-tab ${state.cssTab === "preset" ? "is-active" : ""}" data-css-tab="preset" type="button">\u2726 B\u1ED9 c\xF3 s\u1EB5n</button><button class="ui-feedback-css-tab ${state.cssTab === "advanced" ? "is-active" : ""}" data-css-tab="advanced" type="button">\u2637 N\xE2ng cao</button></div>${state.cssTab === "preset" ? presets : advanced}`;
+    const tab = state.cssTab || "colors";
+    const tabs = [
+      ["preset", "\u2726 B\u1ED9 c\xF3 s\u1EB5n"],
+      ["colors", "\u25CF M\xE0u s\u1EAFc"],
+      ["typography", "T Ch\u1EEF"],
+      ["spacing", "\u2194 Kho\u1EA3ng c\xE1ch"],
+      ["position", "\u2316 V\u1ECB tr\xED"]
+    ];
+    const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1ED9 c\xF3 s\u1EB5n</div><p class="ui-feedback-css-help">Ch\u1ECDn nhanh m\u1ED9t phong c\xE1ch, sau \u0111\xF3 tinh ch\u1EC9nh t\u1EEBng gi\xE1 tr\u1ECB \u1EDF c\xE1c tab b\xEAn c\u1EA1nh.</p><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>G\u1ECDn g\xE0ng</span><small>Kh\xF4ng b\xF3ng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, \u0111\u1ED5 b\xF3ng nh\u1EB9</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Vi\u1EC1n accent n\u1ED5i b\u1EADt</small></button></div></div>`;
+    const colors = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">M\xE0u s\u1EAFc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join("")}<details class="ui-feedback-more-colors"><summary>\u2304 Th\xEAm 8 m\xE0u kh\xE1c</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join("")}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1EC1 m\u1EB7t & vi\u1EC1n</div>${renderCssRange("Border radius", "borderRadius", 0, 32, 1, "px", 0)}${renderCssRange("Border width", "borderWidth", 0, 12, 1, "px", 0)}${renderCssSelect("Border style", "borderStyle", [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }], "solid")}${renderCssRange("Opacity", "opacity", 0, 100, 1, "%", 100, (value) => `${Math.round(value)}%`)}</div>`;
+    const typography = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Typography</div>${renderFontRow("Font ch\u1EEF (Google Fonts)", "fontFamily")}${renderCssRange("C\u1EE1 ch\u1EEF", "fontSize", 10, 72, 1, "px", 16)}${renderCssSelect("\u0110\u1ED9 \u0111\u1EADm", "fontWeight", FONT_WEIGHT_OPTIONS, "400")}${renderCssRange("Line height", "lineHeight", 1, 2, 0.05, "", 1.5, (value) => Number(value).toFixed(2))}${renderCssRange("Letter spacing", "letterSpacing", -2, 4, 0.1, "px", 0, (value) => `${Number(value).toFixed(1)}px`)}${renderTextAlign()}${renderCssSelect("Bi\u1EBFn \u0111\u1ED5i ch\u1EEF", "textTransform", [{ value: "none", label: "Gi\u1EEF nguy\xEAn" }, { value: "uppercase", label: "UPPERCASE" }, { value: "capitalize", label: "Capitalize" }, { value: "lowercase", label: "lowercase" }], "none")}</div>`;
+    const spacing = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Kho\u1EA3ng c\xE1ch & k\xEDch th\u01B0\u1EDBc</div><p class="ui-feedback-css-help">\u0110\u1ED5i t\u1EEBng c\u1EA1nh tr\u1EF1c ti\u1EBFp. Gi\xE1 tr\u1ECB \u0111\u01B0\u1EE3c \xE1p d\u1EE5ng theo px \u0111\u1EC3 d\u1EC5 ki\u1EC3m so\xE1t khi review.</p>${renderSpacingGroup("Padding", "padding")}${renderSpacingGroup("Margin", "margin")}<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Chi\u1EC1u r\u1ED9ng</div><label class="ui-feedback-css-text-row"><span>Width</span><input type="text" data-css-text-prop="width" value="${escapeAttribute(readCssValue("width", "auto"))}" placeholder="auto \xB7 320px \xB7 80%" /></label><label class="ui-feedback-css-text-row"><span>Max-width</span><input type="text" data-css-text-prop="maxWidth" value="${escapeAttribute(readCssValue("maxWidth", "none"))}" placeholder="none \xB7 720px \xB7 100%" /></label></div><div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">B\xF3ng n\xE2ng cao</div><label class="ui-feedback-css-text-row"><span>Box shadow</span><input type="text" data-css-text-prop="boxShadow" value="${escapeAttribute(readCssValue("boxShadow", "none"))}" placeholder="0 10px 30px rgba(0,0,0,.12)" /></label></div></div>`;
+    const position = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">V\u1ECB tr\xED 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="\u0110i\u1EC1u ch\u1EC9nh v\u1ECB tr\xED X Y"></div><div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">\u0110\u1EB7t l\u1EA1i (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">\u21B6 Kh\xF4i ph\u1EE5c m\u1EB7c \u0111\u1ECBnh</button>`;
+    const content = { preset: presets, colors, typography, spacing, position }[tab] || colors;
+    return `<div class="ui-feedback-css-tabs" role="tablist" aria-label="Nh\xF3m thu\u1ED9c t\xEDnh CSS">${tabs.map(([value, label]) => `<button class="ui-feedback-css-tab ${tab === value ? "is-active" : ""}" data-css-tab="${value}" type="button" role="tab" aria-selected="${tab === value}">${label}</button>`).join("")}</div>${content}`;
   }
   function renderImageContent() {
     const snapshot = state.modalSnapshot || captureImageState(state.target);
@@ -2570,6 +2650,13 @@ function createUIFeedback(options = {}) {
       applyCssPosition({ x: 0, y: 0 });
       return;
     }
+    const align = event.target.closest("[data-css-align]");
+    if (align) {
+      event.stopPropagation();
+      applyCssProperty("textAlign", align.dataset.cssAlign);
+      renderModal();
+      return;
+    }
     const tab = event.target.closest("[data-css-tab]");
     if (tab) {
       event.stopPropagation();
@@ -2631,6 +2718,21 @@ function createUIFeedback(options = {}) {
       applyCssProperty("opacity", String(Number(target.value) / 100));
       const output = root.querySelector("[data-css-opacity-output]");
       if (output) output.textContent = `${target.value}%`;
+    } else if (target.matches("[data-css-range-prop]")) {
+      const prop = target.dataset.cssRangeProp;
+      const raw = Number(target.value);
+      const unit = target.dataset.cssRangeUnit || "";
+      applyCssProperty(prop, `${raw}${unit}`);
+      const output = root.querySelector(`[data-css-output="${prop}"]`);
+      if (output) output.textContent = prop === "lineHeight" ? raw.toFixed(2) : `${raw}${unit}`;
+    } else if (target.matches("[data-css-spacing]")) {
+      const value = Math.max(0, Math.min(160, Number(target.value) || 0));
+      target.value = String(value);
+      applyCssProperty(target.dataset.cssSpacing, `${value}px`);
+      const output = target.parentElement?.querySelector("output");
+      if (output) output.textContent = `${Math.round(value)}px`;
+    } else if (target.matches("[data-css-text-prop]")) {
+      applyCssProperty(target.dataset.cssTextProp, target.value.trim() || (target.dataset.cssTextProp === "boxShadow" ? "none" : "auto"));
     } else if (target.matches("[data-css-x], [data-css-y], [data-css-x-number], [data-css-y-number]")) {
       const isX = target.matches("[data-css-x], [data-css-x-number]");
       state.cssPosition[isX ? "x" : "y"] = Number(target.value);
@@ -2650,6 +2752,10 @@ function createUIFeedback(options = {}) {
   }
   function handleModalChange(event) {
     const target = event.target;
+    if (target.matches("[data-css-select-prop]")) {
+      applyCssProperty(target.dataset.cssSelectProp, target.value);
+      return;
+    }
     if (target.matches("[data-css-font]")) {
       const value = target.value;
       if (value) {

@@ -1,10 +1,12 @@
 /**
- * UI Feedback Tool v0.8.0
+ * UI Feedback Tool v0.8.1
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
  *
- * Changelog v0.8.0:
+ * Changelog v0.8.1:
+ *   - New: Bộ CSS có tab Màu sắc, Chữ, Khoảng cách và Vị trí
+ *   - New: Typography controls và spacing/layout controls chỉnh tay
  *   - Refactor: tách source thành core, features và UI controllers; bundle deploy vẫn giữ một file ESM
  *   - Test: thêm check và unit tests cho config, category labels và text escaping
  *
@@ -59,7 +61,7 @@
  */
 
 
-import { TOOL_VERSION, DEFAULTS, FEEDBACK_CATEGORIES, CSS_COLOR_FIELDS, EXTRA_COLOR_FIELDS, FONT_OPTIONS, defaultCategoryForType, categoryLabel, mergeConfig } from './core/config.js';
+import { TOOL_VERSION, DEFAULTS, FEEDBACK_CATEGORIES, CSS_COLOR_FIELDS, EXTRA_COLOR_FIELDS, FONT_OPTIONS, FONT_WEIGHT_OPTIONS, TEXT_ALIGN_OPTIONS, CSS_SPACING_SIDES, defaultCategoryForType, categoryLabel, mergeConfig } from './core/config.js';
 import { cssPath, detectTheme, escapeAttribute, escapeHtml, escapeMarkdown, firstCodeLine, formatDate, generateId, isEditable, relativeTime, resolveSelector, safeText, targetLabel } from './core/dom-utils.js';
 import { createFeedbackState } from './core/state.js';
 import { STYLESHEET } from './stylesheet.js';
@@ -482,7 +484,7 @@ export function createUIFeedback(options = {}) {
     const initialPosition = mode === 'image' ? (state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || '50% 50%') : '50% 50%';
     state.modalImagePosition = mode === 'image' ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
     state.modalCommitted = false;
-    state.cssTab = 'advanced';
+    state.cssTab = mode === 'css' ? 'colors' : 'advanced';
     state.cssTransformBase = mode === 'css' ? (element?.style?.transform || '') : '';
     state.cssPosition = mode === 'css' ? parseTranslatePosition(element?.style?.translate || element?.style?.transform || (element ? getComputedStyle(element).translate : '') || (element ? getComputedStyle(element).transform : '') || '') : { x: 0, y: 0 };
     state.modalImageZoom = 100;
@@ -538,10 +540,47 @@ export function createUIFeedback(options = {}) {
     return `<div class="ui-feedback-font-row"><div class="ui-feedback-font-row__copy"><span class="ui-feedback-font-row__label">${label}</span><span class="ui-feedback-font-row__value">${escapeHtml(value || 'Mặc định của website')}</span></div><select data-css-font="${prop}" aria-label="Font ${label}">${FONT_OPTIONS.map((font) => `<option value="${escapeAttribute(font.value)}" ${font.value === value ? 'selected' : ''}>${font.label}</option>`).join('')}</select></div>`;
   }
 
+    function cssNumberValue(prop, fallback = 0) {
+    const parsed = parseFloat(readCssValue(prop, ''));
+    return Number.isFinite(parsed) ? parsed : fallback;
+  }
+
+  function renderCssRange(label, prop, min, max, step, unit, fallback, formatter = (value) => `${value}${unit}`) {
+    const value = Math.max(min, Math.min(max, cssNumberValue(prop, fallback)));
+    const output = formatter(value);
+    return `<div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>${label}</span><output data-css-output="${prop}">${output}</output></div><input type="range" min="${min}" max="${max}" step="${step}" data-css-range-prop="${prop}" data-css-range-unit="${unit}" data-css-range-output="${prop}" value="${value}" aria-label="${label}" /></div>`;
+  }
+
+  function renderCssSelect(label, prop, options, fallback) {
+    const current = String(readCssValue(prop, fallback) || fallback);
+    return `<label class="ui-feedback-css-select-row"><span>${label}</span><select data-css-select-prop="${prop}" aria-label="${label}">${options.map((option) => `<option value="${escapeAttribute(option.value)}" ${option.value === current ? 'selected' : ''}>${escapeHtml(option.label)}</option>`).join('')}</select></label>`;
+  }
+
+  function renderSpacingGroup(label, prop) {
+    return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">${label}</div><div class="ui-feedback-spacing-grid">${CSS_SPACING_SIDES.map((side) => { const cssProp = `${prop}${side.prop}`; const value = Math.max(0, Math.min(160, cssNumberValue(cssProp, 0))); return `<label><span>${side.label}</span><input type="number" min="0" max="160" step="1" data-css-spacing="${cssProp}" value="${Math.round(value)}" inputmode="numeric" aria-label="${label} ${side.label}" /><output>${Math.round(value)}px</output></label>`; }).join('')}</div></div>`;
+  }
+
+  function renderTextAlign() {
+    const current = String(readCssValue('textAlign', 'left') || 'left');
+    return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Căn chữ</div><div class="ui-feedback-align-grid" role="group" aria-label="Căn chữ">${TEXT_ALIGN_OPTIONS.map((option) => `<button type="button" class="ui-feedback-align-button ${current === option.value ? 'is-active' : ''}" data-css-align="${option.value}" aria-label="${option.label}" aria-pressed="${current === option.value}"><span aria-hidden="true">${option.icon}</span><small>${option.label}</small></button>`).join('')}</div></div>`;
+  }
+
   function renderCssContent() {
-    const advanced = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Font chữ (Google Fonts)</div>${renderFontRow('Tiêu đề', 'fontFamily')} ${renderFontRow('Nội dung', 'fontFamily')}</div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bo góc & độ mờ</div><div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>Border radius</span><output data-css-radius-output>${parseInt(readCssValue('borderRadius', '0'), 10) || 0}px</output></div><input type="range" min="0" max="32" step="1" data-css-radius value="${Math.min(32, Math.max(0, parseInt(readCssValue('borderRadius', '0'), 10) || 0))}" /></div><div class="ui-feedback-range-row" style="margin-top:7px"><div class="ui-feedback-range-row__head"><span>Opacity</span><output data-css-opacity-output>${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}%</output></div><input type="range" min="0" max="100" step="1" data-css-opacity value="${Math.round((parseFloat(readCssValue('opacity', '1')) || 1) * 100)}" /></div></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Vị trí 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="Điều chỉnh vị trí X Y"></div>      <div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">Đặt lại (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
-    const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bộ có sẵn</div><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>Gọn gàng</span><small>Không bóng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, đổ bóng nhẹ</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Viền accent nổi bật</small></button></div></div>`;
-    return `<div class="ui-feedback-css-tabs"><button class="ui-feedback-css-tab ${state.cssTab === 'preset' ? 'is-active' : ''}" data-css-tab="preset" type="button">✦ Bộ có sẵn</button><button class="ui-feedback-css-tab ${state.cssTab === 'advanced' ? 'is-active' : ''}" data-css-tab="advanced" type="button">☷ Nâng cao</button></div>${state.cssTab === 'preset' ? presets : advanced}`;
+    const tab = state.cssTab || 'colors';
+    const tabs = [
+      ['preset', '✦ Bộ có sẵn'],
+      ['colors', '● Màu sắc'],
+      ['typography', 'T Chữ'],
+      ['spacing', '↔ Khoảng cách'],
+      ['position', '⌖ Vị trí'],
+    ];
+    const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bộ có sẵn</div><p class="ui-feedback-css-help">Chọn nhanh một phong cách, sau đó tinh chỉnh từng giá trị ở các tab bên cạnh.</p><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>Gọn gàng</span><small>Không bóng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, đổ bóng nhẹ</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Viền accent nổi bật</small></button></div></div>`;
+    const colors = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Màu sắc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join('')}<details class="ui-feedback-more-colors"><summary>⌄ Thêm 8 màu khác</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join('')}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Bề mặt & viền</div>${renderCssRange('Border radius', 'borderRadius', 0, 32, 1, 'px', 0)}${renderCssRange('Border width', 'borderWidth', 0, 12, 1, 'px', 0)}${renderCssSelect('Border style', 'borderStyle', [{ value: 'none', label: 'None' }, { value: 'solid', label: 'Solid' }, { value: 'dashed', label: 'Dashed' }, { value: 'dotted', label: 'Dotted' }], 'solid')}${renderCssRange('Opacity', 'opacity', 0, 100, 1, '%', 100, (value) => `${Math.round(value)}%`)}</div>`;
+    const typography = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Typography</div>${renderFontRow('Font chữ (Google Fonts)', 'fontFamily')}${renderCssRange('Cỡ chữ', 'fontSize', 10, 72, 1, 'px', 16)}${renderCssSelect('Độ đậm', 'fontWeight', FONT_WEIGHT_OPTIONS, '400')}${renderCssRange('Line height', 'lineHeight', 1, 2, 0.05, '', 1.5, (value) => Number(value).toFixed(2))}${renderCssRange('Letter spacing', 'letterSpacing', -2, 4, 0.1, 'px', 0, (value) => `${Number(value).toFixed(1)}px`)}${renderTextAlign()}${renderCssSelect('Biến đổi chữ', 'textTransform', [{ value: 'none', label: 'Giữ nguyên' }, { value: 'uppercase', label: 'UPPERCASE' }, { value: 'capitalize', label: 'Capitalize' }, { value: 'lowercase', label: 'lowercase' }], 'none')}</div>`;
+    const spacing = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Khoảng cách & kích thước</div><p class="ui-feedback-css-help">Đổi từng cạnh trực tiếp. Giá trị được áp dụng theo px để dễ kiểm soát khi review.</p>${renderSpacingGroup('Padding', 'padding')}${renderSpacingGroup('Margin', 'margin')}<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Chiều rộng</div><label class="ui-feedback-css-text-row"><span>Width</span><input type="text" data-css-text-prop="width" value="${escapeAttribute(readCssValue('width', 'auto'))}" placeholder="auto · 320px · 80%" /></label><label class="ui-feedback-css-text-row"><span>Max-width</span><input type="text" data-css-text-prop="maxWidth" value="${escapeAttribute(readCssValue('maxWidth', 'none'))}" placeholder="none · 720px · 100%" /></label></div><div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Bóng nâng cao</div><label class="ui-feedback-css-text-row"><span>Box shadow</span><input type="text" data-css-text-prop="boxShadow" value="${escapeAttribute(readCssValue('boxShadow', 'none'))}" placeholder="0 10px 30px rgba(0,0,0,.12)" /></label></div></div>`;
+    const position = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Vị trí 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="Điều chỉnh vị trí X Y"></div><div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">Đặt lại (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">↶ Khôi phục mặc định</button>`;
+    const content = { preset: presets, colors, typography, spacing, position }[tab] || colors;
+    return `<div class="ui-feedback-css-tabs" role="tablist" aria-label="Nhóm thuộc tính CSS">${tabs.map(([value, label]) => `<button class="ui-feedback-css-tab ${tab === value ? 'is-active' : ''}" data-css-tab="${value}" type="button" role="tab" aria-selected="${tab === value}">${label}</button>`).join('')}</div>${content}`;
   }
 
   function renderImageContent() {
@@ -700,6 +739,8 @@ export function createUIFeedback(options = {}) {
     if (paste) { event.stopPropagation(); pasteImageFromClipboard(); return; }
     const positionReset = event.target.closest('[data-css-position-reset]');
     if (positionReset) { event.stopPropagation(); applyCssPosition({ x: 0, y: 0 }); return; }
+    const align = event.target.closest('[data-css-align]');
+    if (align) { event.stopPropagation(); applyCssProperty('textAlign', align.dataset.cssAlign); renderModal(); return; }
     const tab = event.target.closest('[data-css-tab]');
     if (tab) { event.stopPropagation(); state.cssTab = tab.dataset.cssTab; renderModal(); return; }
     const preset = event.target.closest('[data-css-preset]');
@@ -739,6 +780,21 @@ export function createUIFeedback(options = {}) {
       applyCssProperty('opacity', String(Number(target.value) / 100));
       const output = root.querySelector('[data-css-opacity-output]');
       if (output) output.textContent = `${target.value}%`;
+    } else if (target.matches('[data-css-range-prop]')) {
+      const prop = target.dataset.cssRangeProp;
+      const raw = Number(target.value);
+      const unit = target.dataset.cssRangeUnit || '';
+      applyCssProperty(prop, `${raw}${unit}`);
+      const output = root.querySelector(`[data-css-output="${prop}"]`);
+      if (output) output.textContent = prop === 'lineHeight' ? raw.toFixed(2) : `${raw}${unit}`;
+    } else if (target.matches('[data-css-spacing]')) {
+      const value = Math.max(0, Math.min(160, Number(target.value) || 0));
+      target.value = String(value);
+      applyCssProperty(target.dataset.cssSpacing, `${value}px`);
+      const output = target.parentElement?.querySelector('output');
+      if (output) output.textContent = `${Math.round(value)}px`;
+    } else if (target.matches('[data-css-text-prop]')) {
+      applyCssProperty(target.dataset.cssTextProp, target.value.trim() || (target.dataset.cssTextProp === 'boxShadow' ? 'none' : 'auto'));
     } else if (target.matches('[data-css-x], [data-css-y], [data-css-x-number], [data-css-y-number]')) {
       const isX = target.matches('[data-css-x], [data-css-x-number]');
       state.cssPosition[isX ? 'x' : 'y'] = Number(target.value);
@@ -759,6 +815,10 @@ export function createUIFeedback(options = {}) {
 
   function handleModalChange(event) {
     const target = event.target;
+    if (target.matches('[data-css-select-prop]')) {
+      applyCssProperty(target.dataset.cssSelectProp, target.value);
+      return;
+    }
     if (target.matches('[data-css-font]')) {
       const value = target.value;
       if (value) { ensureGoogleFont(value); applyCssProperty(target.dataset.cssFont, `'${value}', sans-serif`); }

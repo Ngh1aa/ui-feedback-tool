@@ -693,7 +693,7 @@ button { cursor: pointer; }
 /* ── advanced CSS editor ── */
 .ui-feedback-css-tabs {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   margin: -4px -4px 14px;
@@ -701,9 +701,10 @@ button { cursor: pointer; }
   background: var(--_bg-alt);
 }
 .ui-feedback-css-tab {
+  min-width: 0;
   border: 0;
   border-radius: 6px;
-  padding: 8px 6px;
+  padding: 8px 4px;
   color: var(--_text-secondary);
   background: transparent;
   font-size: 11px;
@@ -804,6 +805,27 @@ button { cursor: pointer; }
 .ui-feedback-range-row { padding: 10px 9px 5px; border: 1px solid var(--_border); border-radius: 8px; background: var(--_bg-item); }
 .ui-feedback-range-row__head { display: flex; justify-content: space-between; margin-bottom: 5px; color: var(--_text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
 .ui-feedback-range-row input[type=range] { width: 100%; accent-color: var(--ui-feedback-accent); }
+.ui-feedback-css-help { margin: -2px 0 10px; color: var(--_text-muted); font-size: 10px; line-height: 1.45; }
+.ui-feedback-css-subsection { margin-top: 12px; }
+.ui-feedback-css-subtitle { margin-bottom: 6px; color: var(--_text-secondary); font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.ui-feedback-css-select-row,
+.ui-feedback-css-text-row { display: flex; align-items: center; justify-content: space-between; gap: 9px; min-height: 40px; margin-top: 6px; padding: 7px 9px; border: 1px solid var(--_border); border-radius: 8px; color: var(--_text-secondary); background: var(--_bg-item); font-size: 10px; font-weight: 700; }
+.ui-feedback-css-select-row select,
+.ui-feedback-css-text-row input { min-width: 0; max-width: 190px; border: 1px solid var(--_border); border-radius: 6px; padding: 6px 7px; color: var(--_text); background: var(--_bg-panel); font: inherit; font-weight: 500; outline: none; }
+.ui-feedback-css-text-row input { flex: 1; text-align: right; }
+.ui-feedback-css-select-row select:focus,
+.ui-feedback-css-text-row input:focus { border-color: var(--ui-feedback-accent); outline: 2px solid color-mix(in srgb, var(--ui-feedback-accent), transparent 78%); }
+.ui-feedback-spacing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.ui-feedback-spacing-grid label { display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 5px; min-width: 0; padding: 7px 8px; border: 1px solid var(--_border); border-radius: 7px; color: var(--_text-muted); background: var(--_bg-item); font-size: 10px; }
+.ui-feedback-spacing-grid input { min-width: 0; width: 100%; box-sizing: border-box; border: 1px solid var(--_border); border-radius: 5px; padding: 5px; color: var(--_text); background: var(--_bg-input); font: inherit; }
+.ui-feedback-spacing-grid input:focus { border-color: var(--ui-feedback-accent); outline: 2px solid color-mix(in srgb, var(--ui-feedback-accent), transparent 78%); }
+.ui-feedback-spacing-grid output { color: var(--_text-muted); font-size: 9px; font-variant-numeric: tabular-nums; }
+.ui-feedback-align-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.ui-feedback-align-button { display: grid; gap: 2px; justify-items: center; border: 1px solid var(--_border); border-radius: 7px; padding: 7px 3px; color: var(--_text-secondary); background: var(--_bg-item); }
+.ui-feedback-align-button span { font-size: 16px; line-height: 1; }
+.ui-feedback-align-button small { font-size: 9px; }
+.ui-feedback-align-button:hover,
+.ui-feedback-align-button.is-active { border-color: var(--ui-feedback-accent); color: var(--_accent-ink); background: var(--ui-feedback-accent); }
 .ui-feedback-css-presets { display: grid; gap: 7px; }
 .ui-feedback-css-preset {
   display: flex;
@@ -866,6 +888,9 @@ button { cursor: pointer; }
 
 /* ── responsive ── */
 @media (max-width: 640px) {
+  .ui-feedback-css-tabs { grid-template-columns: repeat(5, minmax(72px, 1fr)); overflow-x: auto; scrollbar-width: thin; }
+  .ui-feedback-css-select-row select { max-width: 145px; }
+  .ui-feedback-spacing-grid { grid-template-columns: 1fr; }
   .ui-feedback-toolbar { right: 10px !important; left: 10px; bottom: 10px; justify-content: space-between; }
   .ui-feedback-toolbar-grip { display: none; }
   .ui-feedback-tool { min-width: 38px; width: 38px; padding: 0; }
