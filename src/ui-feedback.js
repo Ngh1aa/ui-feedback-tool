@@ -1,8 +1,13 @@
 /**
- * UI Feedback Tool v0.5
+ * UI Feedback Tool v0.5.1
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
+ *
+ * Changelog v0.5.1:
+ *   - Fix: drag handle nhận diện ổn định qua composedPath trong Shadow DOM
+ *   - Fix: không bắt kéo khi pointer bắt đầu trên button, link, input hoặc vùng chọn text
+ *   - Fix: lọc pointerId và cleanup khi pointerup, pointercancel hoặc mất focus
  *
  * Changelog v0.5:
  *   - New: panel/modal có title bar kéo thả bằng Pointer Events và pointer capture
@@ -470,6 +475,8 @@ button { cursor: pointer; }
 .ui-feedback-panel__header strong { display: block; font-size: 15px; letter-spacing: -.01em; }
 .ui-feedback-panel__header small { display: block; margin-top: 3px; color: var(--_text-muted); font-size: 10px; font-weight: 600; }
 .ui-feedback-panel__header:active, .ui-feedback-panel__header.is-dragging { cursor: grabbing; }
+.ui-feedback-panel__header, .ui-feedback-modal__top { -webkit-user-select: none; }
+.ui-feedback-panel__header.is-dragging, .ui-feedback-modal__top.is-dragging { user-select: none; }
 .ui-feedback-window-heading { min-width: 0; display: flex; align-items: center; gap: 9px; }
 .ui-feedback-window-grip { display: grid; place-items: center; width: 28px; height: 28px; flex: 0 0 28px; border: 1px solid var(--_border); border-radius: 8px; color: var(--_text-muted); background: var(--_bg-alt); }
 .ui-feedback-window-grip svg { width: 15px; height: 15px; stroke: currentColor; fill: currentColor; stroke-width: 0; }
@@ -1382,8 +1389,18 @@ export function createUIFeedback(options = {}) {
     panel.style.setProperty('--ui-feedback-panel-y', `${position.y}px`);
   }
 
+  function getWindowDragHandle(event, selector) {
+    if (event.pointerType === 'mouse' && event.button !== 0) return null;
+    const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
+    const elements = path.filter((node) => node && node.nodeType === 1);
+    const target = elements[0] || event.target;
+    const interactive = elements.find((node) => node.matches?.('button, a, input, textarea, select, option, [contenteditable="true"], [data-no-drag]'));
+    if (interactive) return null;
+    return elements.find((node) => node.matches?.(selector)) || target?.closest?.(selector) || null;
+  }
+
   function handlePanelPointerDown(event) {
-    const handle = event.target.closest('[data-panel-drag-handle]');
+    const handle = getWindowDragHandle(event, '[data-panel-drag-handle]');
     if (!handle) return;
     event.preventDefault();
     event.stopPropagation();
@@ -1393,6 +1410,7 @@ export function createUIFeedback(options = {}) {
     handle.classList.add('is-dragging');
     try { handle.setPointerCapture?.(event.pointerId); } catch { /* ignore unsupported capture */ }
     const onMove = (moveEvent) => {
+      if (moveEvent.pointerId !== drag.pointerId) return;
       const maxX = Math.max(0, window.innerWidth - 80);
       const maxY = Math.max(0, window.innerHeight - 80);
       state.panelPosition = {
@@ -1401,17 +1419,21 @@ export function createUIFeedback(options = {}) {
       };
       applyPanelPosition();
     };
-    const onEnd = () => {
+    const onBlur = () => onEnd();
+    const onEnd = (endEvent) => {
+      if (endEvent?.pointerId != null && endEvent.pointerId !== drag.pointerId) return;
       handle.classList.remove('is-dragging');
       try { handle.releasePointerCapture?.(drag.pointerId); } catch { /* ignore */ }
       document.removeEventListener('pointermove', onMove, true);
       document.removeEventListener('pointerup', onEnd, true);
       document.removeEventListener('pointercancel', onEnd, true);
+      window.removeEventListener('blur', onBlur);
       if (panel) panel.classList.remove('is-dragging');
     };
     document.addEventListener('pointermove', onMove, true);
     document.addEventListener('pointerup', onEnd, true);
     document.addEventListener('pointercancel', onEnd, true);
+    window.addEventListener('blur', onBlur);
   }
 
   function handlePanelClick(event) {
@@ -1998,7 +2020,7 @@ export function createUIFeedback(options = {}) {
   }
 
   function handleModalPointerDown(event) {
-    const dragHandle = event.target.closest('[data-modal-drag-handle]');
+    const dragHandle = getWindowDragHandle(event, '[data-modal-drag-handle]');
     if (dragHandle) {
       event.preventDefault();
       event.stopPropagation();
@@ -2006,18 +2028,25 @@ export function createUIFeedback(options = {}) {
       modalDragState = { clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
       dragHandle.classList.add('is-dragging');
       try { dragHandle.setPointerCapture?.(event.pointerId); } catch { /* ignore unsupported capture */ }
-      const onMove = (moveEvent) => updateModalPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
-      const onEnd = () => {
+      const onMove = (moveEvent) => {
+        if (moveEvent.pointerId !== modalDragState?.pointerId) return;
+        updateModalPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+      };
+      const onBlur = () => onEnd();
+      const onEnd = (endEvent) => {
+        if (endEvent?.pointerId != null && endEvent.pointerId !== modalDragState?.pointerId) return;
         dragHandle.classList.remove('is-dragging');
         try { dragHandle.releasePointerCapture?.(modalDragState?.pointerId); } catch { /* ignore */ }
         modalDragState = null;
         document.removeEventListener('pointermove', onMove, true);
         document.removeEventListener('pointerup', onEnd, true);
         document.removeEventListener('pointercancel', onEnd, true);
+        window.removeEventListener('blur', onBlur);
       };
       document.addEventListener('pointermove', onMove, true);
       document.addEventListener('pointerup', onEnd, true);
       document.addEventListener('pointercancel', onEnd, true);
+      window.addEventListener('blur', onBlur);
       return;
     }
     const pad = event.target.closest('[data-css-position-pad]');
