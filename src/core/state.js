@@ -1,4 +1,4 @@
-import { detectTheme } from './dom-utils.js';
+import { detectTheme, generateId } from './dom-utils.js';
 
 export function createFeedbackState(config) {
   const activeStorageKey = `${config.storageKey}:active`;
@@ -6,7 +6,17 @@ export function createFeedbackState(config) {
   function loadComments() {
     try {
       const parsed = JSON.parse(localStorage.getItem(config.storageKey) || '[]');
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+      const validTypes = new Set(['comment', 'edit', 'css', 'image']);
+      return parsed.filter((item) => item && typeof item === 'object').map((item) => ({
+        ...item,
+        id: String(item.id || generateId()),
+        type: validTypes.has(item.type) ? item.type : 'comment',
+        selector: String(item.selector || ''),
+        page: String(item.page || '/'),
+        createdAt: item.createdAt || new Date().toISOString(),
+        updatedAt: item.updatedAt || item.createdAt || new Date().toISOString(),
+      }));
     } catch {
       return [];
     }

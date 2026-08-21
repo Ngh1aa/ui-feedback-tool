@@ -1,6 +1,15 @@
 export function createModalController(ctx) {
   const { state, root } = ctx;
 
+  function clampDelta(modal, nextX, nextY, current) {
+    if (!modal) return { x: nextX, y: nextY };
+    const rect = modal.getBoundingClientRect();
+    const margin = 8;
+    const dx = Math.max(margin - rect.left, Math.min(window.innerWidth - margin - rect.right, nextX - current.x));
+    const dy = Math.max(margin - rect.top, Math.min(window.innerHeight - margin - rect.bottom, nextY - current.y));
+    return { x: current.x + dx, y: current.y + dy };
+  }
+
   function applyModalPosition() {
     const modal = root.querySelector('.ui-feedback-modal');
     if (!modal) return;
@@ -34,12 +43,12 @@ export function createModalController(ctx) {
     try { handle.setPointerCapture?.(event.pointerId); } catch { /* unsupported capture */ }
     const onMove = (moveEvent) => {
       if (moveEvent.pointerId !== drag.pointerId) return;
-      const maxX = Math.max(0, window.innerWidth - 100);
-      const maxY = Math.max(0, window.innerHeight - 100);
-      state.modalPosition = {
-        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
-        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY)),
-      };
+      state.modalPosition = clampDelta(
+        modal,
+        drag.x + moveEvent.clientX - drag.clientX,
+        drag.y + moveEvent.clientY - drag.clientY,
+        state.modalPosition || { x: 0, y: 0 },
+      );
       applyModalPosition();
     };
     const onEnd = (endEvent) => {

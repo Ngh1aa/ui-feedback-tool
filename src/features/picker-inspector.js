@@ -22,9 +22,8 @@ export function buildBreadcrumb(element) {
   if (!isInspectable(element)) return [];
   const chain = [];
   let current = element;
-  while (current instanceof Element && !current.closest(TOOL_SELECTOR)) {
+  while (isInspectable(current)) {
     chain.unshift(segmentFor(current, chain.length));
-    if (current === document.body) break;
     current = current.parentElement;
   }
   return chain.map((item, index) => ({ ...item, index }));
@@ -61,7 +60,10 @@ export function createPickerInspector(ctx) {
     root.classList.remove('ui-feedback-picking');
     ctx.clearHighlight?.();
     renderToolbar();
-    positionInspector(element);
+    requestAnimationFrame(() => {
+      positionInspector(element);
+      root.querySelector('[data-picker-inspector]')?.focus({ preventScroll: true });
+    });
     return true;
   }
 

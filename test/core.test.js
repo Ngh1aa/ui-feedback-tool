@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { FONT_WEIGHT_OPTIONS, TEXT_ALIGN_OPTIONS, CSS_SPACING_SIDES } from '../src/core/config.js';
 import { DEFAULTS, categoryLabel, mergeConfig } from '../src/core/config.js';
-import { escapeHtml, escapeMarkdown, safeText } from '../src/core/dom-utils.js';
+import { cssEscape, escapeHtml, escapeMarkdown, formatDate, relativeTime, safeText } from '../src/core/dom-utils.js';
 import { createImageEditor } from '../src/features/image-editor.js';
 
 test('config keeps white accent and merges shortcut safely', () => {
@@ -11,7 +11,11 @@ test('config keeps white accent and merges shortcut safely', () => {
   assert.equal(config.accent, '#ffffff');
   assert.deepEqual(config.shortcut, ['q', 'w', 'e']);
   assert.equal(config.storageKey, 'test');
-  assert.equal(DEFAULTS.version, '0.11.0');
+  assert.equal(DEFAULTS.version, '0.12.0');
+  assert.equal(DEFAULTS.githubRepo, '');
+  assert.ok(DEFAULTS.updateMirrors.every((url) => url.includes('ui-feedback-tool')));
+  assert.deepEqual(mergeConfig({ shortcut: [] }).shortcut, ['q', 'w', 'e']);
+  assert.deepEqual(mergeConfig({ shortcut: ['Q', 'Q', 'W'] }).shortcut, ['q', 'w']);
 });
 
 test('category labels remain stable for feature types', () => {
@@ -42,11 +46,16 @@ test('text helpers escape HTML and Markdown safely', () => {
   assert.equal(escapeHtml('<script>"x"</script>'), '&lt;script&gt;&quot;x&quot;&lt;/script&gt;');
   assert.equal(escapeMarkdown('[feedback] *important*'), '\\[feedback\\] \\*important\\*');
   assert.equal(safeText('  one   two  '), 'one two');
+  assert.equal(cssEscape('1 bad:id'), '\\31 \\ bad\\:id');
+  assert.equal(formatDate(new Date('invalid')), 'N/A');
+  assert.equal(relativeTime('invalid'), '');
 });
 
 test('image editor exposes reliable position and zoom controls', () => {
   const editor = createImageEditor();
   assert.deepEqual(editor.parseImagePosition('right bottom'), { x: 100, y: 100 });
+  assert.deepEqual(editor.parseImagePosition('top center'), { x: 50, y: 0 });
+  assert.deepEqual(editor.parseImagePosition('left'), { x: 0, y: 50 });
   assert.equal(editor.parseImageZoom('rotate(2deg) scale(1.75)'), 175);
   assert.equal(editor.parseImageZoom('none'), 100);
   const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');

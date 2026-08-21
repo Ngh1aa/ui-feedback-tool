@@ -1,6 +1,6 @@
 # Thêm repository vào đồng bộ UI Feedback
 
-Repository `Ngh1aa/ui-feedback-tool` là nguồn canonical của file `src/ui-feedback.js`. Workflow nguồn tự quét các repository thuộc organization `Ngh1aa` và chỉ gửi bản cập nhật tới repository có file đăng ký sau:
+Repository `Ngh1aa/ui-feedback-tool` là nguồn canonical của file `src/ui-feedback.js`. Workflow nguồn tự quét các repository do tài khoản owner `Ngh1aa` sở hữu và chỉ gửi bản cập nhật tới repository có file đăng ký sau:
 
 ```text
 .github/ui-feedback-sync.json

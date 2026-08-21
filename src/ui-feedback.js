@@ -1,28 +1,30 @@
+// UI Feedback Tool v0.12.0
+
 // src/core/config.js
-var TOOL_VERSION = "0.11.0";
+var TOOL_VERSION = "0.12.0";
 var DEFAULTS = {
   version: TOOL_VERSION,
-  updateUrl: "https://ngh1aa.github.io/Atelier/ui-feedback.js",
+  updateUrl: "https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js",
   updateMirrors: [
-    "https://ngh1aa.github.io/Atelier/ui-feedback.js",
-    "https://ngh1aa.github.io/LuxRoom/ui-feedback.js",
-    "https://ngh1aa.github.io/StudioOS/ui-feedback.js",
-    "https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js"
+    "https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js",
+    "https://ngh1aa.github.io/ui-feedback-tool/src/ui-feedback.js"
   ],
   shortcut: ["q", "w", "e"],
   storageKey: "ui-feedback-session",
   accent: "#ffffff",
   position: "right",
   theme: "auto",
-  githubRepo: "Ngh1aa/StudioOS",
+  githubRepo: "",
   persistActive: true,
   coachmark: true
 };
 function mergeConfig(options = {}) {
+  const shortcutInput = Array.isArray(options.shortcut) ? options.shortcut : DEFAULTS.shortcut;
+  const shortcut = [...new Set(shortcutInput.map((key) => String(key || "").trim().toLowerCase()).filter(Boolean))];
   return {
     ...DEFAULTS,
     ...options,
-    shortcut: (options.shortcut || DEFAULTS.shortcut).map((key) => String(key).toLowerCase())
+    shortcut: shortcut.length >= 2 ? shortcut : [...DEFAULTS.shortcut]
   };
 }
 var FEEDBACK_CATEGORIES = [
@@ -39,10 +41,8 @@ var CATEGORY_LABELS = Object.fromEntries(
   FEEDBACK_CATEGORIES.map((item) => [item.value, item.label])
 );
 var CSS_COLOR_FIELDS = [
-  { key: "primary", label: "M\xE0u ch\xEDnh", prop: "backgroundColor", fallback: "#cb0236", hint: "background-color" },
-  { key: "primaryText", label: "Ch\u1EEF tr\xEAn m\xE0u ch\xEDnh", prop: "color", fallback: "#ffffff", hint: "color" },
-  { key: "pageBackground", label: "N\u1EC1n trang", prop: "backgroundColor", fallback: "#f4f8f8", hint: "background-color" },
-  { key: "text", label: "M\xE0u ch\u1EEF", prop: "color", fallback: "#1b212b", hint: "color" }
+  { key: "background", label: "M\xE0u n\u1EC1n ph\u1EA7n t\u1EED", prop: "backgroundColor", fallback: "#ffffff", hint: "background-color" },
+  { key: "text", label: "M\xE0u ch\u1EEF ph\u1EA7n t\u1EED", prop: "color", fallback: "#1b212b", hint: "color" }
 ];
 var EXTRA_COLOR_FIELDS = [
   { key: "border", label: "Vi\u1EC1n", prop: "borderColor", fallback: "#d1d5db", hint: "border-color" },
@@ -51,7 +51,6 @@ var EXTRA_COLOR_FIELDS = [
   { key: "caret", label: "Caret", prop: "caretColor", fallback: "#f5a623", hint: "caret-color" },
   { key: "accent", label: "Accent", prop: "accentColor", fallback: "#f5a623", hint: "accent-color" },
   { key: "columnRule", label: "Column rule", prop: "columnRuleColor", fallback: "#d1d5db", hint: "column-rule-color" },
-  { key: "marker", label: "Marker", prop: "markerColor", fallback: "#f5a623", hint: "marker-color" },
   { key: "fill", label: "SVG fill", prop: "fill", fallback: "#f5a623", hint: "fill" }
 ];
 var FONT_OPTIONS = [
@@ -101,11 +100,14 @@ function escapeMarkdown(value) {
   return String(value || "").replace(/[\\`*_{}\[\]()#+.!|>-]/g, "\\$&");
 }
 function formatDate(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "N/A";
   return new Intl.DateTimeFormat("vi-VN", { dateStyle: "medium", timeStyle: "short" }).format(date);
 }
 function relativeTime(isoString) {
   if (!isoString) return "";
-  const diff = Date.now() - new Date(isoString).getTime();
+  const timestamp = new Date(isoString).getTime();
+  if (!Number.isFinite(timestamp)) return "";
+  const diff = Math.max(0, Date.now() - timestamp);
   const mins = Math.floor(diff / 6e4);
   if (mins < 1) return "V\u1EEBa xong";
   if (mins < 60) return `${mins} ph\xFAt tr\u01B0\u1EDBc`;
@@ -117,6 +119,23 @@ function safeText(value, max = 180) {
   const text = String(value || "").replace(/\s+/g, " ").trim();
   return text.length > max ? `${text.slice(0, max - 1)}\u2026` : text;
 }
+function isEditable(target) {
+  return typeof HTMLElement !== "undefined" && target instanceof HTMLElement && (target.matches('input, textarea, select, [contenteditable="true"]') || Boolean(target.closest('input, textarea, select, [contenteditable="true"]')));
+}
+function cssEscape(value) {
+  const input = String(value || "");
+  if (typeof CSS !== "undefined" && typeof CSS.escape === "function") return CSS.escape(input);
+  return [...input].map((character, index) => {
+    const code = character.codePointAt(0);
+    if (code === 0) return "\uFFFD";
+    if (code >= 1 && code <= 31 || code === 127 || index === 0 && code >= 48 && code <= 57 || index === 1 && code >= 48 && code <= 57 && input[0] === "-") {
+      return `\\${code.toString(16)} `;
+    }
+    if (index === 0 && character === "-" && input.length === 1) return "\\-";
+    if (code >= 128 || character === "-" || character === "_" || /[a-zA-Z0-9]/.test(character)) return character;
+    return `\\${character}`;
+  }).join("");
+}
 function cssPath(element) {
   if (typeof Element === "undefined" || !(element instanceof Element)) return "";
   const parts = [];
@@ -124,12 +143,12 @@ function cssPath(element) {
   while (node && node.nodeType === 1 && node !== document.body && parts.length < 6) {
     let part = node.tagName.toLowerCase();
     if (node.id) {
-      part += `#${window.CSS.escape(node.id)}`;
+      part += `#${cssEscape(node.id)}`;
       parts.unshift(part);
       break;
     }
     const classes = [...node.classList].filter(Boolean).slice(0, 2);
-    if (classes.length) part += `.${classes.map(window.CSS.escape).join(".")}`;
+    if (classes.length) part += `.${classes.map(cssEscape).join(".")}`;
     const siblings = node.parentElement ? [...node.parentElement.children].filter((sibling) => sibling.tagName === node.tagName) : [];
     if (siblings.length > 1) part += `:nth-of-type(${siblings.indexOf(node) + 1})`;
     parts.unshift(part);
@@ -174,6 +193,32 @@ function resolveSelector(selector) {
     return null;
   }
 }
+async function copyText(value) {
+  const text = String(value || "");
+  if (!text) return false;
+  try {
+    if (navigator.clipboard?.writeText) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+  }
+  if (typeof document === "undefined" || !document.body) return false;
+  const textarea = document.createElement("textarea");
+  textarea.value = text;
+  textarea.setAttribute("readonly", "");
+  textarea.style.cssText = "position:fixed;opacity:0;pointer-events:none;";
+  document.body.appendChild(textarea);
+  textarea.select();
+  let copied = false;
+  try {
+    copied = document.execCommand("copy");
+  } catch {
+    copied = false;
+  }
+  textarea.remove();
+  return copied;
+}
 
 // src/core/state.js
 function createFeedbackState(config) {
@@ -181,7 +226,17 @@ function createFeedbackState(config) {
   function loadComments() {
     try {
       const parsed = JSON.parse(localStorage.getItem(config.storageKey) || "[]");
-      return Array.isArray(parsed) ? parsed : [];
+      if (!Array.isArray(parsed)) return [];
+      const validTypes = /* @__PURE__ */ new Set(["comment", "edit", "css", "image"]);
+      return parsed.filter((item) => item && typeof item === "object").map((item) => ({
+        ...item,
+        id: String(item.id || generateId()),
+        type: validTypes.has(item.type) ? item.type : "comment",
+        selector: String(item.selector || ""),
+        page: String(item.page || "/"),
+        createdAt: item.createdAt || (/* @__PURE__ */ new Date()).toISOString(),
+        updatedAt: item.updatedAt || item.createdAt || (/* @__PURE__ */ new Date()).toISOString()
+      }));
     } catch {
       return [];
     }
@@ -554,8 +609,8 @@ button { cursor: pointer; }
 .ui-feedback-panel__tab:hover, .ui-feedback-panel__tab.is-active { color: var(--_text); border-bottom-color: color-mix(in srgb, var(--ui-feedback-accent), var(--_text) 28%); }
 
 .ui-feedback-icon-button {
-  width: 30px;
-  height: 30px;
+  width: 34px;
+  height: 34px;
   border: 0;
   border-radius: 7px;
   display: grid;
@@ -839,6 +894,10 @@ button { cursor: pointer; }
   animation: uiFeedbackFadeIn .24s cubic-bezier(.4,0,.2,1) both;
 }
 .ui-feedback-modal__top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
   padding: 18px 20px 12px;
   border-bottom: 1px solid var(--_border);
   cursor: grab;
@@ -914,7 +973,7 @@ button { cursor: pointer; }
 
 /* \u2500\u2500 comment markers \u2500\u2500 */
 .ui-feedback-marker {
-  position: absolute;
+  position: fixed;
   width: 22px;
   height: 22px;
   border-radius: 50%;
@@ -931,7 +990,10 @@ button { cursor: pointer; }
   cursor: pointer;
   animation: uiFeedbackMarkerIn .25s cubic-bezier(.4,0,.2,1) both;
   border: 2px solid #fff;
+  padding: 0;
 }
+.ui-feedback-marker-layer { position: fixed; inset: 0; z-index: 2147482980; pointer-events: none; }
+.ui-feedback-marker:focus-visible { outline: 3px solid #111; outline-offset: 2px; }
 @keyframes uiFeedbackMarkerIn {
   from { opacity: 0; transform: scale(0); }
   to   { opacity: 1; transform: scale(1); }
@@ -954,12 +1016,12 @@ button { cursor: pointer; }
   font-size: 12px;
   line-height: 1;
 }
-.ui-feedback-root.is-dark .ui-feedback-marker.is-edit {
+.ui-feedback-marker-layer.is-dark .ui-feedback-marker.is-edit {
   background: #166534;
   border-color: #86efac;
   color: #dcfce7;
 }
-.ui-feedback-root.is-dark .ui-feedback-marker.is-css {
+.ui-feedback-marker-layer.is-dark .ui-feedback-marker.is-css {
   background: #5b21b6;
   border-color: #c4b5fd;
   color: #ede9fe;
@@ -968,7 +1030,7 @@ button { cursor: pointer; }
 /* \u2500\u2500 advanced CSS editor \u2500\u2500 */
 .ui-feedback-css-tabs {
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   margin: -4px -4px 14px;
@@ -1154,7 +1216,7 @@ button { cursor: pointer; }
 .ui-feedback-image-upload { width: 100%; border: 1px dashed var(--_border); border-radius: 6px; padding: 8px; color: var(--_text-secondary); background: var(--_bg-alt); font-size: 11px; }
 .ui-feedback-image-original { display: block; overflow: hidden; color: var(--_text-muted); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .ui-feedback-marker.is-image { background: #fcd34d; border-color: #b45309; color: #78350f; font-size: 11px; line-height: 1; }
-.ui-feedback-root.is-dark .ui-feedback-marker.is-image { background: #92400e; border-color: #fcd34d; color: #fef3c7; }
+.ui-feedback-marker-layer.is-dark .ui-feedback-marker.is-image { background: #92400e; border-color: #fcd34d; color: #fef3c7; }
 
 /* \u2500\u2500 picker \u2500\u2500 */
 .ui-feedback-picking,
@@ -1269,14 +1331,15 @@ button { cursor: pointer; }
 
 /* \u2500\u2500 responsive \u2500\u2500 */
 @media (max-width: 640px) {
-  .ui-feedback-css-tabs { grid-template-columns: repeat(5, minmax(72px, 1fr)); overflow-x: auto; scrollbar-width: thin; }
+  .ui-feedback-css-tabs { grid-template-columns: repeat(6, minmax(72px, 1fr)); overflow-x: auto; scrollbar-width: thin; }
   .ui-feedback-css-select-row select { max-width: 145px; }
   .ui-feedback-spacing-grid { grid-template-columns: 1fr; }
-  .ui-feedback-toolbar { right: 10px !important; left: 10px; bottom: 10px; justify-content: space-between; }
+  .ui-feedback-toolbar { bottom: 10px; max-width: calc(100vw - 20px); justify-content: flex-start; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; }
+  .ui-feedback-toolbar::-webkit-scrollbar { display: none; }
   .ui-feedback-toolbar-grip { display: none; }
   .ui-feedback-tool { min-width: 38px; width: 38px; padding: 0; }
   .ui-feedback-tool__label { display: none; }
-  .ui-feedback-panel { right: 10px; left: 10px; width: auto; width: min(340px, calc(100vw - 84px)); }
+  .ui-feedback-panel { right: 10px; left: 10px; width: auto; }
   .ui-feedback-form-row { grid-template-columns: 1fr; gap: 12px; }
   .ui-feedback-modal.is-inspector { right: 10px; top: 10px; width: calc(100vw - 20px); height: calc(100vh - 20px); }
   .ui-feedback-inspector { left: 12px !important; right: 12px !important; bottom: 12px !important; top: auto !important; width: auto !important; max-height: min(78vh, 620px); border-radius: 18px 18px 12px 12px; }
@@ -1287,8 +1350,6 @@ button { cursor: pointer; }
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
 }
   /* \u2500\u2500 v0.7 visual refresh: white accent + modern dark surfaces \u2500\u2500 */
-  .ui-feedback-root { --ui-feedback-accent: #fff !important; }
-  .ui-feedback-root.is-dark { --ui-feedback-accent: #fff !important; }
   .ui-feedback-panel,
   .ui-feedback-modal {
     border-color: rgba(255,255,255,.14);
@@ -1452,6 +1513,63 @@ button { cursor: pointer; }
     .ui-feedback-css-tab { padding-inline: 8px; font-size: 9px; }
     .ui-feedback-css-mini-range { grid-template-columns: 42px minmax(0, 1fr) 38px; gap: 6px; }
   }
+
+  /* Theme correction: the modern refresh must still honor light/auto theme and custom accent. */
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-modal { color: var(--_text); border-color: var(--_border-panel); background: var(--_bg-panel); box-shadow: 0 24px 72px var(--_shadow-heavy); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__header,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-modal__top,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__tabs,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__filter,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-modal__content,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-modal__footer { color: var(--_text); border-color: var(--_border); background: var(--_bg-panel); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__header strong,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-modal__top h2 { color: var(--_text); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__header small,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-modal__top p,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-label { color: var(--_text-secondary); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-window-grip,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-drag-hint { color: var(--_text-muted); border-color: var(--_border); background: var(--_bg-alt); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__body { background: var(--_bg-alt); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__tab { color: var(--_text-muted); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__tab:hover,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-panel__tab.is-active { color: var(--_text); border-bottom-color: var(--ui-feedback-accent); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-search-input,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-filter-select,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-field,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-textarea,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-select { color: var(--_text); border-color: var(--_border); background: var(--_bg); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-search-input:focus,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-filter-select:focus,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-field:focus,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-textarea:focus,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-select:focus { border-color: var(--ui-feedback-accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ui-feedback-accent), transparent 82%); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-group__name,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-category-chip,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-context-tag { color: var(--_text-secondary); border-color: var(--_border); background: var(--_bg-alt); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-category-label { color: var(--_text-secondary); background: transparent; }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-item { color: var(--_text); border-color: var(--_border); background: var(--_bg-item); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-item:hover { background: var(--_bg-hover); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-item__comment { color: var(--_text); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-item__code { color: var(--_text-secondary); border-color: var(--_border); background: var(--_bg-alt); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-mini { color: var(--_text-secondary); background: var(--_bg-alt); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-css-tabs { background: var(--_bg-alt); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-css-tab.is-active { color: var(--_text); background: var(--_bg); box-shadow: 0 1px 2px var(--_shadow); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-theme-card,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-font-row,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-range-row,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-css-preset,
+  .ui-feedback-root:not(.is-dark) .ui-feedback-css-side-row { color: var(--_text); border-color: var(--_border); background: var(--_bg); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-button { color: var(--_text); border-color: var(--_border); background: var(--_bg); }
+  .ui-feedback-root:not(.is-dark) .ui-feedback-button--primary { color: var(--_accent-ink); border-color: var(--ui-feedback-accent); background: var(--ui-feedback-accent); }
+
+  .ui-feedback-item:focus-visible { outline: 2px solid var(--ui-feedback-accent); outline-offset: 2px; }
+  .ui-feedback-modal__close { flex: 0 0 auto; }
+  @media (max-width: 560px) {
+    .ui-feedback-panel { right: 12px !important; left: 12px !important; width: auto !important; }
+    .ui-feedback-icon-button { width: 40px; height: 40px; }
+    .ui-feedback-mini { min-height: 36px; }
+  }
 `;
 
 // src/ui/icons.js
@@ -1511,10 +1629,11 @@ function createCommentsController(ctx) {
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ""}
       <div class="ui-feedback-item__code" title="D\xF2ng code \u0111\u1EA7u c\u1EE7a component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || "Kh\xF4ng x\xE1c \u0111\u1ECBnh")}</code></div>
     </div>` : "";
-    return `<article class="ui-feedback-item ${resolved ? "is-resolved" : ""} ${expanded ? "is-expanded" : ""}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
+    const priorityLabel = priority === "high" ? "Cao" : priority === "low" ? "Th\u1EA5p" : "Trung b\xECnh";
+    return `<article class="ui-feedback-item ${resolved ? "is-resolved" : ""} ${expanded ? "is-expanded" : ""}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}" tabindex="0" aria-label="M\u1EDF ph\u1EA7n t\u1EED ${escapeAttribute(item.tag || item.selector)}">
       <div class="ui-feedback-item__meta">
         <div class="ui-feedback-item__identity"><span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">\u29C9</button></div>
-        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span><span class="ui-feedback-resolve-badge ${resolved ? "is-resolved" : "is-open"}">${resolved ? `${ICONS.check} Xong` : "M\u1EDF"}</span></div>
+        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priorityLabel}</span><span class="ui-feedback-resolve-badge ${resolved ? "is-resolved" : "is-open"}">${resolved ? `${ICONS.check} Xong` : "M\u1EDF"}</span></div>
       </div>
       <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">\xB7</span> ${escapeHtml(item.targetText || "Kh\xF4ng c\xF3 n\u1ED9i dung xem tr\u01B0\u1EDBc")}</p>
       ${content}
@@ -1551,7 +1670,16 @@ function createCommentsController(ctx) {
   function editComment(id) {
     const item = state.comments.find((comment) => comment.id === id);
     if (!item) return;
-    ctx.openModalWithExisting(resolveSelector(item.selector) || document.body, ["css", "image"].includes(item.type) ? item.type : "comment", item);
+    if ((item.page || "/") !== (location.pathname || "/")) {
+      ctx.showToast(`Feedback n\u1EB1m \u1EDF trang ${item.page || "/"}`);
+      return;
+    }
+    const element = resolveSelector(item.selector);
+    if (!element) {
+      ctx.showToast("Kh\xF4ng t\xECm th\u1EA5y ph\u1EA7n t\u1EED \u0111\u1EC3 s\u1EEDa feedback");
+      return;
+    }
+    ctx.openModalWithExisting(element, ["css", "image"].includes(item.type) ? item.type : "comment", item);
   }
   function deleteComment(id) {
     const index = state.comments.findIndex((comment) => comment.id === id);
@@ -1562,6 +1690,7 @@ function createCommentsController(ctx) {
     ctx.renderToolbar();
     state.panelOpen = true;
     ctx.renderPanel();
+    ctx.placeMarkers();
     ctx.showToast("\u0110\xE3 x\xF3a feedback", { undo: true });
   }
   function undoAction() {
@@ -1573,7 +1702,18 @@ function createCommentsController(ctx) {
       ctx.renderToolbar();
       state.panelOpen = true;
       ctx.renderPanel();
+      ctx.placeMarkers();
       ctx.showToast("\u0110\xE3 ho\xE0n t\xE1c x\xF3a");
+      return;
+    }
+    if (entry.type === "export-clear") {
+      state.comments.splice(0, state.comments.length, ...entry.items);
+      ctx.persist();
+      ctx.renderToolbar();
+      state.panelOpen = true;
+      ctx.renderPanel();
+      ctx.placeMarkers();
+      ctx.showToast(`\u0110\xE3 kh\xF4i ph\u1EE5c ${entry.items.length} m\u1EE5c`);
       return;
     }
     if (["edit", "css", "image"].includes(entry.type)) {
@@ -1599,6 +1739,7 @@ function createCommentsController(ctx) {
     item.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
     ctx.persist();
     ctx.renderPanel();
+    ctx.placeMarkers();
     ctx.showToast(item.resolved ? "\u0110\xE3 \u0111\xE1nh d\u1EA5u xong" : "\u0110\xE3 m\u1EDF l\u1EA1i feedback");
   }
   return {
@@ -1645,6 +1786,7 @@ function createMarkdownExporter(ctx) {
     return lines;
   }
   function exportMarkdown() {
+    const exportedItems = state.comments.map((item) => ({ ...item }));
     const resolvedCount = state.comments.filter((item) => item.resolved).length;
     const openCount = state.comments.length - resolvedCount;
     const editCount = state.comments.filter((item) => ["edit", "css", "image"].includes(item.type)).length;
@@ -1683,17 +1825,19 @@ function createMarkdownExporter(ctx) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `ui-feedback-${(/* @__PURE__ */ new Date()).toISOString().slice(0, 10)}.md`;
+    anchor.download = `ui-feedback-${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, 19)}.md`;
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1e3);
     const exportedCount = state.comments.length;
     state.comments = [];
-    state.undoStack = [];
+    state.undoStack = exportedItems.length ? [{ type: "export-clear", items: exportedItems }] : [];
     ctx.persist();
     ctx.clearMarkers();
     state.panelOpen = false;
     ctx.renderToolbar();
-    ctx.showToast(exportedCount ? `\u0110\xE3 xu\u1EA5t Markdown v\xE0 l\xE0m s\u1EA1ch ${exportedCount} m\u1EE5c` : "\u0110\xE3 xu\u1EA5t file Markdown");
+    ctx.showToast(exportedCount ? `\u0110\xE3 xu\u1EA5t v\xE0 l\xE0m s\u1EA1ch ${exportedCount} m\u1EE5c` : "\u0110\xE3 xu\u1EA5t file Markdown", { undo: exportedCount > 0 });
   }
   return { exportMarkdown, renderItemMarkdown };
 }
@@ -1702,7 +1846,10 @@ function createMarkdownExporter(ctx) {
 function createGithubIssueController(ctx) {
   const { state, config } = ctx;
   function createGithubIssue() {
-    if (!config.githubRepo) return;
+    if (!/^[\w.-]+\/[\w.-]+$/.test(config.githubRepo || "")) {
+      ctx.showToast("C\u1EA5u h\xECnh githubRepo ch\u01B0a h\u1EE3p l\u1EC7");
+      return;
+    }
     const unresolved = state.comments.filter((item) => !item.resolved);
     if (!unresolved.length) {
       ctx.showToast("Kh\xF4ng c\xF3 feedback n\xE0o \u0111ang m\u1EDF!");
@@ -1735,8 +1882,14 @@ function createGithubIssueController(ctx) {
       lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || "N/A")}\``);
       lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : "N/A"}\``, "");
     });
-    const body = encodeURIComponent(lines.join("\n"));
-    window.open(`https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review&body=${body}`, "_blank");
+    const markdown = lines.join("\n");
+    const issueUrl = `https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review&body=${encodeURIComponent(markdown)}`;
+    if (issueUrl.length > 7500) {
+      window.open(`https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review`, "_blank", "noopener,noreferrer");
+      copyText(markdown).then((copied) => ctx.showToast(copied ? "N\u1ED9i dung d\xE0i \u0111\xE3 \u0111\u01B0\u1EE3c copy \u0111\u1EC3 d\xE1n v\xE0o Issue" : "Issue \u0111\xE3 m\u1EDF; n\u1ED9i dung qu\xE1 d\xE0i \u0111\u1EC3 \u0111i\u1EC1n t\u1EF1 \u0111\u1ED9ng"));
+      return;
+    }
+    window.open(issueUrl, "_blank", "noopener,noreferrer");
     ctx.showToast("\u0110ang m\u1EDF trang t\u1EA1o Issue");
   }
   return { createGithubIssue };
@@ -1760,7 +1913,7 @@ function createCssEditor(ctx) {
     if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
     if (/^#[0-9a-f]{3}$/i.test(raw)) return raw.toLowerCase().replace(/^#(.)(.)(.)$/, "#$1$1$2$2$3$3");
     const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-    if (match) return `#${[match[1], match[2], match[3]].map((n) => Number(n).toString(16).padStart(2, "0")).join("")}`;
+    if (match) return `#${[match[1], match[2], match[3]].map((n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, "0")).join("")}`;
     return fallback;
   }
   function readCssValue(prop, fallback = "") {
@@ -1794,7 +1947,8 @@ function createCssEditor(ctx) {
     const x = Math.max(-200, Math.min(200, Number(position.x) || 0));
     const y = Math.max(-200, Math.min(200, Number(position.y) || 0));
     state.cssPosition = { x, y };
-    if ("translate" in state.target.style || typeof CSS === "undefined" || CSS.supports?.("translate", "0 0")) state.target.style.setProperty("translate", `${x}px ${y}px`);
+    const supportsTranslate = "translate" in state.target.style || typeof CSS !== "undefined" && CSS.supports?.("translate", "0 0");
+    if (supportsTranslate) state.target.style.setProperty("translate", `${x}px ${y}px`);
     else state.target.style.transform = `translate(${x}px, ${y}px)${state.cssTransformBase ? ` ${state.cssTransformBase}` : ""}`;
     const pad = root.querySelector("[data-css-position-pad]");
     if (pad) {
@@ -1827,15 +1981,20 @@ function createImageEditor() {
   }
   function parseImagePosition(value) {
     const parts = String(value || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const convert = (part, fallback) => {
+    const convert = (part, fallback, axis) => {
       if (!part) return fallback;
-      if (part === "left" || part === "top") return 0;
+      if (axis === "x" && part === "left" || axis === "y" && part === "top") return 0;
       if (part === "center") return 50;
-      if (part === "right" || part === "bottom") return 100;
+      if (axis === "x" && part === "right" || axis === "y" && part === "bottom") return 100;
       const numeric2 = parseFloat(part);
       return Number.isFinite(numeric2) ? Math.max(0, Math.min(100, numeric2)) : fallback;
     };
-    return { x: convert(parts[0], 50), y: convert(parts[1], 50) };
+    const horizontal = parts.find((part) => ["left", "right"].includes(part));
+    const vertical = parts.find((part) => ["top", "bottom"].includes(part));
+    if (horizontal || vertical) {
+      return { x: convert(horizontal || "center", 50, "x"), y: convert(vertical || "center", 50, "y") };
+    }
+    return { x: convert(parts[0], 50, "x"), y: convert(parts[1], 50, "y") };
   }
   function isImageElement(element) {
     return element instanceof Element && (element instanceof HTMLImageElement || element.tagName.toLowerCase() === "img");
@@ -1855,7 +2014,7 @@ function createImageEditor() {
         computed2 = getComputedStyle(element);
       } catch {
       }
-      return { kind: "src", src: element.currentSrc || element.getAttribute("src") || "", srcset: element.getAttribute("srcset") || "", backgroundImage: "", objectPosition: element.style.objectPosition || "", objectFit: element.style.objectFit || "", transform: element.style.transform || "", effectiveObjectPosition: computed2.objectPosition || "50% 50%", effectiveTransform: computed2.transform || "none" };
+      return { kind: "src", src: element.getAttribute("src") || "", effectiveSrc: element.currentSrc || "", srcset: element.getAttribute("srcset") || "", backgroundImage: "", objectPosition: element.style.objectPosition || "", objectFit: element.style.objectFit || "", transform: element.style.transform || "", effectiveObjectPosition: computed2.objectPosition || "50% 50%", effectiveTransform: computed2.transform || "none" };
     }
     const backgroundImage = element.style.backgroundImage || (() => {
       try {
@@ -1895,10 +2054,11 @@ function createImageEditor() {
     const safeZoom = clampZoom(zoom);
     if (isImageElement(element)) {
       const base = String(baseTransform || "").trim();
-      const preserved = base && base !== "none" && !/scale\(/i.test(base) ? `${base} ` : "";
+      const withoutScale = base.replace(/\bscale(?:3d|x|y)?\([^)]*\)/gi, "").replace(/\s+/g, " ").trim();
+      const preserved = withoutScale && withoutScale !== "none" ? `${withoutScale} ` : "";
       element.style.transform = `${preserved}scale(${safeZoom / 100})`;
     } else {
-      element.style.backgroundSize = safeZoom === 100 ? "cover" : `${safeZoom}% ${safeZoom}%`;
+      element.style.backgroundSize = safeZoom === 100 ? "cover" : `${safeZoom}%`;
     }
   }
   function applyImageState(element, snapshot) {
@@ -1944,14 +2104,22 @@ function createImageEditor() {
   function validateImageSource(source) {
     const value = String(source || "").trim();
     if (!value) return false;
-    if (value.startsWith("data:image/")) return value.length <= 1e6;
+    if (value.startsWith("data:image/")) {
+      try {
+        const payload = value.split(",", 2)[1] || "";
+        const bytes = /;base64,/i.test(value) ? Math.floor(payload.length * 3 / 4) - (payload.endsWith("==") ? 2 : payload.endsWith("=") ? 1 : 0) : new TextEncoder().encode(decodeURIComponent(payload)).length;
+        return bytes <= 1024 * 1024;
+      } catch {
+        return false;
+      }
+    }
     try {
       return ["http:", "https:"].includes(new URL(value, location.href).protocol);
     } catch {
       return false;
     }
   }
-  return { imageBackgroundSource, parseImagePosition, parseImageZoom, captureImageState, applyImageSource, applyImagePosition, applyImageZoom, applyImageState, restoreImageState, validateImageSource };
+  return { parseImagePosition, parseImageZoom, captureImageState, applyImageSource, applyImagePosition, applyImageZoom, applyImageState, restoreImageState, validateImageSource };
 }
 
 // src/features/picker.js
@@ -1965,15 +2133,26 @@ function createPickerController(ctx) {
   }
   function clearHighlight() {
     if (!state.highlight) return;
-    state.highlight.element.setAttribute("style", state.highlight.style || "");
-    if (!state.highlight.style) state.highlight.element.removeAttribute("style");
+    const { element, outline, outlinePriority, outlineOffset, outlineOffsetPriority } = state.highlight;
+    if (element?.style) {
+      if (outline) element.style.setProperty("outline", outline, outlinePriority);
+      else element.style.removeProperty("outline");
+      if (outlineOffset) element.style.setProperty("outline-offset", outlineOffset, outlineOffsetPriority);
+      else element.style.removeProperty("outline-offset");
+    }
     state.highlight = null;
   }
   function highlight(element) {
     if (!(element instanceof Element) || element.closest("#ui-feedback-host")) return;
     if (state.highlight?.element === element) return;
     clearHighlight();
-    state.highlight = { element, style: element.getAttribute("style") };
+    state.highlight = {
+      element,
+      outline: element.style.getPropertyValue("outline"),
+      outlinePriority: element.style.getPropertyPriority("outline"),
+      outlineOffset: element.style.getPropertyValue("outline-offset"),
+      outlineOffsetPriority: element.style.getPropertyPriority("outline-offset")
+    };
     element.style.setProperty("outline", `2px solid ${config.accent}`, "important");
     element.style.setProperty("outline-offset", "3px", "important");
   }
@@ -2132,10 +2311,10 @@ function createMeasurementController(ctx) {
       }
     });
   }
-  function observe(element) {
+  function observe(...elements) {
     observer?.disconnect();
-    observer = typeof ResizeObserver === "function" && element ? new ResizeObserver(recalibrate) : null;
-    observer?.observe(element);
+    observer = typeof ResizeObserver === "function" && elements.some(Boolean) ? new ResizeObserver(recalibrate) : null;
+    elements.filter((element) => element instanceof Element).forEach((element) => observer?.observe(element));
     if (!scrollBound) {
       window.addEventListener("scroll", recalibrate, { passive: true });
       window.addEventListener("resize", recalibrate, { passive: true });
@@ -2159,12 +2338,14 @@ function createMeasurementController(ctx) {
   function setMode(mode) {
     state.pickerInspector.measurement.mode = mode;
     state.pickerInspector.measurement.enabled = true;
+    observe(state.pickerInspector.selected?.element, state.pickerInspector.measurement.compareTarget);
     recalibrate();
   }
   function setCompareTarget(element) {
     if (!(element instanceof Element) || element.closest("#ui-feedback-host")) return false;
     state.pickerInspector.measurement.compareTarget = element;
     state.pickerInspector.measurement.enabled = true;
+    observe(state.pickerInspector.selected?.element, element);
     recalibrate();
     return true;
   }
@@ -2205,9 +2386,8 @@ function buildBreadcrumb(element) {
   if (!isInspectable(element)) return [];
   const chain = [];
   let current = element;
-  while (current instanceof Element && !current.closest(TOOL_SELECTOR)) {
+  while (isInspectable(current)) {
     chain.unshift(segmentFor(current, chain.length));
-    if (current === document.body) break;
     current = current.parentElement;
   }
   return chain.map((item, index) => ({ ...item, index }));
@@ -2241,7 +2421,10 @@ function createPickerInspector(ctx) {
     root.classList.remove("ui-feedback-picking");
     ctx.clearHighlight?.();
     renderToolbar2();
-    positionInspector(element);
+    requestAnimationFrame(() => {
+      positionInspector(element);
+      root.querySelector("[data-picker-inspector]")?.focus({ preventScroll: true });
+    });
     return true;
   }
   function setCandidate(element) {
@@ -2348,6 +2531,14 @@ function createPickerInspector(ctx) {
 // src/ui/panel.js
 function createPanelController(ctx) {
   const { state, root } = ctx;
+  function clampDelta(panel, nextX, nextY, current) {
+    if (!panel) return { x: nextX, y: nextY };
+    const rect = panel.getBoundingClientRect();
+    const margin = 8;
+    const dx = Math.max(margin - rect.left, Math.min(window.innerWidth - margin - rect.right, nextX - current.x));
+    const dy = Math.max(margin - rect.top, Math.min(window.innerHeight - margin - rect.bottom, nextY - current.y));
+    return { x: current.x + dx, y: current.y + dy };
+  }
   function getWindowDragHandle(event, selector) {
     if (event.pointerType === "mouse" && event.button !== 0) return null;
     const path = typeof event.composedPath === "function" ? event.composedPath() : [];
@@ -2385,12 +2576,12 @@ function createPanelController(ctx) {
     }
     const onMove = (moveEvent) => {
       if (moveEvent.pointerId !== drag.pointerId) return;
-      const maxX = Math.max(0, window.innerWidth - 80);
-      const maxY = Math.max(0, window.innerHeight - 80);
-      state.panelPosition = {
-        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
-        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY))
-      };
+      state.panelPosition = clampDelta(
+        panel,
+        drag.x + moveEvent.clientX - drag.clientX,
+        drag.y + moveEvent.clientY - drag.clientY,
+        state.panelPosition || { x: 0, y: 0 }
+      );
       applyPanelPosition();
     };
     const onEnd = (endEvent) => {
@@ -2412,12 +2603,20 @@ function createPanelController(ctx) {
     document.addEventListener("pointercancel", onEnd, true);
     window.addEventListener("blur", onBlur);
   }
-  return { applyPanelPosition, resetPosition, handlePointerDown, getWindowDragHandle };
+  return { applyPanelPosition, resetPosition, handlePointerDown };
 }
 
 // src/ui/modal.js
 function createModalController(ctx) {
   const { state, root } = ctx;
+  function clampDelta(modal, nextX, nextY, current) {
+    if (!modal) return { x: nextX, y: nextY };
+    const rect = modal.getBoundingClientRect();
+    const margin = 8;
+    const dx = Math.max(margin - rect.left, Math.min(window.innerWidth - margin - rect.right, nextX - current.x));
+    const dy = Math.max(margin - rect.top, Math.min(window.innerHeight - margin - rect.bottom, nextY - current.y));
+    return { x: current.x + dx, y: current.y + dy };
+  }
   function applyModalPosition() {
     const modal = root.querySelector(".ui-feedback-modal");
     if (!modal) return;
@@ -2452,12 +2651,12 @@ function createModalController(ctx) {
     }
     const onMove = (moveEvent) => {
       if (moveEvent.pointerId !== drag.pointerId) return;
-      const maxX = Math.max(0, window.innerWidth - 100);
-      const maxY = Math.max(0, window.innerHeight - 100);
-      state.modalPosition = {
-        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
-        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY))
-      };
+      state.modalPosition = clampDelta(
+        modal,
+        drag.x + moveEvent.clientX - drag.clientX,
+        drag.y + moveEvent.clientY - drag.clientY,
+        state.modalPosition || { x: 0, y: 0 }
+      );
       applyModalPosition();
     };
     const onEnd = (endEvent) => {
@@ -2573,27 +2772,39 @@ function createUIFeedback(options = {}) {
   let pickerController;
   let measurementController;
   let pickerInspector;
+  let themeMedia = null;
+  let themeChangeHandler = null;
+  let domObserver = null;
+  let reapplyTimer = null;
+  let focusBeforeModal = null;
   const host = document.createElement("div");
   host.id = "ui-feedback-host";
   host.dataset.uiFeedbackIgnore = "true";
   const shadow = host.attachShadow({ mode: "open" });
-  shadow.innerHTML = `<style>${STYLESHEET}</style><div class="ui-feedback-root${state.theme === "dark" ? " is-dark" : ""}" style="--ui-feedback-accent:${config.accent}"></div>`;
+  shadow.innerHTML = `<style>${STYLESHEET}</style><div class="ui-feedback-root${state.theme === "dark" ? " is-dark" : ""}"></div><div class="ui-feedback-marker-layer${state.theme === "dark" ? " is-dark" : ""}" aria-label="C\xE1c v\u1ECB tr\xED feedback"></div>`;
   const root = shadow.querySelector(".ui-feedback-root");
+  const markerLayer = shadow.querySelector(".ui-feedback-marker-layer");
+  root.style.setProperty("--ui-feedback-accent", config.accent);
+  markerLayer.style.setProperty("--ui-feedback-accent", config.accent);
   document.documentElement.appendChild(host);
   if (config.theme === "auto") {
-    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", (e) => {
+    themeMedia = window.matchMedia("(prefers-color-scheme: dark)");
+    themeChangeHandler = (e) => {
       state.theme = e.matches ? "dark" : "light";
       root.classList.toggle("is-dark", state.theme === "dark");
-    });
+      markerLayer.classList.toggle("is-dark", state.theme === "dark");
+    };
+    if (themeMedia.addEventListener) themeMedia.addEventListener("change", themeChangeHandler);
+    else themeMedia.addListener?.(themeChangeHandler);
   }
   let dragState = null;
-  let toolbarPos = { right: 20, top: null };
+  let toolbarPos = { side: config.position === "left" ? "left" : "right", inset: 20, top: null };
   function getToolbarStyle() {
-    const r = toolbarPos.right;
+    const horizontal = `${toolbarPos.side}:${toolbarPos.inset}px;`;
     if (toolbarPos.top !== null) {
-      return `right:${r}px;top:${toolbarPos.top}px;transform:none;`;
+      return `${horizontal}top:${toolbarPos.top}px;transform:none;`;
     }
-    return `right:${r}px;bottom:20px;`;
+    return `${horizontal}bottom:20px;`;
   }
   function dismissCoachmark() {
     state.coachmarkVisible = false;
@@ -2606,8 +2817,8 @@ function createUIFeedback(options = {}) {
     state.comments.filter((item) => (item.page || "/") === page && ["edit", "css", "image"].includes(item.type)).sort((a, b) => String(a.createdAt || "").localeCompare(String(b.createdAt || ""))).forEach((item) => {
       const element = resolveSelector(item.selector);
       if (!element) return;
-      if (item.type === "edit") element.textContent = item.value || "";
-      else if (item.type === "css") element.style.cssText = item.value || "";
+      if (item.type === "edit" && element.textContent !== (item.value || "")) element.textContent = item.value || "";
+      else if (item.type === "css" && element.style.cssText !== (item.value || "")) element.style.cssText = item.value || "";
       else if (item.type === "image") applyImageState(element, item.newImageState || { kind: "src", src: item.value || "" });
     });
   }
@@ -2635,7 +2846,8 @@ function createUIFeedback(options = {}) {
     return 0;
   }
   function extractToolVersion(source) {
-    return String(source || "").match(/UI Feedback Tool v(\d+(?:\.\d+){2})/)?.[1] || "";
+    const value = String(source || "");
+    return value.match(/UI Feedback Tool v(\d+(?:\.\d+){2})/)?.[1] || value.match(/TOOL_VERSION\s*=\s*["'](\d+(?:\.\d+){2})["']/)?.[1] || "";
   }
   async function updateTool() {
     if (state.updateBusy) return;
@@ -2760,7 +2972,7 @@ function createUIFeedback(options = {}) {
     const content = renderGroupedComments(filtered);
     mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh s\xE1ch feedback">
       <header class="ui-feedback-panel__header" data-panel-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} \u0111ang m\u1EDF \xB7 ${resolvedCount} \u0111\xE3 xong \xB7 ${editCount} ch\u1EC9nh s\u1EEDa <span class="ui-feedback-drag-hint" title="K\xE9o \u0111\u1EC3 di chuy\u1EC3n">K\xE9o</span></small></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="T\u1EA1o GitHub Issue" title="T\u1EA1o GitHub Issue">${ICONS.github}</button>` : ""}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xu\u1EA5t Markdown" title="Xu\u1EA5t Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh" title="\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5">${ICONS.close}</button></span></header>
-      <div class="ui-feedback-panel__tabs" role="tablist"><button class="ui-feedback-panel__tab ${state.drawerTab === "all" ? "is-active" : ""}" data-panel-tab="all" role="tab">T\u1EA5t c\u1EA3 <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "comment" ? "is-active" : ""}" data-panel-tab="comment" role="tab">Ghi ch\xFA <span>${state.comments.filter((c) => c.type === "comment").length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "edit" ? "is-active" : ""}" data-panel-tab="edit" role="tab">Ch\u1EC9nh s\u1EEDa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "resolved" ? "is-active" : ""}" data-panel-tab="resolved" role="tab">\u0110\xE3 xong <span>${resolvedCount}</span></button></div>
+      <div class="ui-feedback-panel__tabs" role="tablist" aria-label="Nh\xF3m feedback"><button class="ui-feedback-panel__tab ${state.drawerTab === "all" ? "is-active" : ""}" data-panel-tab="all" role="tab" aria-selected="${state.drawerTab === "all"}">T\u1EA5t c\u1EA3 <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "comment" ? "is-active" : ""}" data-panel-tab="comment" role="tab" aria-selected="${state.drawerTab === "comment"}">Ghi ch\xFA <span>${state.comments.filter((c) => c.type === "comment").length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "edit" ? "is-active" : ""}" data-panel-tab="edit" role="tab" aria-selected="${state.drawerTab === "edit"}">Ch\u1EC9nh s\u1EEDa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "resolved" ? "is-active" : ""}" data-panel-tab="resolved" role="tab" aria-selected="${state.drawerTab === "resolved"}">\u0110\xE3 xong <span>${resolvedCount}</span></button></div>
       <div class="ui-feedback-panel__filter">
         <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="T\xECm feedback\u2026" value="${escapeAttribute(state.searchQuery)}" /></div>
         <select class="ui-feedback-filter-select" data-panel-filter aria-label="L\u1ECDc theo m\u1EE9c \u0111\u1ED9">
@@ -2778,12 +2990,10 @@ function createUIFeedback(options = {}) {
     mount.onpointerdown = handlePanelPointerDown;
     mount.oninput = handlePanelInput;
     mount.onchange = handlePanelChange;
+    mount.onkeydown = handlePanelKeydown;
   }
   function applyPanelPosition() {
     return panelController.applyPanelPosition();
-  }
-  function getWindowDragHandle(event, selector) {
-    return panelController.getWindowDragHandle(event, selector);
   }
   function handlePanelPointerDown(event) {
     return panelController.handlePointerDown(event);
@@ -2809,8 +3019,7 @@ function createUIFeedback(options = {}) {
       return;
     }
     if (target.dataset.copySelector) {
-      const copyResult = navigator.clipboard?.writeText?.(target.dataset.copySelector);
-      Promise.resolve(copyResult).then(() => showToast("\u0110\xE3 copy selector")).catch(() => showToast("Kh\xF4ng th\u1EC3 copy selector"));
+      copyText(target.dataset.copySelector).then((copied) => showToast(copied ? "\u0110\xE3 copy selector" : "Kh\xF4ng th\u1EC3 copy selector"));
       return;
     }
     if (target.dataset.panelAction === "close") togglePanel(false);
@@ -2831,7 +3040,7 @@ function createUIFeedback(options = {}) {
       if (body) {
         const filtered = getFilteredComments();
         const content = renderGroupedComments(filtered);
-        body.innerHTML = content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== "all" ? "Kh\xF4ng t\xECm th\u1EA5y feedback ph\xF9 h\u1EE3p." : "Ch\u01B0a c\xF3 feedback."}</div>`;
+        body.innerHTML = content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== "all" || state.filterCategory !== "all" ? "Kh\xF4ng t\xECm th\u1EA5y feedback ph\xF9 h\u1EE3p." : "Ch\u01B0a c\xF3 feedback."}</div>`;
       }
     }
   }
@@ -2844,11 +3053,26 @@ function createUIFeedback(options = {}) {
       renderPanel();
     }
   }
+  function handlePanelKeydown(event) {
+    const tab = event.target.closest?.("[data-panel-tab]");
+    if (tab && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
+      event.preventDefault();
+      const tabs = [...event.currentTarget.querySelectorAll("[data-panel-tab]")];
+      const offset = event.key === "ArrowRight" ? 1 : -1;
+      const next = tabs[(tabs.indexOf(tab) + offset + tabs.length) % tabs.length];
+      state.drawerTab = next.dataset.panelTab;
+      renderPanel();
+      root.querySelector(`[data-panel-tab="${state.drawerTab}"]`)?.focus();
+      return;
+    }
+    const card = event.target.closest?.("[data-comment-id]");
+    if (card === event.target && (event.key === "Enter" || event.key === " ")) {
+      event.preventDefault();
+      focusComment(card.dataset.commentId);
+    }
+  }
   function getItemCodeLine(item) {
     return commentsController.getItemCodeLine(item);
-  }
-  function renderItem(item) {
-    return commentsController.renderItem(item);
   }
   function clearResumeTimer() {
     return pickerController.clearResumeTimer();
@@ -2871,6 +3095,10 @@ function createUIFeedback(options = {}) {
   function focusComment(id) {
     const item = state.comments.find((comment) => comment.id === id);
     if (!item) return;
+    if ((item.page || "/") !== (location.pathname || "/")) {
+      showToast(`Feedback n\u1EB1m \u1EDF trang ${item.page || "/"}`);
+      return;
+    }
     const element = resolveSelector(item.selector);
     if (!element) {
       showToast("Kh\xF4ng t\xECm th\u1EA5y ph\u1EA7n t\u1EED tr\xEAn trang hi\u1EC7n t\u1EA1i");
@@ -2885,7 +3113,9 @@ function createUIFeedback(options = {}) {
     markers.forEach((m) => m.markerEl?.remove());
     markers.length = 0;
     if (!state.active) return;
-    state.comments.forEach((comment, index) => {
+    let commentNumber = 0;
+    const currentPage = location.pathname || "/";
+    state.comments.filter((comment) => (comment.page || "/") === currentPage).forEach((comment) => {
       let el;
       try {
         el = document.querySelector(comment.selector);
@@ -2893,37 +3123,39 @@ function createUIFeedback(options = {}) {
         el = null;
       }
       if (!el) return;
-      const marker = document.createElement("div");
+      const marker = document.createElement("button");
+      marker.type = "button";
       const typeClass = comment.type === "edit" ? " is-edit" : comment.type === "css" ? " is-css" : comment.type === "image" ? " is-image" : "";
       const resolvedClass = comment.resolved ? " is-resolved" : "";
       marker.className = `ui-feedback-marker${typeClass}${resolvedClass}`;
       if (comment.type === "edit") marker.textContent = "\u270E";
       else if (comment.type === "css") marker.textContent = "\u2726";
       else if (comment.type === "image") marker.textContent = "\u25A7";
-      else marker.textContent = index + 1;
-      marker.title = comment.type === "edit" ? `\u0110\xE3 s\u1EEDa text: ${safeText(comment.value, 80)}` : comment.type === "css" ? `\u0110\xE3 s\u1EEDa CSS: ${safeText(comment.value, 80)}` : comment.type === "image" ? `\u0110\xE3 thay \u1EA3nh: ${safeText(comment.value, 80)}` : `Feedback #${index + 1}`;
+      else {
+        commentNumber += 1;
+        marker.textContent = commentNumber;
+      }
+      marker.title = comment.type === "edit" ? `\u0110\xE3 s\u1EEDa text: ${safeText(comment.value, 80)}` : comment.type === "css" ? `\u0110\xE3 s\u1EEDa CSS: ${safeText(comment.value, 80)}` : comment.type === "image" ? `\u0110\xE3 thay \u1EA3nh: ${safeText(comment.value, 80)}` : `Feedback #${commentNumber}`;
       marker.dataset.commentId = comment.id;
-      marker.setAttribute("role", "button");
       marker.setAttribute("aria-label", marker.title);
       marker.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
         focusComment(comment.id);
       });
-      marker.style.position = "absolute";
       positionMarker(el, marker);
-      document.body.appendChild(marker);
+      markerLayer.appendChild(marker);
       markers.push({ element: el, markerEl: marker, commentId: comment.id });
     });
   }
   function positionMarker(el, marker) {
     const rect = el.getBoundingClientRect();
-    marker.style.top = `${window.scrollY + rect.top - 8}px`;
-    marker.style.left = `${window.scrollX + rect.left - 8}px`;
+    marker.style.top = `${rect.top - 8}px`;
+    marker.style.left = `${rect.left - 8}px`;
   }
   function refreshMarkerPositions() {
     markers.forEach((m) => {
-      if (m.element && m.markerEl) positionMarker(m.element, m.markerEl);
+      if (m.element?.isConnected && m.markerEl) positionMarker(m.element, m.markerEl);
     });
   }
   function clearMarkers() {
@@ -2935,14 +3167,15 @@ function createUIFeedback(options = {}) {
     state.target = element;
     state.mode = mode;
     state.modalSnapshot = mode === "css" ? { styleCssText: element?.style?.cssText || "" } : mode === "image" ? captureImageState(element) : null;
-    state.modalImageSource = mode === "image" ? state.modalSnapshot?.src || "" : "";
+    focusBeforeModal = shadow.activeElement || document.activeElement;
+    state.modalImageSource = mode === "image" ? state.modalSnapshot?.src || state.modalSnapshot?.effectiveSrc || "" : "";
     const initialPosition = mode === "image" ? state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || "50% 50%" : "50% 50%";
     state.modalImagePosition = mode === "image" ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
-    state.modalImageBaseTransform = mode === "image" ? state.modalSnapshot?.transform || "" : "";
-    state.modalImageZoom = mode === "image" ? imageEditor.parseImageZoom(state.modalSnapshot?.transform || "") : 100;
+    state.modalImageBaseTransform = mode === "image" ? state.modalSnapshot?.transform || state.modalSnapshot?.effectiveTransform || "" : "";
+    state.modalImageZoom = mode === "image" ? imageEditor.parseImageZoom(state.modalSnapshot?.transform || state.modalSnapshot?.effectiveTransform || "") : 100;
     state.modalCommitted = false;
     state.cssTab = mode === "css" ? "colors" : "advanced";
-    state.cssTransformBase = mode === "css" ? element?.style?.transform || "" : "";
+    state.cssTransformBase = mode === "css" ? String(element?.style?.transform || "").replace(/\btranslate(?:3d|x|y)?\([^)]*\)/gi, "").replace(/\s+/g, " ").trim() : "";
     state.cssPosition = mode === "css" ? parseTranslatePosition(element?.style?.translate || element?.style?.transform || (element ? getComputedStyle(element).translate : "") || (element ? getComputedStyle(element).transform : "") || "") : { x: 0, y: 0 };
     state.modalPosition = { x: 0, y: 0 };
     state.modalOpen = true;
@@ -2961,9 +3194,6 @@ function createUIFeedback(options = {}) {
   }
   function applyCssProperty(prop, value) {
     return cssEditor.applyCssProperty(prop, value);
-  }
-  function imageBackgroundSource(value) {
-    return imageEditor.imageBackgroundSource(value);
   }
   function parseTranslatePosition(value) {
     return cssEditor.parseTranslatePosition(value);
@@ -3015,8 +3245,19 @@ function createUIFeedback(options = {}) {
     const parsed = parseFloat(readCssValue(prop, ""));
     return Number.isFinite(parsed) ? parsed : fallback;
   }
+  function cssRangeValue(prop, fallback = 0) {
+    const raw = String(readCssValue(prop, "") || "");
+    const parsed = parseFloat(raw);
+    if (!Number.isFinite(parsed)) return fallback;
+    if (prop === "opacity") return parsed * 100;
+    if (prop === "lineHeight" && /px$/i.test(raw)) {
+      const fontSize = parseFloat(readCssValue("fontSize", "16px")) || 16;
+      return parsed / fontSize;
+    }
+    return parsed;
+  }
   function renderCssRange(label, prop, min, max, step, unit, fallback, formatter = (value) => `${value}${unit}`) {
-    const value = Math.max(min, Math.min(max, cssNumberValue(prop, fallback)));
+    const value = Math.max(min, Math.min(max, cssRangeValue(prop, fallback)));
     const output = formatter(value);
     return `<div class="ui-feedback-range-row"><div class="ui-feedback-range-row__head"><span>${label}</span><output data-css-output="${prop}">${output}</output></div><input type="range" min="${min}" max="${max}" step="${step}" data-css-range-prop="${prop}" data-css-range-unit="${unit}" data-css-range-output="${prop}" value="${value}" aria-label="${label}" /></div>`;
   }
@@ -3025,10 +3266,11 @@ function createUIFeedback(options = {}) {
     return `<label class="ui-feedback-css-select-row"><span>${label}</span><select data-css-select-prop="${prop}" aria-label="${label}">${options2.map((option) => `<option value="${escapeAttribute(option.value)}" ${option.value === current ? "selected" : ""}>${escapeHtml(option.label)}</option>`).join("")}</select></label>`;
   }
   function renderSpacingGroup(label, prop) {
+    const min = prop === "margin" ? -160 : 0;
     return `<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">${label}</div><div class="ui-feedback-spacing-grid">${CSS_SPACING_SIDES.map((side) => {
       const cssProp = `${prop}${side.prop}`;
-      const value = Math.max(0, Math.min(160, cssNumberValue(cssProp, 0)));
-      return `<label><span>${side.label}</span><input type="number" min="0" max="160" step="1" data-css-spacing="${cssProp}" value="${Math.round(value)}" inputmode="numeric" aria-label="${label} ${side.label}" /><output>${Math.round(value)}px</output></label>`;
+      const value = Math.max(min, Math.min(160, cssNumberValue(cssProp, 0)));
+      return `<label><span>${side.label}</span><input type="number" min="${min}" max="160" step="1" data-css-spacing="${cssProp}" value="${Math.round(value)}" inputmode="numeric" aria-label="${label} ${side.label}" /><output>${Math.round(value)}px</output></label>`;
     }).join("")}</div></div>`;
   }
   function renderTextAlign() {
@@ -3094,7 +3336,7 @@ function createUIFeedback(options = {}) {
       ["advanced", "\u2726 N\xE2ng cao"]
     ];
     const presets = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1ED9 c\xF3 s\u1EB5n</div><p class="ui-feedback-css-help">Ch\u1ECDn nhanh m\u1ED9t phong c\xE1ch, sau \u0111\xF3 tinh ch\u1EC9nh t\u1EEBng gi\xE1 tr\u1ECB \u1EDF c\xE1c tab b\xEAn c\u1EA1nh.</p><div class="ui-feedback-css-presets"><button class="ui-feedback-css-preset" data-css-preset="clean" type="button"><span>G\u1ECDn g\xE0ng</span><small>Kh\xF4ng b\xF3ng, bo 4px</small></button><button class="ui-feedback-css-preset" data-css-preset="soft" type="button"><span>Soft UI</span><small>Bo 14px, \u0111\u1ED5 b\xF3ng nh\u1EB9</small></button><button class="ui-feedback-css-preset" data-css-preset="focus" type="button"><span>Focus accent</span><small>Vi\u1EC1n accent n\u1ED5i b\u1EADt</small></button></div></div>`;
-    const colors = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">M\xE0u s\u1EAFc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join("")}<details class="ui-feedback-more-colors"><summary>\u2304 Th\xEAm 8 m\xE0u kh\xE1c</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join("")}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1EC1 m\u1EB7t & vi\u1EC1n</div>${renderCssRange("Border radius", "borderRadius", 0, 32, 1, "px", 0)}${renderCssRange("Border width", "borderWidth", 0, 12, 1, "px", 0)}${renderCssSelect("Border style", "borderStyle", [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }], "solid")}${renderCssRange("Opacity", "opacity", 0, 100, 1, "%", 100, (value) => `${Math.round(value)}%`)}</div>`;
+    const colors = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">M\xE0u s\u1EAFc</div>${CSS_COLOR_FIELDS.map(renderCssColorCard).join("")}<details class="ui-feedback-more-colors"><summary>\u2304 Th\xEAm ${EXTRA_COLOR_FIELDS.length} m\xE0u kh\xE1c</summary><div style="margin-top:6px">${EXTRA_COLOR_FIELDS.map(renderCssColorCard).join("")}</div></details></div><div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">B\u1EC1 m\u1EB7t & vi\u1EC1n</div>${renderCssRange("Border radius", "borderRadius", 0, 32, 1, "px", 0)}${renderCssRange("Border width", "borderWidth", 0, 12, 1, "px", 0)}${renderCssSelect("Border style", "borderStyle", [{ value: "none", label: "None" }, { value: "solid", label: "Solid" }, { value: "dashed", label: "Dashed" }, { value: "dotted", label: "Dotted" }], "solid")}${renderCssRange("Opacity", "opacity", 0, 100, 1, "%", 100, (value) => `${Math.round(value)}%`)}</div>`;
     const typography = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Typography</div>${renderFontRow("Font ch\u1EEF (Google Fonts)", "fontFamily")}${renderCssRange("C\u1EE1 ch\u1EEF", "fontSize", 10, 72, 1, "px", 16)}${renderCssSelect("\u0110\u1ED9 \u0111\u1EADm", "fontWeight", FONT_WEIGHT_OPTIONS, "400")}${renderCssRange("Line height", "lineHeight", 1, 2, 0.05, "", 1.5, (value) => Number(value).toFixed(2))}${renderCssRange("Letter spacing", "letterSpacing", -2, 4, 0.1, "px", 0, (value) => `${Number(value).toFixed(1)}px`)}${renderTextAlign()}${renderCssSelect("Bi\u1EBFn \u0111\u1ED5i ch\u1EEF", "textTransform", [{ value: "none", label: "Gi\u1EEF nguy\xEAn" }, { value: "uppercase", label: "UPPERCASE" }, { value: "capitalize", label: "Capitalize" }, { value: "lowercase", label: "lowercase" }], "none")}</div>`;
     const spacing = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">Kho\u1EA3ng c\xE1ch & k\xEDch th\u01B0\u1EDBc</div><p class="ui-feedback-css-help">\u0110\u1ED5i t\u1EEBng c\u1EA1nh tr\u1EF1c ti\u1EBFp. Gi\xE1 tr\u1ECB \u0111\u01B0\u1EE3c \xE1p d\u1EE5ng theo px \u0111\u1EC3 d\u1EC5 ki\u1EC3m so\xE1t khi review.</p>${renderSpacingGroup("Padding", "padding")}${renderSpacingGroup("Margin", "margin")}<div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">Chi\u1EC1u r\u1ED9ng</div><label class="ui-feedback-css-text-row"><span>Width</span><input type="text" data-css-text-prop="width" value="${escapeAttribute(readCssValue("width", "auto"))}" placeholder="auto \xB7 320px \xB7 80%" /></label><label class="ui-feedback-css-text-row"><span>Max-width</span><input type="text" data-css-text-prop="maxWidth" value="${escapeAttribute(readCssValue("maxWidth", "none"))}" placeholder="none \xB7 720px \xB7 100%" /></label></div><div class="ui-feedback-css-subsection"><div class="ui-feedback-css-subtitle">B\xF3ng n\xE2ng cao</div><label class="ui-feedback-css-text-row"><span>Box shadow</span><input type="text" data-css-text-prop="boxShadow" value="${escapeAttribute(readCssValue("boxShadow", "none"))}" placeholder="0 10px 30px rgba(0,0,0,.12)" /></label></div></div>`;
     const position = `<div class="ui-feedback-css-section"><div class="ui-feedback-css-section__title">V\u1ECB tr\xED 2D</div><div class="ui-feedback-position-pad" data-css-position-pad tabindex="0" aria-label="\u0110i\u1EC1u ch\u1EC9nh v\u1ECB tr\xED X Y"></div><div class="ui-feedback-position-sliders"><label><span>X</span><input type="range" min="-200" max="200" step="1" data-css-x value="${Math.round(state.cssPosition.x)}" /><output data-css-x-output>${Math.round(state.cssPosition.x)}px</output></label><label><span>Y</span><input type="range" min="-200" max="200" step="1" data-css-y value="${Math.round(state.cssPosition.y)}" /><output data-css-y-output>${Math.round(state.cssPosition.y)}px</output></label></div><div class="ui-feedback-position-inputs"><label><span>X (px)</span><input type="number" min="-200" max="200" step="1" data-css-x-number value="${Math.round(state.cssPosition.x)}" inputmode="numeric" /></label><label><span>Y (px)</span><input type="number" min="-200" max="200" step="1" data-css-y-number value="${Math.round(state.cssPosition.y)}" inputmode="numeric" /></label></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-position-reset type="button">\u0110\u1EB7t l\u1EA1i (0,0)</button></div><button class="ui-feedback-button ui-feedback-css-reset" data-css-reset type="button">\u21B6 Kh\xF4i ph\u1EE5c m\u1EB7c \u0111\u1ECBnh</button>`;
@@ -3104,7 +3346,7 @@ function createUIFeedback(options = {}) {
   }
   function renderImageContent() {
     const snapshot = state.modalSnapshot || captureImageState(state.target);
-    const source = state.modalImageSource || snapshot.src || "";
+    const source = state.modalImageSource || snapshot.src || snapshot.effectiveSrc || "";
     const position = state.modalImagePosition || { x: 50, y: 50 };
     const zoom = state.modalImageZoom || 100;
     const positionStyle = `object-position:${position.x}% ${position.y}%;transform:scale(${zoom / 100});transform-origin:50% 50%;`;
@@ -3120,10 +3362,10 @@ function createUIFeedback(options = {}) {
     const currentText = existing?.comment || (isEdit ? safeText(state.target?.textContent, 500) : "");
     const priorityValue = existing?.priority || "medium";
     const title = isEdit ? "S\u1EEDa n\u1ED9i dung UI" : isCss ? "B\u1ED9 giao di\u1EC7n" : isImage ? "Thay \u1EA3nh" : "Ghi ch\xFA feedback";
-    const commentContent = isEdit ? `<label class="ui-feedback-label" for="ui-feedback-input">N\u1ED9i dung hi\u1EC3n th\u1ECB</label><input class="ui-feedback-field" data-feedback-input value="${escapeAttribute(currentText)}" />` : isCss ? renderCssContent() : isImage ? renderImageContent() : `<label class="ui-feedback-label" for="ui-feedback-input">Element n\xE0y c\u1EA7n s\u1EEDa g\xEC?</label><textarea class="ui-feedback-textarea" data-feedback-input placeholder="V\xED d\u1EE5: T\u0103ng kho\u1EA3ng c\xE1ch gi\u1EEFa ti\xEAu \u0111\u1EC1 v\xE0 danh s\xE1ch\u2026">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">M\u1EE9c \u0111\u1ED9 \u01B0u ti\xEAn</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === "high" ? "selected" : ""}>Cao</option><option value="medium" ${priorityValue === "medium" ? "selected" : ""}>Trung b\xECnh</option><option value="low" ${priorityValue === "low" ? "selected" : ""}>Th\u1EA5p</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Ph\xE2n lo\u1EA1i</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || "other")}</select></div></div>`;
+    const commentContent = isEdit ? `<label class="ui-feedback-label" for="ui-feedback-input">N\u1ED9i dung hi\u1EC3n th\u1ECB</label><input id="ui-feedback-input" class="ui-feedback-field" data-feedback-input value="${escapeAttribute(currentText)}" />` : isCss ? renderCssContent() : isImage ? renderImageContent() : `<label class="ui-feedback-label" for="ui-feedback-input">Element n\xE0y c\u1EA7n s\u1EEDa g\xEC?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="V\xED d\u1EE5: T\u0103ng kho\u1EA3ng c\xE1ch gi\u1EEFa ti\xEAu \u0111\u1EC1 v\xE0 danh s\xE1ch\u2026">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">M\u1EE9c \u0111\u1ED9 \u01B0u ti\xEAn</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === "high" ? "selected" : ""}>Cao</option><option value="medium" ${priorityValue === "medium" ? "selected" : ""}>Trung b\xECnh</option><option value="low" ${priorityValue === "low" ? "selected" : ""}>Th\u1EA5p</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Ph\xE2n lo\u1EA1i</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || "other")}</select></div></div>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">\u0110\xF3ng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button" data-image-restore type="button">Kh\xF4i ph\u1EE5c</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u \u1EA3nh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">H\u1EE7y</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u</button>`;
     const modalClass = isCss || isImage ? "ui-feedback-modal is-inspector" : "ui-feedback-modal is-mini";
-    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">K\xE9o \u0111\u1EC3 di chuy\u1EC3n</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
+    mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">K\xE9o \u0111\u1EC3 di chuy\u1EC3n</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div><button type="button" class="ui-feedback-icon-button ui-feedback-modal__close" data-modal-action="cancel" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5" title="\u0110\xF3ng">${ICONS.close}</button></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
     applyModalPosition();
     mount.onclick = handleModalClick;
     mount.onpointerdown = handleModalPointerDown;
@@ -3158,6 +3400,7 @@ function createUIFeedback(options = {}) {
       applyCssProperty("borderRadius", "4px");
       applyCssProperty("boxShadow", "none");
       applyCssProperty("borderWidth", "1px");
+      applyCssProperty("borderStyle", "solid");
     } else if (name === "soft") {
       applyCssProperty("borderRadius", "14px");
       applyCssProperty("boxShadow", "0 10px 30px rgba(0,0,0,.12)");
@@ -3171,17 +3414,6 @@ function createUIFeedback(options = {}) {
     renderModal();
   }
   let imageDragState = null;
-  let modalDragState = null;
-  function updateModalPositionFromPointer(clientX, clientY) {
-    if (!modalDragState || !state.modalOpen) return;
-    const maxX = Math.max(0, window.innerWidth - 80);
-    const maxY = Math.max(0, window.innerHeight - 80);
-    state.modalPosition = {
-      x: Math.max(-maxX, Math.min(maxX, modalDragState.x + clientX - modalDragState.clientX)),
-      y: Math.max(-maxY, Math.min(maxY, modalDragState.y + clientY - modalDragState.clientY))
-    };
-    applyModalPosition();
-  }
   function updateImagePositionFromPointer(clientX, clientY) {
     if (!imageDragState || !state.modalOpen || state.mode !== "image") return;
     const rect = imageDragState.canvas.getBoundingClientRect();
@@ -3269,6 +3501,10 @@ function createUIFeedback(options = {}) {
   function loadImageFile(file) {
     if (!file?.type?.startsWith("image/")) {
       showToast("Vui l\xF2ng ch\u1ECDn file \u1EA3nh");
+      return;
+    }
+    if (Number(file.size) > 1024 * 1024) {
+      showToast("\u1EA2nh upload v\u01B0\u1EE3t gi\u1EDBi h\u1EA1n 1 MB");
       return;
     }
     const reader = new FileReader();
@@ -3360,6 +3596,7 @@ function createUIFeedback(options = {}) {
     if (reset && state.target && state.modalSnapshot) {
       event.stopPropagation();
       state.target.style.cssText = state.modalSnapshot.styleCssText || "";
+      state.cssPosition = parseTranslatePosition(state.target.style.translate || state.target.style.transform || "");
       renderModal();
       return;
     }
@@ -3367,10 +3604,10 @@ function createUIFeedback(options = {}) {
     if (restore && state.target && state.modalSnapshot) {
       event.stopPropagation();
       restoreImageState(state.target, state.modalSnapshot);
-      state.modalImageSource = state.modalSnapshot.src || "";
+      state.modalImageSource = state.modalSnapshot.src || state.modalSnapshot.effectiveSrc || "";
       state.modalImagePosition = parseImagePosition(state.modalSnapshot.objectPosition || state.modalSnapshot.effectiveObjectPosition || state.modalSnapshot.backgroundPosition || state.modalSnapshot.effectiveBackgroundPosition || "50% 50%");
-      state.modalImageBaseTransform = state.modalSnapshot.transform || "";
-      state.modalImageZoom = imageEditor.parseImageZoom(state.modalSnapshot.transform || "");
+      state.modalImageBaseTransform = state.modalSnapshot.transform || state.modalSnapshot.effectiveTransform || "";
+      state.modalImageZoom = imageEditor.parseImageZoom(state.modalSnapshot.transform || state.modalSnapshot.effectiveTransform || "");
       renderModal();
       return;
     }
@@ -3422,18 +3659,21 @@ function createUIFeedback(options = {}) {
       const unit = target.dataset.cssRangeUnit || "";
       if (prop === "colorAlpha") {
         applyCssProperty("color", colorWithAlpha(readCssValue("color", "#ffffff"), raw / 100));
+      } else if (prop === "opacity") {
+        applyCssProperty("opacity", String(raw / 100));
       } else {
         applyCssProperty(prop, `${raw}${unit}`);
       }
       const output = root.querySelector(`[data-css-output="${prop}"]`);
-      if (output) output.textContent = prop === "lineHeight" ? raw.toFixed(2) : `${raw}${unit}`;
+      if (output) output.textContent = prop === "lineHeight" ? raw.toFixed(2) : prop === "opacity" ? `${Math.round(raw)}%` : `${raw}${unit}`;
     } else if (target.matches("[data-css-number-prop]")) {
       const prop = target.dataset.cssNumberProp;
       const value = Math.max(-1e3, Math.min(1e3, Number(target.value) || 0));
       target.value = String(value);
       applyCssProperty(prop, String(value));
     } else if (target.matches("[data-css-spacing]")) {
-      const value = Math.max(0, Math.min(160, Number(target.value) || 0));
+      const min = target.dataset.cssSpacing.startsWith("margin") ? -160 : 0;
+      const value = Math.max(min, Math.min(160, Number(target.value) || 0));
       target.value = String(value);
       applyCssProperty(target.dataset.cssSpacing, `${value}px`);
       const output = target.parentElement?.querySelector("output");
@@ -3455,7 +3695,6 @@ function createUIFeedback(options = {}) {
       if (output) output.textContent = `${target.value}px`;
     } else if (target.matches("[data-image-url]")) {
       state.modalImageSource = target.value.trim();
-      previewImageSource(state.modalImageSource);
     }
   }
   function handleModalChange(event) {
@@ -3473,6 +3712,10 @@ function createUIFeedback(options = {}) {
       renderModal();
       return;
     }
+    if (target.matches("[data-image-url]")) {
+      previewImageSource(state.modalImageSource);
+      return;
+    }
     if (target.matches("[data-image-file]") && target.files?.[0]) loadImageFile(target.files[0]);
   }
   function handleModalKeydown(event) {
@@ -3483,6 +3726,20 @@ function createUIFeedback(options = {}) {
     if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
       event.preventDefault();
       saveModal();
+    }
+    if (event.key === "Tab") {
+      const modal = event.currentTarget?.querySelector?.(".ui-feedback-modal");
+      const focusable = [...modal?.querySelectorAll('button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])') || []].filter((element) => !element.hidden && element.getClientRects().length);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && shadow.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && shadow.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
     }
   }
   let editingExisting = null;
@@ -3548,7 +3805,7 @@ function createUIFeedback(options = {}) {
           type: modeUsed,
           selector: cssPath(state.target),
           tag: targetLabel(state.target),
-          category: modeUsed === "edit" ? "content" : "color",
+          category: modeUsed === "edit" ? "content" : { colors: "color", typography: "typography", spacing: "spacing", position: "layout" }[state.cssTab] || "other",
           codeLine: firstCodeLine(state.target),
           targetText: safeText(oldValue, 120),
           value: newValue,
@@ -3614,11 +3871,14 @@ function createUIFeedback(options = {}) {
     state.modalImageBaseTransform = "";
     state.modalCommitted = false;
     editingExisting = null;
+    const returnFocus = focusBeforeModal;
+    focusBeforeModal = null;
     renderToolbar2();
     placeMarkers();
     if (resumePicking) {
       resumePickingIfNeeded();
     }
+    if (returnFocus?.isConnected) setTimeout(() => returnFocus.focus?.({ preventScroll: true }), 0);
   }
   function editComment(id) {
     return commentsController.editComment(id);
@@ -3631,36 +3891,6 @@ function createUIFeedback(options = {}) {
   }
   function resolveComment(id) {
     return commentsController.resolveComment(id);
-  }
-  function renderItemMarkdown(item, index) {
-    const lines = [];
-    const status = item.resolved ? "\u2705 \u0110\xE3 x\u1EED l\xFD" : "\u23F3 Ch\u01B0a x\u1EED l\xFD";
-    const typeLabel = item.type === "edit" ? "\u270F\uFE0F Edit" : item.type === "css" ? "\u2726 B\u1ED9 giao di\u1EC7n" : item.type === "image" ? "\u25A7 Image" : "\u{1F4AC} Feedback";
-    const title = item.type === "edit" ? "S\u1EEDa text" : item.type === "css" ? "B\u1ED9 giao di\u1EC7n" : item.type === "image" ? "Thay \u1EA3nh" : "Feedback";
-    lines.push(`### ${index + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`, "", `- **Ti\xEAu \u0111\u1EC1:** ${title}`);
-    if (item.type === "edit") {
-      lines.push(`- **Text hi\u1EC7n t\u1EA1i:** ${escapeMarkdown(item.targetText || "")}`);
-      lines.push(`- **Text m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
-    } else if (item.type === "css") {
-      lines.push(`- **CSS c\u0169:** \`${escapeMarkdown(item.targetText || "")}\``);
-      lines.push(`- **CSS m\u1EDBi:** \`${escapeMarkdown(item.value || "")}\``);
-    } else if (item.type === "image") {
-      lines.push(`- **\u1EA2nh c\u0169:** ${escapeMarkdown(item.targetText || "Kh\xF4ng c\xF3")}`);
-      lines.push(`- **\u1EA2nh m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
-      lines.push(`- **Ngu\u1ED3n:** ${item.imageSourceType === "upload" ? "Upload t\u1EEB m\xE1y" : "URL website"}`);
-    } else {
-      lines.push(`- **\u01AFu ti\xEAn:** ${item.priority || "medium"}`);
-      lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || "")}`);
-    }
-    lines.push(`- **Ph\xE2n lo\u1EA1i:** ${categoryLabel(item.category, item.type)}`);
-    lines.push(`- **D\xF2ng code \u0111\u1EA7u:** \`${escapeMarkdown(item.codeLine || getItemCodeLine(item) || item.tag || "")}\``);
-    lines.push(`- **Selector:** \`${item.selector}\``);
-    lines.push(`- **Tr\u1EA1ng th\xE1i:** ${status}`);
-    if (item.viewport) lines.push(`- **Context:** \`${item.viewport}\` \xB7 \`${item.scrollY}px\``);
-    lines.push(`- **T\u1EA1o l\xFAc:** ${item.createdAt ? formatDate(new Date(item.createdAt)) : "N/A"}`);
-    lines.push(`- **C\u1EADp nh\u1EADt:** ${item.updatedAt ? formatDate(new Date(item.updatedAt)) : "N/A"}`);
-    lines.push("");
-    return lines;
   }
   function exportMarkdown() {
     return markdownExporter.exportMarkdown();
@@ -3708,7 +3938,8 @@ function createUIFeedback(options = {}) {
   }
   function keydown(event) {
     const inspector = state.pickerInspector;
-    const isFormControl = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement;
+    const editableTarget = (event.composedPath?.() || [event.target]).some((node) => node instanceof Element && isEditable(node));
+    const isFormControl = editableTarget;
     if (state.active && !state.modalOpen && !state.panelOpen) {
       if (event.key === "Enter" && state.picking && inspector?.candidate?.element) {
         event.preventDefault();
@@ -3760,6 +3991,7 @@ function createUIFeedback(options = {}) {
         return;
       }
     }
+    if (editableTarget) return;
     const key = normalizeShortcutKey(event);
     if (state.picking && state.highlight?.element && !state.pickingLocked) {
       const char = key.toUpperCase();
@@ -3803,7 +4035,7 @@ function createUIFeedback(options = {}) {
       recentShortcutKeys.push(key);
       while (recentShortcutKeys.length > config.shortcut.length) recentShortcutKeys.shift();
       const simultaneous = config.shortcut.every((r) => pressed.has(r));
-      const quickSequence = config.shortcut.every((r) => recentShortcutKeys.includes(r));
+      const quickSequence = recentShortcutKeys.length === config.shortcut.length && config.shortcut.every((required, index) => recentShortcutKeys[index] === required);
       if (simultaneous || quickSequence) {
         event.preventDefault();
         recentShortcutKeys.length = 0;
@@ -3894,7 +4126,7 @@ function createUIFeedback(options = {}) {
       }
       if (action === "copy") {
         const selector = state.pickerInspector?.selected?.selector || "";
-        Promise.resolve(navigator.clipboard?.writeText?.(selector)).then(() => showToast("\u0110\xE3 copy selector")).catch(() => showToast("Kh\xF4ng th\u1EC3 copy selector"));
+        copyText(selector).then((copied) => showToast(copied ? "\u0110\xE3 copy selector" : "Kh\xF4ng th\u1EC3 copy selector"));
         return;
       }
       pickerInspector?.openAction(action);
@@ -3961,14 +4193,15 @@ function createUIFeedback(options = {}) {
     dragState = {
       startX: event.clientX,
       startY: event.clientY,
-      startRight: window.innerWidth - rect.right,
+      startInset: toolbarPos.side === "left" ? rect.left : window.innerWidth - rect.right,
       startTop: rect.top
     };
     function onMove(e) {
       if (!dragState) return;
       const dx = e.clientX - dragState.startX;
       const dy = e.clientY - dragState.startY;
-      toolbarPos.right = Math.max(8, Math.min(window.innerWidth - 70, dragState.startRight - dx));
+      const nextInset = toolbarPos.side === "left" ? dragState.startInset + dx : dragState.startInset - dx;
+      toolbarPos.inset = Math.max(8, Math.min(window.innerWidth - 70, nextInset));
       toolbarPos.top = Math.max(40, Math.min(window.innerHeight - 100, dragState.startTop + dy));
       toolbar.style.cssText = getToolbarStyle();
     }
@@ -3987,8 +4220,8 @@ function createUIFeedback(options = {}) {
     pickerInspector?.closeInspector?.();
     measurementController?.destroy?.();
     clearMarkers();
-    window.removeEventListener("scroll", refreshMarkerPositions);
-    window.removeEventListener("resize", refreshMarkerPositions);
+    window.removeEventListener("scroll", handleViewportChange);
+    window.removeEventListener("resize", handleViewportChange);
     window.removeEventListener("pageshow", reapplyPageChanges);
     window.removeEventListener("popstate", reapplyPageChanges);
     document.removeEventListener("visibilitychange", reapplyPageChanges);
@@ -4001,16 +4234,34 @@ function createUIFeedback(options = {}) {
     host.removeEventListener("pointerdown", handleHostEvent, true);
     host.removeEventListener("click", handleHostEvent, true);
     host.removeEventListener("pointerdown", handleDragStart, true);
+    clearTimeout(shortcutTimer);
+    clearTimeout(reapplyTimer);
+    domObserver?.disconnect();
+    toastController?.dispose?.();
+    if (themeMedia && themeChangeHandler) {
+      if (themeMedia.removeEventListener) themeMedia.removeEventListener("change", themeChangeHandler);
+      else themeMedia.removeListener?.(themeChangeHandler);
+    }
     host.remove();
     delete window.__uiFeedbackInstance;
   }
-  const blurHandler = () => pressed.clear();
+  const blurHandler = () => {
+    pressed.clear();
+    recentShortcutKeys.length = 0;
+    clearTimeout(shortcutTimer);
+  };
+  const handleViewportChange = () => {
+    refreshMarkerPositions();
+    pickerInspector?.positionInspector?.();
+  };
   const reapplyPageChanges = () => {
     if (!state.active) return;
-    setTimeout(() => {
+    if (reapplyTimer) return;
+    reapplyTimer = setTimeout(() => {
+      reapplyTimer = null;
       applyPersistedChanges();
       placeMarkers();
-    }, 0);
+    }, 40);
   };
   panelController = createPanelController({ state, root, showToast });
   modalController = createModalController({ state, root, showToast });
@@ -4065,11 +4316,18 @@ function createUIFeedback(options = {}) {
   commentsController = createCommentsController(featureContext);
   markdownExporter = createMarkdownExporter(featureContext);
   githubIssueController = createGithubIssueController(featureContext);
+  if (typeof MutationObserver === "function") {
+    domObserver = new MutationObserver((mutations) => {
+      if (!state.active || !mutations.some((mutation) => !host.contains(mutation.target))) return;
+      reapplyPageChanges();
+    });
+    domObserver.observe(document.body || document.documentElement, { childList: true, subtree: true });
+  }
   document.addEventListener("keydown", keydown, true);
   document.addEventListener("keyup", keyup, true);
   window.addEventListener("blur", blurHandler);
-  window.addEventListener("scroll", refreshMarkerPositions, { passive: true });
-  window.addEventListener("resize", refreshMarkerPositions, { passive: true });
+  window.addEventListener("scroll", handleViewportChange, { passive: true });
+  window.addEventListener("resize", handleViewportChange, { passive: true });
   window.addEventListener("pageshow", reapplyPageChanges);
   window.addEventListener("popstate", reapplyPageChanges);
   document.addEventListener("visibilitychange", reapplyPageChanges);

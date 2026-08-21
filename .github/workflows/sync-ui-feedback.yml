@@ -25,10 +25,10 @@ jobs:
             const sourceSha = context.sha;
             const registrationFile = '.github/ui-feedback-sync.json';
 
-            const repositories = await github.paginate(
-              github.rest.repos.listForOrg,
-              { org: owner, type: 'all', per_page: 100 }
-            );
+            const repositories = (await github.paginate(
+              github.rest.repos.listForAuthenticatedUser,
+              { affiliation: 'owner', visibility: 'all', per_page: 100 }
+            )).filter((repository) => repository.owner.login.toLowerCase() === owner.toLowerCase());
 
             let registered = 0;
             let dispatched = 0;

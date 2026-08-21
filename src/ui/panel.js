@@ -1,6 +1,15 @@
 export function createPanelController(ctx) {
   const { state, root } = ctx;
 
+  function clampDelta(panel, nextX, nextY, current) {
+    if (!panel) return { x: nextX, y: nextY };
+    const rect = panel.getBoundingClientRect();
+    const margin = 8;
+    const dx = Math.max(margin - rect.left, Math.min(window.innerWidth - margin - rect.right, nextX - current.x));
+    const dy = Math.max(margin - rect.top, Math.min(window.innerHeight - margin - rect.bottom, nextY - current.y));
+    return { x: current.x + dx, y: current.y + dy };
+  }
+
   function getWindowDragHandle(event, selector) {
     if (event.pointerType === 'mouse' && event.button !== 0) return null;
     const path = typeof event.composedPath === 'function' ? event.composedPath() : [];
@@ -38,12 +47,12 @@ export function createPanelController(ctx) {
     try { handle.setPointerCapture?.(event.pointerId); } catch { /* unsupported capture */ }
     const onMove = (moveEvent) => {
       if (moveEvent.pointerId !== drag.pointerId) return;
-      const maxX = Math.max(0, window.innerWidth - 80);
-      const maxY = Math.max(0, window.innerHeight - 80);
-      state.panelPosition = {
-        x: Math.max(-maxX, Math.min(maxX, drag.x + moveEvent.clientX - drag.clientX)),
-        y: Math.max(-maxY, Math.min(maxY, drag.y + moveEvent.clientY - drag.clientY)),
-      };
+      state.panelPosition = clampDelta(
+        panel,
+        drag.x + moveEvent.clientX - drag.clientX,
+        drag.y + moveEvent.clientY - drag.clientY,
+        state.panelPosition || { x: 0, y: 0 },
+      );
       applyPanelPosition();
     };
     const onEnd = (endEvent) => {
@@ -63,5 +72,5 @@ export function createPanelController(ctx) {
     window.addEventListener('blur', onBlur);
   }
 
-  return { applyPanelPosition, resetPosition, handlePointerDown, getWindowDragHandle };
+  return { applyPanelPosition, resetPosition, handlePointerDown };
 }
