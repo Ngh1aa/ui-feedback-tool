@@ -127,10 +127,10 @@ export function createMeasurementController(ctx) {
     });
   }
 
-  function observe(element) {
+  function observe(...elements) {
     observer?.disconnect();
-    observer = typeof ResizeObserver === 'function' && element ? new ResizeObserver(recalibrate) : null;
-    observer?.observe(element);
+    observer = typeof ResizeObserver === 'function' && elements.some(Boolean) ? new ResizeObserver(recalibrate) : null;
+    elements.filter((element) => element instanceof Element).forEach((element) => observer?.observe(element));
     if (!scrollBound) {
       window.addEventListener('scroll', recalibrate, { passive: true });
       window.addEventListener('resize', recalibrate, { passive: true });
@@ -157,6 +157,7 @@ export function createMeasurementController(ctx) {
   function setMode(mode) {
     state.pickerInspector.measurement.mode = mode;
     state.pickerInspector.measurement.enabled = true;
+    observe(state.pickerInspector.selected?.element, state.pickerInspector.measurement.compareTarget);
     recalibrate();
   }
 
@@ -164,6 +165,7 @@ export function createMeasurementController(ctx) {
     if (!(element instanceof Element) || element.closest('#ui-feedback-host')) return false;
     state.pickerInspector.measurement.compareTarget = element;
     state.pickerInspector.measurement.enabled = true;
+    observe(state.pickerInspector.selected?.element, element);
     recalibrate();
     return true;
   }

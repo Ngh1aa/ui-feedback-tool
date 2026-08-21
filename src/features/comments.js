@@ -47,10 +47,11 @@ export function createCommentsController(ctx) {
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ''}
       <div class="ui-feedback-item__code" title="Dòng code đầu của component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || 'Không xác định')}</code></div>
     </div>` : '';
-    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''} ${expanded ? 'is-expanded' : ''}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}">
+    const priorityLabel = priority === 'high' ? 'Cao' : priority === 'low' ? 'Thấp' : 'Trung bình';
+    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''} ${expanded ? 'is-expanded' : ''}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}" tabindex="0" aria-label="Mở phần tử ${escapeAttribute(item.tag || item.selector)}">
       <div class="ui-feedback-item__meta">
         <div class="ui-feedback-item__identity"><span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">⧉</button></div>
-        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priority}</span><span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span></div>
+        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priorityLabel}</span><span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span></div>
       </div>
       <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">·</span> ${escapeHtml(item.targetText || 'Không có nội dung xem trước')}</p>
       ${content}
@@ -89,7 +90,16 @@ export function createCommentsController(ctx) {
   function editComment(id) {
     const item = state.comments.find((comment) => comment.id === id);
     if (!item) return;
-    ctx.openModalWithExisting(resolveSelector(item.selector) || document.body, ['css', 'image'].includes(item.type) ? item.type : 'comment', item);
+    if ((item.page || '/') !== (location.pathname || '/')) {
+      ctx.showToast(`Feedback nằm ở trang ${item.page || '/'}`);
+      return;
+    }
+    const element = resolveSelector(item.selector);
+    if (!element) {
+      ctx.showToast('Không tìm thấy phần tử để sửa feedback');
+      return;
+    }
+    ctx.openModalWithExisting(element, ['css', 'image'].includes(item.type) ? item.type : 'comment', item);
   }
 
   function deleteComment(id) {
@@ -101,6 +111,7 @@ export function createCommentsController(ctx) {
     ctx.renderToolbar();
     state.panelOpen = true;
     ctx.renderPanel();
+    ctx.placeMarkers();
     ctx.showToast('Đã xóa feedback', { undo: true });
   }
 
@@ -113,7 +124,18 @@ export function createCommentsController(ctx) {
       ctx.renderToolbar();
       state.panelOpen = true;
       ctx.renderPanel();
+      ctx.placeMarkers();
       ctx.showToast('Đã hoàn tác xóa');
+      return;
+    }
+    if (entry.type === 'export-clear') {
+      state.comments.splice(0, state.comments.length, ...entry.items);
+      ctx.persist();
+      ctx.renderToolbar();
+      state.panelOpen = true;
+      ctx.renderPanel();
+      ctx.placeMarkers();
+      ctx.showToast(`Đã khôi phục ${entry.items.length} mục`);
       return;
     }
     if (['edit', 'css', 'image'].includes(entry.type)) {
@@ -140,6 +162,7 @@ export function createCommentsController(ctx) {
     item.updatedAt = new Date().toISOString();
     ctx.persist();
     ctx.renderPanel();
+    ctx.placeMarkers();
     ctx.showToast(item.resolved ? 'Đã đánh dấu xong' : 'Đã mở lại feedback');
   }
 

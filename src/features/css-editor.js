@@ -17,7 +17,7 @@ export function createCssEditor(ctx) {
     if (/^#[0-9a-f]{6}$/i.test(raw)) return raw.toLowerCase();
     if (/^#[0-9a-f]{3}$/i.test(raw)) return raw.toLowerCase().replace(/^#(.)(.)(.)$/, '#$1$1$2$2$3$3');
     const match = raw.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
-    if (match) return `#${[match[1], match[2], match[3]].map((n) => Number(n).toString(16).padStart(2, '0')).join('')}`;
+    if (match) return `#${[match[1], match[2], match[3]].map((n) => Math.max(0, Math.min(255, Number(n))).toString(16).padStart(2, '0')).join('')}`;
     return fallback;
   }
 
@@ -51,7 +51,8 @@ export function createCssEditor(ctx) {
     const x = Math.max(-200, Math.min(200, Number(position.x) || 0));
     const y = Math.max(-200, Math.min(200, Number(position.y) || 0));
     state.cssPosition = { x, y };
-    if ('translate' in state.target.style || typeof CSS === 'undefined' || CSS.supports?.('translate', '0 0')) state.target.style.setProperty('translate', `${x}px ${y}px`);
+    const supportsTranslate = 'translate' in state.target.style || (typeof CSS !== 'undefined' && CSS.supports?.('translate', '0 0'));
+    if (supportsTranslate) state.target.style.setProperty('translate', `${x}px ${y}px`);
     else state.target.style.transform = `translate(${x}px, ${y}px)${state.cssTransformBase ? ` ${state.cssTransformBase}` : ''}`;
     const pad = root.querySelector('[data-css-position-pad]');
     if (pad) { pad.style.setProperty('--pad-x', `${x * 0.3}px`); pad.style.setProperty('--pad-y', `${y * 0.3}px`); }

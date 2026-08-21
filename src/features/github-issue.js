@@ -1,11 +1,14 @@
 import { categoryLabel } from '../core/config.js';
-import { escapeMarkdown } from '../core/dom-utils.js';
+import { copyText, escapeMarkdown } from '../core/dom-utils.js';
 
 export function createGithubIssueController(ctx) {
   const { state, config } = ctx;
 
   function createGithubIssue() {
-    if (!config.githubRepo) return;
+    if (!/^[\w.-]+\/[\w.-]+$/.test(config.githubRepo || '')) {
+      ctx.showToast('Cấu hình githubRepo chưa hợp lệ');
+      return;
+    }
     const unresolved = state.comments.filter((item) => !item.resolved);
     if (!unresolved.length) {
       ctx.showToast('Không có feedback nào đang mở!');
@@ -37,8 +40,14 @@ export function createGithubIssueController(ctx) {
       lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || 'N/A')}\``);
       lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : 'N/A'}\``, '');
     });
-    const body = encodeURIComponent(lines.join('\n'));
-    window.open(`https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review&body=${body}`, '_blank');
+    const markdown = lines.join('\n');
+    const issueUrl = `https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review&body=${encodeURIComponent(markdown)}`;
+    if (issueUrl.length > 7500) {
+      window.open(`https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review`, '_blank', 'noopener,noreferrer');
+      copyText(markdown).then((copied) => ctx.showToast(copied ? 'Nội dung dài đã được copy để dán vào Issue' : 'Issue đã mở; nội dung quá dài để điền tự động'));
+      return;
+    }
+    window.open(issueUrl, '_blank', 'noopener,noreferrer');
     ctx.showToast('Đang mở trang tạo Issue');
   }
 

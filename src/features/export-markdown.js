@@ -33,6 +33,7 @@ export function createMarkdownExporter(ctx) {
   }
 
   function exportMarkdown() {
+    const exportedItems = state.comments.map((item) => ({ ...item }));
     const resolvedCount = state.comments.filter((item) => item.resolved).length;
     const openCount = state.comments.length - resolvedCount;
     const editCount = state.comments.filter((item) => ['edit', 'css', 'image'].includes(item.type)).length;
@@ -70,17 +71,19 @@ export function createMarkdownExporter(ctx) {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `ui-feedback-${new Date().toISOString().slice(0, 10)}.md`;
+    anchor.download = `ui-feedback-${new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)}.md`;
+    document.body.appendChild(anchor);
     anchor.click();
-    URL.revokeObjectURL(url);
+    anchor.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
     const exportedCount = state.comments.length;
     state.comments = [];
-    state.undoStack = [];
+    state.undoStack = exportedItems.length ? [{ type: 'export-clear', items: exportedItems }] : [];
     ctx.persist();
     ctx.clearMarkers();
     state.panelOpen = false;
     ctx.renderToolbar();
-    ctx.showToast(exportedCount ? `Đã xuất Markdown và làm sạch ${exportedCount} mục` : 'Đã xuất file Markdown');
+    ctx.showToast(exportedCount ? `Đã xuất và làm sạch ${exportedCount} mục` : 'Đã xuất file Markdown', { undo: exportedCount > 0 });
   }
 
   return { exportMarkdown, renderItemMarkdown };

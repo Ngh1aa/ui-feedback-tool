@@ -1,6 +1,8 @@
 # UI Feedback Tool
 
-Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web. Công cụ được bật hoặc tắt bằng cách **nhấn đồng thời Q + W + E**.
+Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web. Công cụ được bật hoặc tắt bằng cách **nhấn nhanh Q → W → E theo đúng thứ tự** hoặc giữ đồng thời ba phím. Phím tắt được bỏ qua khi người dùng đang nhập liệu để không làm gián đoạn website.
+
+[Mở demo GitHub Pages](https://ngh1aa.github.io/ui-feedback-tool/)
 
 ## Tính năng
 
@@ -8,7 +10,7 @@ Công cụ có một **floating action dock** dạng pill ở đáy màn hình, 
 
 Chế độ **Bộ CSS** mở một inspector bên phải có preset, tab nâng cao, màu HEX, font Google Fonts, border radius, opacity và điều khiển vị trí 2D bằng pad/sliders. Inspector và drawer Feedback đều có thể kéo từ thanh tiêu đề; vị trí cửa sổ được giữ trong suốt các lần re-render. Tọa độ CSS X/Y có cả slider và ô nhập số px, hai cách điều khiển luôn đồng bộ và có fallback tương thích cho `translate`/`transform`. Chế độ **Thay ảnh** áp dụng được cho cả thẻ `<img>` và phần tử có `background-image`, nhận URL website, file `image/*` hoặc ảnh từ clipboard, có preview, kéo-thả căn vị trí, zoom 30–300%, khôi phục và undo. File upload được giới hạn 1 MB để tránh làm đầy `localStorage`.
 
-Phiên bản v0.5 hỗ trợ marker tương tác để focus lại phần tử, coachmark hướng dẫn lần đầu, drawer có tab Tất cả/Ghi chú/Chỉnh sửa/Đã xong, filter theo mức độ và phân loại, resolve/unresolve, copy selector, xuất Markdown và tạo GitHub Issue. Sau khi xuất Markdown, phiên làm việc được làm sạch để tránh lẫn feedback cũ vào vòng review mới. Mỗi thẻ feedback hiển thị selector, phân loại và dòng code đầu của component; các thay đổi edit/image/CSS được tự áp dụng lại khi quay lại tab hoặc khôi phục trang.
+Phiên bản v0.12 hỗ trợ marker tương tác trong Shadow DOM, picker/measurement, drawer có tab Tất cả/Ghi chú/Chỉnh sửa/Đã xong, filter theo mức độ và phân loại, resolve/unresolve, copy selector, xuất Markdown và tạo GitHub Issue. Sau khi xuất Markdown, phiên làm việc được làm sạch nhưng có thể **Hoàn tác** để tránh mất dữ liệu ngoài ý muốn. Mỗi thẻ feedback hiển thị selector, phân loại và dòng code đầu của component; các thay đổi edit/image/CSS được tự áp dụng lại khi ứng dụng SPA render lại DOM.
 
 ## Tích hợp dạng ES module
 
@@ -35,9 +37,9 @@ createUIFeedback({
 });
 ```
 
-Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên ngoài. Accent mặc định là **trắng (`#ffffff`)**; có thể ghi đè bằng `accent` khi cần. Nếu project không dùng module, có thể copy file bundle vào thư mục public rồi nạp bằng `type="module"`.
+Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên ngoài. Accent mặc định là **trắng (`#ffffff`)**; có thể ghi đè bằng `accent` khi cần. `githubRepo` mặc định để trống để tool không vô tình tạo Issue vào sai project. Nếu project không dùng module, có thể copy file bundle vào thư mục public rồi nạp bằng `type="module"`.
 
-## Kiến trúc source v0.8
+## Kiến trúc source v0.12
 
 Source phát triển nằm trong `src/index.js` và các module con; `src/ui-feedback.js` là bundle ESM một file được tạo bởi `npm run build` để giữ tương thích với GitHub Pages và workflow đồng bộ hiện tại. Không nên sửa trực tiếp bundle nếu thay đổi cần tồn tại lâu dài.
 
@@ -59,11 +61,11 @@ Sau khi sửa module, chạy `npm run check:all`, `npm test` và `npm run build`
 2. Bấm Comment, Edit, Bộ giao diện hoặc Thay ảnh rồi chọn phần tử cần xử lý. Ở chế độ Thay ảnh, nếu click vào wrapper chứa duy nhất một ảnh, tool sẽ chọn đúng thẻ `<img>` bên trong.
 3. Nhập feedback và chọn phân loại, chỉnh các control của Bộ CSS, hoặc nhập URL/chọn file/dán ảnh trong Thay ảnh. Kéo thanh tiêu đề để di chuyển drawer/inspector; trong Bộ CSS có thể kéo pad 2D, dùng slider hoặc nhập trực tiếp X/Y theo px. Kéo trực tiếp trên preview để căn ảnh vào khung; dùng zoom hoặc pad 2D khi cần tinh chỉnh. Các thay đổi chỉ tác động lên bản preview hiện tại cho đến khi bấm Lưu.
 4. Mở Clipboard để xem, xóa, resolve hoặc xuất feedback. Nút Undo hoàn tác cả edit, Bộ giao diện và thay ảnh.
-5. Bấm nút tải xuống trong panel để tạo file `ui-feedback-YYYY-MM-DD.md`; sau khi tải xong, danh sách feedback trong phiên hiện tại sẽ được reset.
+5. Bấm nút tải xuống trong panel để tạo file Markdown có timestamp; sau khi tải xong, danh sách feedback trong phiên hiện tại được reset và có thể hoàn tác trong toast.
 
 ## Đồng bộ tự động giữa các repository
 
-`Ngh1aa/ui-feedback-tool` là repository nguồn canonical của source modules và bundle `src/ui-feedback.js`. Mỗi khi file này được push lên nhánh `main`, workflow nguồn sẽ quét các repository thuộc organization `Ngh1aa` và gửi event cập nhật **chỉ tới những repository đã đăng ký opt-in**.
+`Ngh1aa/ui-feedback-tool` là repository nguồn canonical của source modules và bundle `src/ui-feedback.js`. Mỗi khi file này được push lên nhánh `main`, workflow nguồn sẽ quét các repository do owner `Ngh1aa` sở hữu và gửi event cập nhật **chỉ tới những repository đã đăng ký opt-in**.
 
 Một repository được đăng ký bằng file:
 
@@ -107,7 +109,7 @@ vào:
 .github/workflows/sync-ui-feedback.yml
 ```
 
-Cuối cùng, thêm repository secret `SYNC_TOKEN` trong **Settings → Secrets and variables → Actions → Repository secrets** của repository đích. Token cần quyền `Contents: Read and write` trên organization `Ngh1aa`.
+Cuối cùng, thêm repository secret `SYNC_TOKEN` trong **Settings → Secrets and variables → Actions → Repository secrets** của repository đích. Token cần quyền `Contents: Read and write` trên các repository của tài khoản `Ngh1aa`.
 
 Hướng dẫn đầy đủ nằm tại [docs/ADD-REPOSITORY.md](docs/ADD-REPOSITORY.md).
 
@@ -128,3 +130,5 @@ Mỗi file có URL, ngày xuất, số lượng feedback, selector CSS, nội du
 ## Lưu ý triển khai
 
 Đây là công cụ cho môi trường thiết kế, preview hoặc staging. Không nên bật mặc định trong production cho khách truy cập cuối. Khi tích hợp nhiều project, mỗi project nên dùng `storageKey` và `githubRepo` riêng để dữ liệu feedback và GitHub Issue không bị trộn lẫn.
+
+Demo được tách thành `demo/index.html`, `demo/styles.css` và `demo/demo.js`; workflow Pages tự deploy từ `main`. Source module là nguồn chỉnh sửa, còn `src/ui-feedback.js` là artifact được tạo bởi `npm run build`.

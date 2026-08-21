@@ -6,15 +6,20 @@ export function createImageEditor() {
 
   function parseImagePosition(value) {
     const parts = String(value || '').trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const convert = (part, fallback) => {
+    const convert = (part, fallback, axis) => {
       if (!part) return fallback;
-      if (part === 'left' || part === 'top') return 0;
+      if ((axis === 'x' && part === 'left') || (axis === 'y' && part === 'top')) return 0;
       if (part === 'center') return 50;
-      if (part === 'right' || part === 'bottom') return 100;
+      if ((axis === 'x' && part === 'right') || (axis === 'y' && part === 'bottom')) return 100;
       const numeric = parseFloat(part);
       return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : fallback;
     };
-    return { x: convert(parts[0], 50), y: convert(parts[1], 50) };
+    const horizontal = parts.find((part) => ['left', 'right'].includes(part));
+    const vertical = parts.find((part) => ['top', 'bottom'].includes(part));
+    if (horizontal || vertical) {
+      return { x: convert(horizontal || 'center', 50, 'x'), y: convert(vertical || 'center', 50, 'y') };
+    }
+    return { x: convert(parts[0], 50, 'x'), y: convert(parts[1], 50, 'y') };
   }
 
   function isImageElement(element) {
@@ -35,7 +40,7 @@ export function createImageEditor() {
     if (isImageElement(element)) {
       let computed = {};
       try { computed = getComputedStyle(element); } catch { /* inaccessible style */ }
-      return { kind: 'src', src: element.currentSrc || element.getAttribute('src') || '', srcset: element.getAttribute('srcset') || '', backgroundImage: '', objectPosition: element.style.objectPosition || '', objectFit: element.style.objectFit || '', transform: element.style.transform || '', effectiveObjectPosition: computed.objectPosition || '50% 50%', effectiveTransform: computed.transform || 'none' };
+      return { kind: 'src', src: element.getAttribute('src') || '', effectiveSrc: element.currentSrc || '', srcset: element.getAttribute('srcset') || '', backgroundImage: '', objectPosition: element.style.objectPosition || '', objectFit: element.style.objectFit || '', transform: element.style.transform || '', effectiveObjectPosition: computed.objectPosition || '50% 50%', effectiveTransform: computed.transform || 'none' };
     }
     const backgroundImage = element.style.backgroundImage || (() => { try { return getComputedStyle(element).backgroundImage || ''; } catch { return ''; } })();
     let computed = {};
@@ -69,10 +74,11 @@ export function createImageEditor() {
     const safeZoom = clampZoom(zoom);
     if (isImageElement(element)) {
       const base = String(baseTransform || '').trim();
-      const preserved = base && base !== 'none' && !/scale\(/i.test(base) ? `${base} ` : '';
+      const withoutScale = base.replace(/\bscale(?:3d|x|y)?\([^)]*\)/gi, '').replace(/\s+/g, ' ').trim();
+      const preserved = withoutScale && withoutScale !== 'none' ? `${withoutScale} ` : '';
       element.style.transform = `${preserved}scale(${safeZoom / 100})`;
     } else {
-      element.style.backgroundSize = safeZoom === 100 ? 'cover' : `${safeZoom}% ${safeZoom}%`;
+      element.style.backgroundSize = safeZoom === 100 ? 'cover' : `${safeZoom}%`;
     }
   }
 
@@ -109,9 +115,17 @@ export function createImageEditor() {
   function validateImageSource(source) {
     const value = String(source || '').trim();
     if (!value) return false;
-    if (value.startsWith('data:image/')) return value.length <= 1000000;
+    if (value.startsWith('data:image/')) {
+      try {
+        const payload = value.split(',', 2)[1] || '';
+        const bytes = /;base64,/i.test(value)
+          ? Math.floor((payload.length * 3) / 4) - (payload.endsWith('==') ? 2 : payload.endsWith('=') ? 1 : 0)
+          : new TextEncoder().encode(decodeURIComponent(payload)).length;
+        return bytes <= 1024 * 1024;
+      } catch { return false; }
+    }
     try { return ['http:', 'https:'].includes(new URL(value, location.href).protocol); } catch { return false; }
   }
 
-  return { imageBackgroundSource, parseImagePosition, parseImageZoom, captureImageState, applyImageSource, applyImagePosition, applyImageZoom, applyImageState, restoreImageState, validateImageSource };
+  return { parseImagePosition, parseImageZoom, captureImageState, applyImageSource, applyImagePosition, applyImageZoom, applyImageState, restoreImageState, validateImageSource };
 }

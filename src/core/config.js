@@ -1,29 +1,31 @@
-export const TOOL_VERSION = '0.11.0';
+export const TOOL_VERSION = '0.12.0';
 
 export const DEFAULTS = {
   version: TOOL_VERSION,
-  updateUrl: 'https://ngh1aa.github.io/Atelier/ui-feedback.js',
+  updateUrl: 'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
   updateMirrors: [
-    'https://ngh1aa.github.io/Atelier/ui-feedback.js',
-    'https://ngh1aa.github.io/LuxRoom/ui-feedback.js',
-    'https://ngh1aa.github.io/StudioOS/ui-feedback.js',
     'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
+    'https://ngh1aa.github.io/ui-feedback-tool/src/ui-feedback.js',
   ],
   shortcut: ['q', 'w', 'e'],
   storageKey: 'ui-feedback-session',
   accent: '#ffffff',
   position: 'right',
   theme: 'auto',
-  githubRepo: 'Ngh1aa/StudioOS',
+  githubRepo: '',
   persistActive: true,
   coachmark: true,
 };
 
 export function mergeConfig(options = {}) {
+  const shortcutInput = Array.isArray(options.shortcut) ? options.shortcut : DEFAULTS.shortcut;
+  const shortcut = [...new Set(shortcutInput
+    .map((key) => String(key || '').trim().toLowerCase())
+    .filter(Boolean))];
   return {
     ...DEFAULTS,
     ...options,
-    shortcut: (options.shortcut || DEFAULTS.shortcut).map((key) => String(key).toLowerCase()),
+    shortcut: shortcut.length >= 2 ? shortcut : [...DEFAULTS.shortcut],
   };
 }
 
@@ -43,10 +45,8 @@ export const CATEGORY_LABELS = Object.fromEntries(
 );
 
 export const CSS_COLOR_FIELDS = [
-  { key: 'primary', label: 'Màu chính', prop: 'backgroundColor', fallback: '#cb0236', hint: 'background-color' },
-  { key: 'primaryText', label: 'Chữ trên màu chính', prop: 'color', fallback: '#ffffff', hint: 'color' },
-  { key: 'pageBackground', label: 'Nền trang', prop: 'backgroundColor', fallback: '#f4f8f8', hint: 'background-color' },
-  { key: 'text', label: 'Màu chữ', prop: 'color', fallback: '#1b212b', hint: 'color' },
+  { key: 'background', label: 'Màu nền phần tử', prop: 'backgroundColor', fallback: '#ffffff', hint: 'background-color' },
+  { key: 'text', label: 'Màu chữ phần tử', prop: 'color', fallback: '#1b212b', hint: 'color' },
 ];
 
 export const EXTRA_COLOR_FIELDS = [
@@ -56,7 +56,6 @@ export const EXTRA_COLOR_FIELDS = [
   { key: 'caret', label: 'Caret', prop: 'caretColor', fallback: '#f5a623', hint: 'caret-color' },
   { key: 'accent', label: 'Accent', prop: 'accentColor', fallback: '#f5a623', hint: 'accent-color' },
   { key: 'columnRule', label: 'Column rule', prop: 'columnRuleColor', fallback: '#d1d5db', hint: 'column-rule-color' },
-  { key: 'marker', label: 'Marker', prop: 'markerColor', fallback: '#f5a623', hint: 'marker-color' },
   { key: 'fill', label: 'SVG fill', prop: 'fill', fallback: '#f5a623', hint: 'fill' },
 ];
 

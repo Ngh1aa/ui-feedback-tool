@@ -10,8 +10,11 @@ export function createPickerController(ctx) {
 
   function clearHighlight() {
     if (!state.highlight) return;
-    state.highlight.element.setAttribute('style', state.highlight.style || '');
-    if (!state.highlight.style) state.highlight.element.removeAttribute('style');
+    const { element, outline, outlinePriority, outlineOffset, outlineOffsetPriority } = state.highlight;
+    if (element?.style) {
+      if (outline) element.style.setProperty('outline', outline, outlinePriority); else element.style.removeProperty('outline');
+      if (outlineOffset) element.style.setProperty('outline-offset', outlineOffset, outlineOffsetPriority); else element.style.removeProperty('outline-offset');
+    }
     state.highlight = null;
   }
 
@@ -19,7 +22,13 @@ export function createPickerController(ctx) {
     if (!(element instanceof Element) || element.closest('#ui-feedback-host')) return;
     if (state.highlight?.element === element) return;
     clearHighlight();
-    state.highlight = { element, style: element.getAttribute('style') };
+    state.highlight = {
+      element,
+      outline: element.style.getPropertyValue('outline'),
+      outlinePriority: element.style.getPropertyPriority('outline'),
+      outlineOffset: element.style.getPropertyValue('outline-offset'),
+      outlineOffsetPriority: element.style.getPropertyPriority('outline-offset'),
+    };
     element.style.setProperty('outline', `2px solid ${config.accent}`, 'important');
     element.style.setProperty('outline-offset', '3px', 'important');
   }
