@@ -4,6 +4,7 @@ import fs from 'node:fs';
 import { FONT_WEIGHT_OPTIONS, TEXT_ALIGN_OPTIONS, CSS_SPACING_SIDES } from '../src/core/config.js';
 import { DEFAULTS, categoryLabel, mergeConfig } from '../src/core/config.js';
 import { escapeHtml, escapeMarkdown, safeText } from '../src/core/dom-utils.js';
+import { createImageEditor } from '../src/features/image-editor.js';
 
 test('config keeps white accent and merges shortcut safely', () => {
   const config = mergeConfig({ shortcut: ['Q', 'W', 'E'], storageKey: 'test' });
@@ -41,6 +42,19 @@ test('text helpers escape HTML and Markdown safely', () => {
   assert.equal(escapeHtml('<script>"x"</script>'), '&lt;script&gt;&quot;x&quot;&lt;/script&gt;');
   assert.equal(escapeMarkdown('[feedback] *important*'), '\\[feedback\\] \\*important\\*');
   assert.equal(safeText('  one   two  '), 'one two');
+});
+
+test('image editor exposes reliable position and zoom controls', () => {
+  const editor = createImageEditor();
+  assert.deepEqual(editor.parseImagePosition('right bottom'), { x: 100, y: 100 });
+  assert.equal(editor.parseImageZoom('rotate(2deg) scale(1.75)'), 175);
+  assert.equal(editor.parseImageZoom('none'), 100);
+  const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(index.includes('data-image-position-step="left"'));
+  assert.ok(index.includes('data-image-position-step="right"'));
+  assert.ok(index.includes('data-image-position-step="up"'));
+  assert.ok(index.includes('data-image-position-step="down"'));
+  assert.ok(index.includes('applyImageZoom(state.target'));
 });
 
 test('Picker Inspector contracts keep selection, lock, breadcrumb and measurement isolated', () => {

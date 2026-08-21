@@ -21,12 +21,21 @@ export function createImageEditor() {
     return element instanceof Element && (element instanceof HTMLImageElement || element.tagName.toLowerCase() === 'img');
   }
 
+  function clampZoom(value) {
+    return Math.max(30, Math.min(300, Number(value) || 100));
+  }
+
+  function parseImageZoom(value) {
+    const match = String(value || '').match(/scale\(\s*([0-9.]+)\s*\)/i);
+    return match ? clampZoom(Number(match[1]) * 100) : 100;
+  }
+
   function captureImageState(element) {
     if (!(element instanceof Element)) return { kind: 'background', src: '', srcset: '', backgroundImage: '', backgroundPosition: '', backgroundSize: '' };
     if (isImageElement(element)) {
       let computed = {};
       try { computed = getComputedStyle(element); } catch { /* inaccessible style */ }
-      return { kind: 'src', src: element.currentSrc || element.getAttribute('src') || '', srcset: element.getAttribute('srcset') || '', backgroundImage: '', objectPosition: element.style.objectPosition || '', objectFit: element.style.objectFit || '', effectiveObjectPosition: computed.objectPosition || '50% 50%' };
+      return { kind: 'src', src: element.currentSrc || element.getAttribute('src') || '', srcset: element.getAttribute('srcset') || '', backgroundImage: '', objectPosition: element.style.objectPosition || '', objectFit: element.style.objectFit || '', transform: element.style.transform || '', effectiveObjectPosition: computed.objectPosition || '50% 50%', effectiveTransform: computed.transform || 'none' };
     }
     const backgroundImage = element.style.backgroundImage || (() => { try { return getComputedStyle(element).backgroundImage || ''; } catch { return ''; } })();
     let computed = {};
@@ -55,6 +64,18 @@ export function createImageEditor() {
     } else element.style.backgroundPosition = `${x}% ${y}%`;
   }
 
+  function applyImageZoom(element, zoom = 100, baseTransform = '') {
+    if (!(element instanceof Element)) return;
+    const safeZoom = clampZoom(zoom);
+    if (isImageElement(element)) {
+      const base = String(baseTransform || '').trim();
+      const preserved = base && base !== 'none' && !/scale\(/i.test(base) ? `${base} ` : '';
+      element.style.transform = `${preserved}scale(${safeZoom / 100})`;
+    } else {
+      element.style.backgroundSize = safeZoom === 100 ? 'cover' : `${safeZoom}% ${safeZoom}%`;
+    }
+  }
+
   function applyImageState(element, snapshot) {
     if (!(element instanceof Element) || !snapshot) return;
     if (snapshot.kind === 'src') {
@@ -62,6 +83,7 @@ export function createImageEditor() {
       if (snapshot.srcset) element.setAttribute('srcset', snapshot.srcset); else element.removeAttribute('srcset');
       if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition; else if (snapshot.effectiveObjectPosition) element.style.objectPosition = snapshot.effectiveObjectPosition;
       if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit;
+      if (snapshot.transform) element.style.transform = snapshot.transform; else element.style.removeProperty('transform');
     } else {
       element.style.backgroundImage = snapshot.backgroundImage || (snapshot.src ? `url("${snapshot.src.replace(/"/g, '\\"')}")` : '');
       if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition; else if (snapshot.effectiveBackgroundPosition) element.style.backgroundPosition = snapshot.effectiveBackgroundPosition;
@@ -76,6 +98,7 @@ export function createImageEditor() {
       if (snapshot.srcset) element.setAttribute('srcset', snapshot.srcset); else element.removeAttribute('srcset');
       if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition; else element.style.removeProperty('object-position');
       if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit; else element.style.removeProperty('object-fit');
+      if (snapshot.transform) element.style.transform = snapshot.transform; else element.style.removeProperty('transform');
     } else {
       element.style.backgroundImage = snapshot.backgroundImage || '';
       if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition; else element.style.removeProperty('background-position');
@@ -90,5 +113,5 @@ export function createImageEditor() {
     try { return ['http:', 'https:'].includes(new URL(value, location.href).protocol); } catch { return false; }
   }
 
-  return { imageBackgroundSource, parseImagePosition, captureImageState, applyImageSource, applyImagePosition, applyImageState, restoreImageState, validateImageSource };
+  return { imageBackgroundSource, parseImagePosition, parseImageZoom, captureImageState, applyImageSource, applyImagePosition, applyImageZoom, applyImageState, restoreImageState, validateImageSource };
 }

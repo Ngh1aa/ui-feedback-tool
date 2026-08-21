@@ -508,11 +508,12 @@ export function createUIFeedback(options = {}) {
     state.modalImageSource = mode === 'image' ? (state.modalSnapshot?.src || '') : '';
     const initialPosition = mode === 'image' ? (state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || '50% 50%') : '50% 50%';
     state.modalImagePosition = mode === 'image' ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
+    state.modalImageBaseTransform = mode === 'image' ? (state.modalSnapshot?.transform || '') : '';
+    state.modalImageZoom = mode === 'image' ? imageEditor.parseImageZoom(state.modalSnapshot?.transform || '') : 100;
     state.modalCommitted = false;
     state.cssTab = mode === 'css' ? 'colors' : 'advanced';
     state.cssTransformBase = mode === 'css' ? (element?.style?.transform || '') : '';
     state.cssPosition = mode === 'css' ? parseTranslatePosition(element?.style?.translate || element?.style?.transform || (element ? getComputedStyle(element).translate : '') || (element ? getComputedStyle(element).transform : '') || '') : { x: 0, y: 0 };
-    state.modalImageZoom = 100;
     state.modalPosition = { x: 0, y: 0 };
     state.modalOpen = true;
     renderToolbar();
@@ -546,6 +547,8 @@ export function createUIFeedback(options = {}) {
   function applyImageSource(element, source) { return imageEditor.applyImageSource(element, source); }
 
   function applyImagePosition(element, position = { x: 50, y: 50 }) { return imageEditor.applyImagePosition(element, position); }
+
+  function applyImageZoom(element, zoom = 100, baseTransform = '') { return imageEditor.applyImageZoom(element, zoom, baseTransform); }
 
   function applyImageState(element, snapshot) { return imageEditor.applyImageState(element, snapshot); }
 
@@ -673,9 +676,9 @@ export function createUIFeedback(options = {}) {
     const source = state.modalImageSource || snapshot.src || '';
     const position = state.modalImagePosition || { x: 50, y: 50 };
     const zoom = state.modalImageZoom || 100;
-    const positionStyle = `object-position:${position.x}% ${position.y}%;transform:scale(${zoom / 100});`;
+    const positionStyle = `object-position:${position.x}% ${position.y}%;transform:scale(${zoom / 100});transform-origin:50% 50%;`;
     const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="${positionStyle}" />` : '<span data-image-preview>Phần tử này chưa có ảnh URL trực tiếp. Hãy nhập URL hoặc chọn file.</span>';
-    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="Kéo ảnh để căn chỉnh">${preview}<span class="ui-feedback-image-canvas-hint">Kéo để căn chỉnh</span></div><div class="ui-feedback-image-zoom"><button type="button" data-image-zoom-step="-" aria-label="Thu nhỏ ảnh">−</button><input type="range" min="30" max="300" step="5" data-image-zoom value="${zoom}" aria-label="Zoom ảnh" /><button type="button" data-image-zoom-step="+" aria-label="Phóng to ảnh">+</button><output data-image-zoom-output>${zoom}%</output></div><div class="ui-feedback-image-position"><span>Vị trí ảnh</span><output data-image-position>${Math.round(position.x)}% · ${Math.round(position.y)}%</output></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><button type="button" class="ui-feedback-image-paste" data-image-paste>Dán ảnh từ clipboard (Ctrl/Cmd + V)</button><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
+    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>Đường dẫn ảnh · ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? 'đã đổi' : 'chưa đổi'}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="Kéo ảnh để căn chỉnh">${preview}<span class="ui-feedback-image-canvas-hint">Kéo ảnh để căn chỉnh</span></div><div class="ui-feedback-image-zoom"><button type="button" data-image-zoom-step="-" aria-label="Thu nhỏ ảnh">−</button><input type="range" min="30" max="300" step="5" data-image-zoom value="${zoom}" aria-label="Zoom ảnh" /><button type="button" data-image-zoom-step="+" aria-label="Phóng to ảnh">+</button><output data-image-zoom-output>${zoom}%</output></div><div class="ui-feedback-image-position"><span>Vị trí ảnh</span><output data-image-position>${Math.round(position.x)}% · ${Math.round(position.y)}%</output></div><div class="ui-feedback-image-position-controls" role="group" aria-label="Căn chỉnh vị trí ảnh"><button type="button" data-image-position-step="left" aria-label="Căn trái">← Trái</button><button type="button" data-image-position-step="right" aria-label="Căn phải">Phải →</button><button type="button" data-image-position-step="up" aria-label="Căn lên">↑ Lên</button><button type="button" data-image-position-step="down" aria-label="Căn xuống">Xuống ↓</button><button type="button" data-image-position-reset aria-label="Đặt ảnh về giữa">Đặt giữa</button></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL ảnh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><button type="button" class="ui-feedback-image-paste" data-image-paste>Dán ảnh từ clipboard (Ctrl/Cmd + V)</button><label class="ui-feedback-label" for="ui-feedback-image-file">Hoặc upload từ máy</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL gốc: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || 'Không có', 150))}</small><small class="ui-feedback-image-original">Upload local được giữ tối đa 1 MB để tránh làm đầy localStorage.</small></div>`;
   }
 
   function renderModal(existing = null) {
@@ -710,6 +713,7 @@ export function createUIFeedback(options = {}) {
     const preview = root.querySelector('[data-image-preview]');
     const position = state.modalImagePosition || { x: 50, y: 50 };
     if (preview?.tagName?.toLowerCase() === 'img') preview.style.objectPosition = `${position.x}% ${position.y}%`;
+    applyPreviewImageZoom();
     const output = root.querySelector('[data-image-position]');
     if (output) output.textContent = `${Math.round(position.x)}% · ${Math.round(position.y)}%`;
   }
@@ -719,8 +723,9 @@ export function createUIFeedback(options = {}) {
     if (!preview) return;
     if (!source) { preview.outerHTML = '<span data-image-preview>Hãy nhập URL hoặc chọn file để xem preview.</span>'; return; }
     if (preview.tagName?.toLowerCase() === 'img') preview.src = source;
-    else preview.outerHTML = `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="object-position:${state.modalImagePosition?.x || 50}% ${state.modalImagePosition?.y || 50}%;" />`;
+    else preview.outerHTML = `<img data-image-preview src="${escapeAttribute(source)}" alt="Ảnh preview" style="object-position:${state.modalImagePosition?.x || 50}% ${state.modalImagePosition?.y || 50}%;transform-origin:50% 50%;" />`;
     applyPreviewImagePosition();
+    applyPreviewImageZoom();
   }
 
   function applyCssPreset(name) {
@@ -760,20 +765,52 @@ export function createUIFeedback(options = {}) {
     if (!imageDragState || !state.modalOpen || state.mode !== 'image') return;
     const rect = imageDragState.canvas.getBoundingClientRect();
     const position = {
-      x: Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100)),
-      y: Math.max(0, Math.min(100, ((clientY - rect.top) / rect.height) * 100)),
+      x: Math.max(0, Math.min(100, imageDragState.x + ((clientX - imageDragState.clientX) / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, imageDragState.y + ((clientY - imageDragState.clientY) / rect.height) * 100)),
     };
     state.modalImagePosition = position;
     applyPreviewImagePosition();
     applyImagePosition(state.target, position);
   }
 
-  function handleModalPointerDown(event) { return modalController.handlePointerDown(event); }
+  function handleImagePointerDown(event) {
+    if (state.mode !== 'image' || !state.modalOpen || event.button !== 0) return;
+    const canvas = event.target.closest?.('[data-image-canvas]');
+    if (!canvas) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const position = state.modalImagePosition || { x: 50, y: 50 };
+    imageDragState = { canvas, clientX: event.clientX, clientY: event.clientY, x: position.x, y: position.y, pointerId: event.pointerId };
+    canvas.classList.add('is-dragging');
+    try { canvas.setPointerCapture?.(event.pointerId); } catch { /* unsupported capture */ }
+    const onMove = (moveEvent) => {
+      if (!imageDragState || moveEvent.pointerId !== imageDragState.pointerId) return;
+      updateImagePositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+    };
+    const onEnd = (endEvent) => {
+      if (endEvent?.pointerId != null && endEvent.pointerId !== imageDragState?.pointerId) return;
+      canvas.classList.remove('is-dragging');
+      try { canvas.releasePointerCapture?.(imageDragState?.pointerId); } catch { /* unsupported capture */ }
+      imageDragState = null;
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onEnd, true);
+      document.removeEventListener('pointercancel', onEnd, true);
+    };
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onEnd, true);
+    document.addEventListener('pointercancel', onEnd, true);
+  }
+
+  function handleModalPointerDown(event) {
+    handleImagePointerDown(event);
+    return modalController.handlePointerDown(event);
+  }
 
   function applyPreviewImageZoom() {
     const preview = root.querySelector('[data-image-preview]');
     const zoom = state.modalImageZoom || 100;
     if (preview?.tagName?.toLowerCase() === 'img') preview.style.transform = `scale(${zoom / 100})`;
+    if (state.target && state.mode === 'image') applyImageZoom(state.target, zoom, state.modalImageBaseTransform);
     const output = root.querySelector('[data-image-zoom-output]');
     if (output) output.textContent = `${zoom}%`;
   }
@@ -818,6 +855,28 @@ export function createUIFeedback(options = {}) {
   }
 
   function handleModalClick(event) {
+    const positionStep = event.target.closest('[data-image-position-step]');
+    if (positionStep) {
+      event.stopPropagation();
+      const position = { ...(state.modalImagePosition || { x: 50, y: 50 }) };
+      const step = 5;
+      if (positionStep.dataset.imagePositionStep === 'left') position.x -= step;
+      if (positionStep.dataset.imagePositionStep === 'right') position.x += step;
+      if (positionStep.dataset.imagePositionStep === 'up') position.y -= step;
+      if (positionStep.dataset.imagePositionStep === 'down') position.y += step;
+      state.modalImagePosition = { x: Math.max(0, Math.min(100, position.x)), y: Math.max(0, Math.min(100, position.y)) };
+      applyPreviewImagePosition();
+      applyImagePosition(state.target, state.modalImagePosition);
+      return;
+    }
+    const imagePositionReset = event.target.closest('[data-image-position-reset]');
+    if (imagePositionReset) {
+      event.stopPropagation();
+      state.modalImagePosition = { x: 50, y: 50 };
+      applyPreviewImagePosition();
+      applyImagePosition(state.target, state.modalImagePosition);
+      return;
+    }
     const zoomStep = event.target.closest('[data-image-zoom-step]');
     if (zoomStep) { event.stopPropagation(); state.modalImageZoom = Math.max(30, Math.min(300, (state.modalImageZoom || 100) + (zoomStep.dataset.imageZoomStep === '+' ? 15 : -15))); const input = root.querySelector('[data-image-zoom]'); if (input) input.value = state.modalImageZoom; applyPreviewImageZoom(); return; }
     const paste = event.target.closest('[data-image-paste]');
@@ -835,7 +894,7 @@ export function createUIFeedback(options = {}) {
     const reset = event.target.closest('[data-css-reset]');
     if (reset && state.target && state.modalSnapshot) { event.stopPropagation(); state.target.style.cssText = state.modalSnapshot.styleCssText || ''; renderModal(); return; }
     const restore = event.target.closest('[data-image-restore]');
-    if (restore && state.target && state.modalSnapshot) { event.stopPropagation(); restoreImageState(state.target, state.modalSnapshot); state.modalImageSource = state.modalSnapshot.src || ''; renderModal(); return; }
+    if (restore && state.target && state.modalSnapshot) { event.stopPropagation(); restoreImageState(state.target, state.modalSnapshot); state.modalImageSource = state.modalSnapshot.src || ''; state.modalImagePosition = parseImagePosition(state.modalSnapshot.objectPosition || state.modalSnapshot.effectiveObjectPosition || state.modalSnapshot.backgroundPosition || state.modalSnapshot.effectiveBackgroundPosition || '50% 50%'); state.modalImageBaseTransform = state.modalSnapshot.transform || ''; state.modalImageZoom = imageEditor.parseImageZoom(state.modalSnapshot.transform || ''); renderModal(); return; }
     const target = event.target.closest('[data-modal-action]');
     if (!target) return;
     event.stopPropagation();
@@ -904,8 +963,9 @@ export function createUIFeedback(options = {}) {
       const isX = target.matches('[data-css-x], [data-css-x-number]');
       state.cssPosition[isX ? 'x' : 'y'] = Number(target.value);
       applyCssPosition();
-    } else if (target.matches('[data-image-zoom]')) {
-      state.modalImageZoom = Number(target.value);
+    } else     if (target.matches('[data-image-zoom]')) {
+      state.modalImageZoom = Math.max(30, Math.min(300, Number(target.value) || 100));
+      target.value = state.modalImageZoom;
       applyPreviewImageZoom();
     } else if (target.matches('[data-css-radius]')) {
       applyCssProperty('borderRadius', `${target.value}px`);
@@ -968,6 +1028,7 @@ export function createUIFeedback(options = {}) {
       const oldImageState = state.modalSnapshot || captureImageState(state.target);
       applyImageSource(state.target, source);
       applyImagePosition(state.target, state.modalImagePosition || { x: 50, y: 50 });
+      applyImageZoom(state.target, state.modalImageZoom || 100, state.modalImageBaseTransform || '');
       const item = {
         id: generateId(), type: 'image', category: 'image', selector: cssPath(state.target), tag: targetLabel(state.target),
         codeLine: firstCodeLine(state.target),
@@ -1067,6 +1128,8 @@ export function createUIFeedback(options = {}) {
     state.modalSnapshot = null;
     state.modalImageSource = '';
     state.modalImagePosition = { x: 50, y: 50 };
+    state.modalImageZoom = 100;
+    state.modalImageBaseTransform = '';
     state.modalCommitted = false;
     editingExisting = null;
     renderToolbar();
