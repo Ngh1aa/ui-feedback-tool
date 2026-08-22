@@ -1,8 +1,14 @@
 /**
- * UI Feedback Tool v0.13.0
+ * UI Feedback Tool v0.14.0
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
+ *
+ * Changelog v0.14.0:
+ *   - UX: rút gọn cho quy trình cá nhân, bỏ UI cộng tác và GitHub Issue
+ *   - Export: Markdown AI-ready, có current/desired state và CSS diff
+ *   - Safety: xuất file không tự xóa danh sách thay đổi
+ *   - CSS: live preview cho mọi control và pad kéo vị trí 2D
  *
  * Changelog v0.11.0:
  *   - New: Picker Inspector với breadcrumb, lock selection và measurement overlay
@@ -82,7 +88,6 @@ import { createFeedbackState } from './core/state.js';
 import { STYLESHEET } from './stylesheet.js';
 import { createCommentsController } from './features/comments.js';
 import { createMarkdownExporter } from './features/export-markdown.js';
-import { createGithubIssueController } from './features/github-issue.js';
 import { createCssEditor } from './features/css-editor.js';
 import { createImageEditor } from './features/image-editor.js';
 import { createPickerController } from './features/picker.js';
@@ -109,7 +114,6 @@ export function createUIFeedback(options = {}) {
   let commentsController;
   let toastController;
   let markdownExporter;
-  let githubIssueController;
   let panelController;
   let modalController;
   let cssEditor;
@@ -237,40 +241,20 @@ export function createUIFeedback(options = {}) {
     renderPanel();
   }
 
-  function getFilteredComments() { return commentsController.getFilteredComments(); }
-
   function renderGroupedComments(items) { return commentsController.renderGroupedComments(items); }
-
-  function renderCategoryOptions(selected = 'all') { return commentsController.renderCategoryOptions(selected); }
 
   function renderPanel() {
     const mount = root.querySelector('[data-ui-feedback-panel]');
     if (!mount || !state.panelOpen) return;
-    const filtered = getFilteredComments();
-    const resolvedCount = state.comments.filter((c) => c.resolved).length;
-    const openCount = state.comments.filter((c) => !c.resolved && !['edit', 'css', 'image'].includes(c.type)).length;
-    const editCount = state.comments.filter((c) => ['edit', 'css', 'image'].includes(c.type)).length;
-    const content = renderGroupedComments(filtered);
-    mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh sách feedback">
-      <header class="ui-feedback-panel__header" data-panel-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} đang mở · ${resolvedCount} đã xong · ${editCount} chỉnh sửa <span class="ui-feedback-drag-hint" title="Kéo để di chuyển">Kéo</span></small></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="Tạo GitHub Issue" title="Tạo GitHub Issue">${ICONS.github}</button>` : ''}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xuất Markdown" title="Xuất Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="Đưa cửa sổ về vị trí mặc định" title="Đặt lại vị trí">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng cửa sổ">${ICONS.close}</button></span></header>
-      <div class="ui-feedback-panel__tabs" role="tablist" aria-label="Nhóm feedback"><button class="ui-feedback-panel__tab ${state.drawerTab === 'all' ? 'is-active' : ''}" data-panel-tab="all" role="tab" aria-selected="${state.drawerTab === 'all'}">Tất cả <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'comment' ? 'is-active' : ''}" data-panel-tab="comment" role="tab" aria-selected="${state.drawerTab === 'comment'}">Ghi chú <span>${state.comments.filter((c) => c.type === 'comment').length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'edit' ? 'is-active' : ''}" data-panel-tab="edit" role="tab" aria-selected="${state.drawerTab === 'edit'}">Chỉnh sửa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === 'resolved' ? 'is-active' : ''}" data-panel-tab="resolved" role="tab" aria-selected="${state.drawerTab === 'resolved'}">Đã xong <span>${resolvedCount}</span></button></div>
-      <div class="ui-feedback-panel__filter">
-        <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="Tìm feedback…" value="${escapeAttribute(state.searchQuery)}" /></div>
-        <select class="ui-feedback-filter-select" data-panel-filter aria-label="Lọc theo mức độ">
-          <option value="all" ${state.filterPriority === 'all' ? 'selected' : ''}>Mức độ</option>
-          <option value="high" ${state.filterPriority === 'high' ? 'selected' : ''}>Cao</option>
-          <option value="medium" ${state.filterPriority === 'medium' ? 'selected' : ''}>Trung bình</option>
-          <option value="low" ${state.filterPriority === 'low' ? 'selected' : ''}>Thấp</option>
-        </select>
-        <select class="ui-feedback-filter-select ui-feedback-filter-select--category" data-panel-category aria-label="Lọc theo phân loại">${renderCategoryOptions(state.filterCategory)}</select>
-      </div>
-      <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' || state.filterCategory !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback. Chọn biểu tượng comment rồi bấm vào một phần tử trên trang.'}</div>`}</div>
+    const content = renderGroupedComments(state.comments);
+    mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh sách thay đổi">
+      <header class="ui-feedback-panel__header" data-panel-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Danh sách thay đổi</strong><small>${state.comments.length} mục đã ghi nhận <span class="ui-feedback-drag-hint" title="Kéo để di chuyển">Kéo</span></small></div></div><span class="ui-feedback-panel__actions"><button class="ui-feedback-export-button" data-panel-action="export" aria-label="Xuất file Markdown" title="Xuất file Markdown">${ICONS.download}<span>Xuất .md</span></button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="Đưa cửa sổ về vị trí mặc định" title="Đặt lại vị trí">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="Đóng cửa sổ">${ICONS.close}</button></span></header>
+      <div class="ui-feedback-panel__intro">File Markdown sẽ mô tả rõ phần tử, trạng thái hiện tại và thay đổi mong muốn để AI có thể thực hiện ngay.</div>
+      <div class="ui-feedback-panel__body">${content || '<div class="ui-feedback-empty">Chưa có thay đổi. Chọn một công cụ trên thanh dưới rồi bấm vào phần tử cần chỉnh.</div>'}</div>
     </aside>`;
     applyPanelPosition();
     mount.onclick = handlePanelClick;
     mount.onpointerdown = handlePanelPointerDown;
-    mount.oninput = handlePanelInput;
-    mount.onchange = handlePanelChange;
     mount.onkeydown = handlePanelKeydown;
   }
 
@@ -279,10 +263,9 @@ export function createUIFeedback(options = {}) {
   function handlePanelPointerDown(event) { return panelController.handlePointerDown(event); }
 
   function handlePanelClick(event) {
-    const target = event.target.closest('[data-panel-action], [data-panel-tab], [data-edit-comment], [data-delete-comment], [data-resolve-comment], [data-copy-selector], [data-toggle-comment], [data-comment-id]');
+    const target = event.target.closest('[data-panel-action], [data-edit-comment], [data-delete-comment], [data-copy-selector], [data-toggle-comment], [data-comment-id]');
     if (!target) return;
     event.stopPropagation();
-    if (target.dataset.panelTab) { state.drawerTab = target.dataset.panelTab; renderPanel(); return; }
     if (target.dataset.toggleComment) {
       state.expandedComments[target.dataset.toggleComment] = !state.expandedComments[target.dataset.toggleComment];
       renderPanel();
@@ -292,51 +275,15 @@ export function createUIFeedback(options = {}) {
     if (target.dataset.copySelector) { copyText(target.dataset.copySelector).then((copied) => showToast(copied ? 'Đã copy selector' : 'Không thể copy selector')); return; }
     if (target.dataset.panelAction === 'close') togglePanel(false);
     else if (target.dataset.panelAction === 'export') exportMarkdown();
-    else if (target.dataset.panelAction === 'github') createGithubIssue();
     else if (target.dataset.editComment) editComment(target.dataset.editComment);
     else if (target.dataset.deleteComment) deleteComment(target.dataset.deleteComment);
-    else if (target.dataset.resolveComment) resolveComment(target.dataset.resolveComment);
     else {
       const card = event.target.closest('[data-comment-id]');
       if (card) focusComment(card.dataset.commentId);
     }
   }
 
-  function handlePanelInput(event) {
-    if (event.target.matches('[data-panel-search]')) {
-      state.searchQuery = event.target.value;
-      // Re-render body only
-      const body = root.querySelector('.ui-feedback-panel__body');
-      if (body) {
-        const filtered = getFilteredComments();
-        const content = renderGroupedComments(filtered);
-        body.innerHTML = content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== 'all' || state.filterCategory !== 'all' ? 'Không tìm thấy feedback phù hợp.' : 'Chưa có feedback.'}</div>`;
-      }
-    }
-  }
-
-  function handlePanelChange(event) {
-    if (event.target.matches('[data-panel-filter]')) {
-      state.filterPriority = event.target.value;
-      renderPanel();
-    } else if (event.target.matches('[data-panel-category]')) {
-      state.filterCategory = event.target.value;
-      renderPanel();
-    }
-  }
-
   function handlePanelKeydown(event) {
-    const tab = event.target.closest?.('[data-panel-tab]');
-    if (tab && ['ArrowLeft', 'ArrowRight'].includes(event.key)) {
-      event.preventDefault();
-      const tabs = [...event.currentTarget.querySelectorAll('[data-panel-tab]')];
-      const offset = event.key === 'ArrowRight' ? 1 : -1;
-      const next = tabs[(tabs.indexOf(tab) + offset + tabs.length) % tabs.length];
-      state.drawerTab = next.dataset.panelTab;
-      renderPanel();
-      root.querySelector(`[data-panel-tab="${state.drawerTab}"]`)?.focus();
-      return;
-    }
     const card = event.target.closest?.('[data-comment-id]');
     if (card === event.target && (event.key === 'Enter' || event.key === ' ')) {
       event.preventDefault();
@@ -395,8 +342,7 @@ export function createUIFeedback(options = {}) {
           : comment.type === 'image'
             ? ' is-image'
             : '';
-      const resolvedClass = comment.resolved ? ' is-resolved' : '';
-      marker.className = `ui-feedback-marker${typeClass}${resolvedClass}`;
+      marker.className = `ui-feedback-marker${typeClass}`;
       // Use a glyph for edit/css so they read as "touched", comment items
       // keep their numeric index for ordering.
       if (comment.type === 'edit') marker.textContent = '✎';
@@ -645,7 +591,6 @@ export function createUIFeedback(options = {}) {
     const isCss = state.mode === 'css';
     const isImage = state.mode === 'image';
     const currentText = existing?.comment || (isEdit ? String(state.target?.textContent || '') : '');
-    const priorityValue = existing?.priority || 'medium';
     const title = isEdit ? 'Sửa nội dung UI' : isCss ? 'Bộ giao diện' : isImage ? 'Thay ảnh' : 'Ghi chú feedback';
     const commentContent = isEdit
       ? `<label class="ui-feedback-label" for="ui-feedback-input">Nội dung hiển thị</label><textarea id="ui-feedback-input" class="ui-feedback-textarea ui-feedback-textarea--edit" data-feedback-input>${escapeHtml(currentText)}</textarea>`
@@ -653,7 +598,7 @@ export function createUIFeedback(options = {}) {
         ? renderCssContent()
         : isImage
           ? renderImageContent()
-          : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Phân loại</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || 'other')}</select></div></div>`;
+          : `<label class="ui-feedback-label" for="ui-feedback-input">Bạn muốn thay đổi gì ở phần tử này?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="Mô tả ngắn gọn kết quả mong muốn. Ví dụ: Tăng khoảng cách phía trên để tiêu đề thoáng hơn…">${escapeHtml(currentText)}</textarea><small class="ui-feedback-input-hint">Viết theo kết quả mong muốn; file Markdown sẽ tự bổ sung trang, selector và thông tin phần tử.</small>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
     const modalClass = isCss || isImage ? 'ui-feedback-modal is-editor' : 'ui-feedback-modal is-mini';
     mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">Kéo để di chuyển</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div><button type="button" class="ui-feedback-icon-button ui-feedback-modal__close" data-modal-action="cancel" aria-label="Đóng cửa sổ" title="Đóng">${ICONS.close}</button></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
@@ -1096,6 +1041,7 @@ export function createUIFeedback(options = {}) {
           category: modeUsed === 'edit' ? 'content' : ({ colors: 'color', typography: 'typography', spacing: 'spacing', position: 'layout' }[state.cssTab] || 'other'),
           codeLine: firstCodeLine(state.target),
           targetText: safeText(oldValue, 120),
+          oldValue,
           value: newValue,
           page: location.pathname || '/',
           viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -1119,8 +1065,8 @@ export function createUIFeedback(options = {}) {
     } else {
       const item = existing || { id: generateId(), createdAt: new Date().toISOString(), type: 'comment' };
       item.comment = value;
-      item.priority = root.querySelector('[data-feedback-priority]')?.value || item.priority || 'medium';
-      item.category = root.querySelector('[data-feedback-category]')?.value || item.category || 'other';
+      item.priority = item.priority || 'medium';
+      item.category = item.category || 'other';
       item.selector = cssPath(state.target);
       item.tag = targetLabel(state.target);
       item.codeLine = firstCodeLine(state.target);
@@ -1183,8 +1129,6 @@ export function createUIFeedback(options = {}) {
 
   function undoAction() { return commentsController.undoAction(); }
 
-  function resolveComment(id) { return commentsController.resolveComment(id); }
-
   /* ── export ── */
   function exportMarkdown() { return markdownExporter.exportMarkdown(); }
 
@@ -1192,9 +1136,6 @@ export function createUIFeedback(options = {}) {
   function showToast(message, opts = {}) {
     return toastController?.showToast(message, opts);
   }
-
-  /* ── github issue ── */
-  function createGithubIssue() { return githubIssueController.createGithubIssue(); }
 
   /* ── toggle ── */
   function toggle() {
@@ -1538,7 +1479,6 @@ export function createUIFeedback(options = {}) {
   toastController = createToastController({ root, undoAction: (...args) => commentsController?.undoAction(...args) });
   commentsController = createCommentsController(featureContext);
   markdownExporter = createMarkdownExporter(featureContext);
-  githubIssueController = createGithubIssueController(featureContext);
 
   if (typeof MutationObserver === 'function') {
     domObserver = new MutationObserver((mutations) => {

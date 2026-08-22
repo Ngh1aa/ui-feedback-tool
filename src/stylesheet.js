@@ -273,7 +273,11 @@ button { cursor: pointer; }
 .ui-feedback-window-grip svg { width: 15px; height: 15px; stroke: currentColor; fill: currentColor; stroke-width: 0; }
 .ui-feedback-window-heading:hover .ui-feedback-window-grip, .ui-feedback-modal__top:hover .ui-feedback-window-grip { color: var(--_text); border-color: var(--ui-feedback-accent); }
 .ui-feedback-drag-hint { margin-left: 6px; color: var(--_text-muted); font-size: 9px; font-weight: 600; opacity: .8; }
-.ui-feedback-panel__actions { display: flex; gap: 5px; }
+.ui-feedback-panel__actions { display: flex; align-items: center; gap: 5px; }
+.ui-feedback-export-button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px 11px; border: 1px solid var(--ui-feedback-accent); border-radius: 9px; color: #111827; background: var(--ui-feedback-accent); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.ui-feedback-export-button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+.ui-feedback-export-button:hover { filter: brightness(.96); transform: translateY(-1px); }
+.ui-feedback-panel__intro { margin: 10px 12px 0; padding: 10px 12px; border: 1px solid var(--_border); border-radius: 10px; color: var(--_text-muted); background: var(--_bg-alt); font-size: 11px; line-height: 1.5; }
 .ui-feedback-panel__tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 12px 0; background: var(--_bg-panel); }
 .ui-feedback-panel__tab { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; padding: 7px 8px 8px; color: var(--_text-muted); background: transparent; font-size: 10px; font-weight: 800; white-space: nowrap; }
 .ui-feedback-panel__tab:hover, .ui-feedback-panel__tab.is-active { color: var(--_text); border-bottom-color: color-mix(in srgb, var(--ui-feedback-accent), var(--_text) 28%); }
@@ -511,6 +515,7 @@ button { cursor: pointer; }
   font-size: 9px;
   font-weight: 700;
 }
+.ui-feedback-category-chip--muted { color: var(--_text-muted); background: transparent; }
 .ui-feedback-item__actions {
   display: flex;
   justify-content: flex-end;
@@ -583,6 +588,7 @@ button { cursor: pointer; }
 .ui-feedback-modal.is-editor .ui-feedback-modal__content { flex: 1; overflow: auto; }
 .ui-feedback-modal.is-mini { width: min(380px, calc(100vw - 32px)); }
 .ui-feedback-label { display: block; margin: 0 0 7px; color: var(--_text-secondary); font-size: 12px; font-weight: 700; }
+.ui-feedback-input-hint { display: block; margin-top: 8px; color: var(--_text-muted); font-size: 10px; line-height: 1.5; }
 .ui-feedback-field,
 .ui-feedback-textarea,
 .ui-feedback-select {

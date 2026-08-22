@@ -10,7 +10,7 @@ Công cụ có một **floating action dock** dạng pill ở đáy màn hình, 
 
 Chế độ **Bộ CSS** mở editor bên phải có preset, tab nâng cao, màu HEX, font Google Fonts, border radius, opacity và điều khiển vị trí 2D bằng pad/sliders. Mọi thao tác kéo, nhập hoặc chọn giá trị đều cập nhật trực tiếp phần tử đang chọn; **Lưu** xác nhận thay đổi, còn **Hủy** khôi phục trạng thái ban đầu. Editor và drawer Feedback đều có thể kéo từ thanh tiêu đề; vị trí cửa sổ được giữ trong suốt các lần re-render. Tọa độ CSS X/Y có cả pad kéo-thả, slider, ô nhập số px và phím mũi tên; các cách điều khiển luôn đồng bộ và có fallback tương thích cho `translate`/`transform`. Chế độ **Thay ảnh** áp dụng được cho cả thẻ `<img>` và phần tử có `background-image`, nhận URL website, file `image/*` hoặc ảnh từ clipboard, có preview, kéo-thả căn vị trí, zoom 30–300%, khôi phục và undo. File upload được giới hạn 1 MB để tránh làm đầy `localStorage`.
 
-Phiên bản v0.13 dùng flow trực tiếp: **chọn công cụ → bấm phần tử → mở đúng editor**, không còn bước Inspector hoặc Measurement xen giữa. Drawer có tab Tất cả/Ghi chú/Chỉnh sửa/Đã xong, filter theo mức độ và phân loại, resolve/unresolve, copy selector, xuất Markdown và tạo GitHub Issue. Sau khi xuất Markdown, phiên làm việc được làm sạch nhưng có thể **Hoàn tác** để tránh mất dữ liệu ngoài ý muốn. Mỗi thẻ feedback hiển thị selector, phân loại và dòng code đầu của component; các thay đổi edit/image/CSS được tự áp dụng lại khi ứng dụng SPA render lại DOM.
+Phiên bản v0.14 tập trung cho quy trình cá nhân: **chọn công cụ → bấm phần tử → chỉnh trực tiếp → lưu → xuất `.md`**. Danh sách được nhóm theo trang và chỉ giữ các thao tác cần thiết: xem phần tử, sửa ghi chú, xóa và xuất Markdown. File xuất ra được cấu trúc để AI hiểu ngay vị trí, trạng thái hiện tại và kết quả mong muốn; CSS chỉ liệt kê những thuộc tính thực sự thay đổi. Xuất file không tự xóa phiên làm việc. Các thay đổi edit/image/CSS vẫn được tự áp dụng lại khi ứng dụng SPA render lại DOM.
 
 ## Tích hợp dạng ES module
 
@@ -39,14 +39,14 @@ createUIFeedback({
 
 Công cụ không yêu cầu React, Vue, Tailwind hoặc thư viện icon bên ngoài. Accent mặc định là **trắng (`#ffffff`)**; có thể ghi đè bằng `accent` khi cần. `githubRepo` mặc định để trống để tool không vô tình tạo Issue vào sai project. Nếu project không dùng module, có thể copy file bundle vào thư mục public rồi nạp bằng `type="module"`.
 
-## Kiến trúc source v0.13
+## Kiến trúc source v0.14
 
 Source phát triển nằm trong `src/index.js` và các module con; `src/ui-feedback.js` là bundle ESM một file được tạo bởi `npm run build` để giữ tương thích với GitHub Pages và workflow đồng bộ hiện tại. Không nên sửa trực tiếp bundle nếu thay đổi cần tồn tại lâu dài.
 
 ```text
 src/
 ├── core/                 # config, state/persistence, DOM utilities
-├── features/             # comments, export Markdown, GitHub Issue và các feature editor
+├── features/             # danh sách thay đổi, Markdown AI-ready và các editor
 ├── ui/                   # toolbar, panel/modal drag controller, toast và icons
 ├── stylesheet.js         # stylesheet Shadow DOM
 ├── index.js              # createUIFeedback() và lifecycle orchestration
@@ -60,8 +60,8 @@ Sau khi sửa module, chạy `npm run check:all`, `npm test` và `npm run build`
 1. Trên trang preview, nhấn Q + W + E để bật công cụ.
 2. Bấm Comment, Edit, Bộ giao diện hoặc Thay ảnh rồi chọn phần tử cần xử lý. Ở chế độ Thay ảnh, nếu click vào wrapper chứa duy nhất một ảnh, tool sẽ chọn đúng thẻ `<img>` bên trong.
 3. Tool mở ngay đúng editor của công cụ đã chọn. Nhập feedback và chọn phân loại, chỉnh các control của Bộ CSS, hoặc nhập URL/chọn file/dán ảnh trong Thay ảnh. Kéo thanh tiêu đề để di chuyển drawer/editor; trong Bộ CSS có thể kéo pad 2D, dùng slider hoặc nhập trực tiếp X/Y theo px. Kéo trực tiếp trên preview để căn ảnh vào khung; dùng zoom hoặc pad 2D khi cần tinh chỉnh. Các thay đổi chỉ tác động lên bản preview hiện tại cho đến khi bấm Lưu; Hủy hoặc tắt tool sẽ khôi phục preview chưa lưu.
-4. Mở Clipboard để xem, xóa, resolve hoặc xuất feedback. Nút Undo hoàn tác cả edit, Bộ giao diện và thay ảnh.
-5. Bấm nút tải xuống trong panel để tạo file Markdown có timestamp; sau khi tải xong, danh sách feedback trong phiên hiện tại được reset và có thể hoàn tác trong toast.
+4. Mở Danh sách để kiểm tra các thay đổi được nhóm theo trang. Nút Hoàn tác áp dụng cho sửa chữ, CSS và hình ảnh.
+5. Bấm **Xuất .md** để tạo tài liệu yêu cầu AI-ready có timestamp. Danh sách vẫn được giữ nguyên sau khi xuất.
 
 ## Đồng bộ tự động giữa các repository
 
@@ -129,6 +129,6 @@ Mỗi file có URL, ngày xuất, số lượng feedback, selector CSS, nội du
 
 ## Lưu ý triển khai
 
-Đây là công cụ cho môi trường thiết kế, preview hoặc staging. Không nên bật mặc định trong production cho khách truy cập cuối. Khi tích hợp nhiều project, mỗi project nên dùng `storageKey` và `githubRepo` riêng để dữ liệu feedback và GitHub Issue không bị trộn lẫn. Bundle được cập nhật trong repository thông qua workflow đồng bộ; runtime không tự tải hoặc thay thế code từ GitHub Pages bên ngoài.
+Đây là công cụ cá nhân cho môi trường thiết kế, preview hoặc staging. Không nên bật mặc định trong production cho khách truy cập cuối. Khi tích hợp nhiều project, mỗi project nên dùng `storageKey` riêng để dữ liệu thay đổi không bị trộn lẫn. Bundle được cập nhật trong repository thông qua workflow đồng bộ; runtime không tự tải hoặc thay thế code từ GitHub Pages bên ngoài.
 
 Demo được tách thành `demo/index.html`, `demo/styles.css` và `demo/demo.js`; workflow Pages tự deploy từ `main`. Source module là nguồn chỉnh sửa, còn `src/ui-feedback.js` là artifact được tạo bởi `npm run build`.

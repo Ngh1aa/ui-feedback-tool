@@ -103,6 +103,8 @@ test('critical browser regressions remain guarded in source', () => {
   assert.ok(index.includes('if (!nextActive && state.modalOpen) closeModal(false);'));
   assert.ok(index.includes('ui-feedback-textarea--edit'));
   assert.ok(!index.includes('updateTool'));
+  assert.ok(!index.includes('createGithubIssueController'));
+  assert.ok(!index.includes('data-panel-action="github"'));
   assert.ok(!index.includes('lastToolbarActionAt'));
   assert.ok(picker.includes("getPropertyValue('outline')"));
   assert.ok(!stylesheet.includes('--ui-feedback-accent: #fff !important'));
@@ -134,7 +136,36 @@ test('empty export keeps the existing undo history', () => {
   const exporter = createMarkdownExporter({ state, showToast: (message) => { toast = message; } });
   exporter.exportMarkdown();
   assert.equal(state.undoStack.length, 1);
-  assert.equal(toast, 'Chưa có feedback để xuất');
+  assert.equal(toast, 'Chưa có thay đổi để xuất');
+});
+
+test('AI-ready Markdown explains intent and exports only changed CSS properties', () => {
+  const state = {
+    comments: [
+      {
+        id: 'css-one', type: 'css', page: '/home', tag: 'h1.hero-title', selector: 'main > h1.hero-title',
+        codeLine: '<h1 class="hero-title">', viewport: '1440x900', scrollY: 120,
+        oldValue: 'font-size: 32px; color: rgb(20, 20, 20); margin-bottom: 16px;',
+        value: 'font-size: 44px; color: rgb(20, 20, 20); margin-bottom: 24px;',
+        category: 'typography', updatedAt: '2026-08-23T00:00:00.000Z',
+      },
+      {
+        id: 'note-one', type: 'comment', page: '/home', tag: 'section.hero', selector: 'main > section.hero',
+        comment: 'Cho block này thoáng hơn và giữ nguyên hình nền.', category: 'layout', updatedAt: '2026-08-23T00:00:00.000Z',
+      },
+    ],
+  };
+  const exporter = createMarkdownExporter({ state, getItemCodeLine: () => '', showToast() {} });
+  const markdown = exporter.buildMarkdown({ href: 'https://example.com/home', now: new Date('2026-08-23T01:00:00.000Z') });
+  assert.ok(markdown.includes('# Yêu cầu cập nhật UI/UX'));
+  assert.ok(markdown.includes('giữ nguyên những phần không được đề cập'));
+  assert.ok(markdown.includes('## Trang: /home'));
+  assert.ok(markdown.includes('`main > h1.hero-title`'));
+  assert.ok(markdown.includes('| `font-size` | `32px` | `44px` |'));
+  assert.ok(markdown.includes('| `margin-bottom` | `16px` | `24px` |'));
+  assert.ok(!markdown.includes('| `color` |'));
+  assert.ok(markdown.includes('Cho block này thoáng hơn và giữ nguyên hình nền.'));
+  assert.equal(state.comments.length, 2);
 });
 
 test('GitHub Issue handoff includes location data without uploaded base64', () => {
