@@ -11,7 +11,7 @@ test('config keeps white accent and merges shortcut safely', () => {
   assert.equal(config.accent, '#ffffff');
   assert.deepEqual(config.shortcut, ['q', 'w', 'e']);
   assert.equal(config.storageKey, 'test');
-  assert.equal(DEFAULTS.version, '0.13.0');
+  assert.equal(DEFAULTS.version, '0.13.1');
   assert.equal(DEFAULTS.githubRepo, '');
   assert.equal('updateUrl' in DEFAULTS, false);
   assert.equal('updateMirrors' in DEFAULTS, false);

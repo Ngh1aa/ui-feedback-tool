@@ -5,6 +5,35 @@ import { createCommentsController } from '../src/features/comments.js';
 import { createMarkdownExporter } from '../src/features/export-markdown.js';
 import { createGithubIssueController } from '../src/features/github-issue.js';
 import { createImageEditor } from '../src/features/image-editor.js';
+import { createCssEditor } from '../src/features/css-editor.js';
+
+test('CSS controls apply live styles and position changes to the selected element', () => {
+  const inputs = [{ value: '' }, { value: '' }];
+  const pad = {
+    style: { setProperty() {} },
+    getBoundingClientRect: () => ({ left: 0, top: 0, width: 200, height: 100 }),
+  };
+  const target = { style: { transform: 'rotate(3deg)' } };
+  const state = { target, cssPosition: { x: 0, y: 0 }, cssTransformBase: 'rotate(3deg)' };
+  const root = {
+    querySelector: (selector) => selector === '[data-css-position-pad]' ? pad : null,
+    querySelectorAll: () => inputs,
+  };
+  const editor = createCssEditor({ state, root });
+
+  editor.applyCssProperty('opacity', '0.65');
+  assert.equal(target.style.opacity, '0.65');
+
+  editor.updatePositionFromPointer(150, 75);
+  assert.deepEqual(state.cssPosition, { x: 100, y: 100 });
+  assert.equal(target.style.transform, 'translate(100px, 100px) rotate(3deg)');
+  assert.deepEqual(inputs.map((input) => input.value), ['100', '100']);
+
+  const source = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  assert.ok(source.includes('handleCssPositionPointerDown'));
+  assert.ok(source.includes('updateCssPositionFromPointer(moveEvent.clientX, moveEvent.clientY)'));
+  assert.ok(source.includes('if (applyCssSelectControl(target))'));
+});
 
 test('image zoom preserves non-scale transforms and enforces a true 1 MiB data limit', () => {
   const PreviousElement = globalThis.Element;

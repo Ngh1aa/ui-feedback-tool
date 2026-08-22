@@ -747,7 +747,40 @@ export function createUIFeedback(options = {}) {
     document.addEventListener('pointercancel', onEnd, true);
   }
 
+  let cssPositionDragState = null;
+
+  function handleCssPositionPointerDown(event) {
+    if (state.mode !== 'css' || !state.modalOpen || event.button !== 0) return false;
+    const pad = event.target.closest?.('[data-css-position-pad]');
+    if (!pad) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    cssPositionDragState = { pad, pointerId: event.pointerId };
+    pad.classList.add('is-dragging');
+    updateCssPositionFromPointer(event.clientX, event.clientY);
+    try { pad.setPointerCapture?.(event.pointerId); } catch { /* unsupported capture */ }
+    const onMove = (moveEvent) => {
+      if (!cssPositionDragState || moveEvent.pointerId !== cssPositionDragState.pointerId) return;
+      moveEvent.preventDefault();
+      updateCssPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+    };
+    const onEnd = (endEvent) => {
+      if (endEvent?.pointerId != null && endEvent.pointerId !== cssPositionDragState?.pointerId) return;
+      pad.classList.remove('is-dragging');
+      try { pad.releasePointerCapture?.(cssPositionDragState?.pointerId); } catch { /* unsupported capture */ }
+      cssPositionDragState = null;
+      document.removeEventListener('pointermove', onMove, true);
+      document.removeEventListener('pointerup', onEnd, true);
+      document.removeEventListener('pointercancel', onEnd, true);
+    };
+    document.addEventListener('pointermove', onMove, true);
+    document.addEventListener('pointerup', onEnd, true);
+    document.addEventListener('pointercancel', onEnd, true);
+    return true;
+  }
+
   function handleModalPointerDown(event) {
+    if (handleCssPositionPointerDown(event)) return;
     handleImagePointerDown(event);
     return modalController.handlePointerDown(event);
   }
@@ -858,7 +891,9 @@ export function createUIFeedback(options = {}) {
 
   function handleModalInput(event) {
     const target = event.target;
-    if (target.matches('[data-css-color]')) {
+    if (applyCssSelectControl(target)) {
+      return;
+    } else if (target.matches('[data-css-color]')) {
       applyCssProperty(target.dataset.cssColor, target.value);
       const card = target.closest('[data-css-card]');
       const hex = card?.querySelector('[data-css-hex]');
@@ -933,19 +968,25 @@ export function createUIFeedback(options = {}) {
     }
   }
 
-  function handleModalChange(event) {
-    const target = event.target;
+  function applyCssSelectControl(target) {
     if (target.matches('[data-css-select-prop]')) {
       applyCssProperty(target.dataset.cssSelectProp, target.value);
-      return;
+      return true;
     }
     if (target.matches('[data-css-font]')) {
       const value = target.value;
       if (value) { ensureGoogleFont(value); applyCssProperty(target.dataset.cssFont, `'${value}', sans-serif`); }
       else applyCssProperty(target.dataset.cssFont, '');
-      renderModal();
-      return;
+      const label = target.closest('.ui-feedback-font-row')?.querySelector('.ui-feedback-font-row__value');
+      if (label) label.textContent = value || 'Mặc định của website';
+      return true;
     }
+    return false;
+  }
+
+  function handleModalChange(event) {
+    const target = event.target;
+    if (applyCssSelectControl(target)) return;
     if (target.matches('[data-image-url]')) {
       previewImageSource(state.modalImageSource);
       return;
@@ -954,6 +995,18 @@ export function createUIFeedback(options = {}) {
   }
 
   function handleModalKeydown(event) {
+    const cssPositionPad = event.target.closest?.('[data-css-position-pad]');
+    if (cssPositionPad && ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(event.key)) {
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const next = { ...state.cssPosition };
+      if (event.key === 'ArrowLeft') next.x -= step;
+      if (event.key === 'ArrowRight') next.x += step;
+      if (event.key === 'ArrowUp') next.y -= step;
+      if (event.key === 'ArrowDown') next.y += step;
+      applyCssPosition(next);
+      return;
+    }
     if (event.key === 'Escape') {
       event.preventDefault();
       closeModal(true); // resume picking on Escape

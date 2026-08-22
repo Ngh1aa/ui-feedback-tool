@@ -1,7 +1,7 @@
-// UI Feedback Tool v0.13.0
+// UI Feedback Tool v0.13.1
 
 // src/core/config.js
-var TOOL_VERSION = "0.13.0";
+var TOOL_VERSION = "0.13.1";
 var DEFAULTS = {
   version: TOOL_VERSION,
   shortcut: ["q", "w", "e"],
@@ -1168,6 +1168,7 @@ button { cursor: pointer; }
 .ui-feedback-css-preset:hover { border-color: var(--ui-feedback-accent); background: var(--_bg-hover); }
 .ui-feedback-css-reset { width: 100%; margin-top: 14px; }
 .ui-feedback-position-pad { position: relative; height: 132px; margin: 7px 0; border: 1px solid var(--_border); border-radius: 9px; background: linear-gradient(90deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), linear-gradient(0deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), var(--_bg-alt); cursor: crosshair; touch-action: none; }
+.ui-feedback-position-pad.is-dragging { cursor: grabbing; }
 .ui-feedback-position-pad::after { content: ""; position: absolute; left: calc(50% + var(--pad-x, 0px)); top: calc(50% + var(--pad-y, 0px)); width: 12px; height: 12px; border: 2px solid var(--ui-feedback-accent); border-radius: 50%; background: var(--_bg-panel); transform: translate(-50%, -50%); box-shadow: 0 1px 4px var(--_shadow); }
 .ui-feedback-position-sliders { display: grid; gap: 7px; }
 .ui-feedback-position-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -2943,7 +2944,44 @@ function createUIFeedback(options = {}) {
     document.addEventListener("pointerup", onEnd, true);
     document.addEventListener("pointercancel", onEnd, true);
   }
+  let cssPositionDragState = null;
+  function handleCssPositionPointerDown(event) {
+    if (state.mode !== "css" || !state.modalOpen || event.button !== 0) return false;
+    const pad = event.target.closest?.("[data-css-position-pad]");
+    if (!pad) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    cssPositionDragState = { pad, pointerId: event.pointerId };
+    pad.classList.add("is-dragging");
+    updateCssPositionFromPointer(event.clientX, event.clientY);
+    try {
+      pad.setPointerCapture?.(event.pointerId);
+    } catch {
+    }
+    const onMove = (moveEvent) => {
+      if (!cssPositionDragState || moveEvent.pointerId !== cssPositionDragState.pointerId) return;
+      moveEvent.preventDefault();
+      updateCssPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+    };
+    const onEnd = (endEvent) => {
+      if (endEvent?.pointerId != null && endEvent.pointerId !== cssPositionDragState?.pointerId) return;
+      pad.classList.remove("is-dragging");
+      try {
+        pad.releasePointerCapture?.(cssPositionDragState?.pointerId);
+      } catch {
+      }
+      cssPositionDragState = null;
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onEnd, true);
+      document.removeEventListener("pointercancel", onEnd, true);
+    };
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onEnd, true);
+    document.addEventListener("pointercancel", onEnd, true);
+    return true;
+  }
   function handleModalPointerDown(event) {
+    if (handleCssPositionPointerDown(event)) return;
     handleImagePointerDown(event);
     return modalController.handlePointerDown(event);
   }
@@ -3108,7 +3146,9 @@ function createUIFeedback(options = {}) {
   }
   function handleModalInput(event) {
     const target = event.target;
-    if (target.matches("[data-css-color]")) {
+    if (applyCssSelectControl(target)) {
+      return;
+    } else if (target.matches("[data-css-color]")) {
       applyCssProperty(target.dataset.cssColor, target.value);
       const card = target.closest("[data-css-card]");
       const hex = card?.querySelector("[data-css-hex]");
@@ -3182,11 +3222,10 @@ function createUIFeedback(options = {}) {
       state.modalImageSource = target.value.trim();
     }
   }
-  function handleModalChange(event) {
-    const target = event.target;
+  function applyCssSelectControl(target) {
     if (target.matches("[data-css-select-prop]")) {
       applyCssProperty(target.dataset.cssSelectProp, target.value);
-      return;
+      return true;
     }
     if (target.matches("[data-css-font]")) {
       const value = target.value;
@@ -3194,9 +3233,15 @@ function createUIFeedback(options = {}) {
         ensureGoogleFont(value);
         applyCssProperty(target.dataset.cssFont, `'${value}', sans-serif`);
       } else applyCssProperty(target.dataset.cssFont, "");
-      renderModal();
-      return;
+      const label = target.closest(".ui-feedback-font-row")?.querySelector(".ui-feedback-font-row__value");
+      if (label) label.textContent = value || "M\u1EB7c \u0111\u1ECBnh c\u1EE7a website";
+      return true;
     }
+    return false;
+  }
+  function handleModalChange(event) {
+    const target = event.target;
+    if (applyCssSelectControl(target)) return;
     if (target.matches("[data-image-url]")) {
       previewImageSource(state.modalImageSource);
       return;
@@ -3204,6 +3249,18 @@ function createUIFeedback(options = {}) {
     if (target.matches("[data-image-file]") && target.files?.[0]) loadImageFile(target.files[0]);
   }
   function handleModalKeydown(event) {
+    const cssPositionPad = event.target.closest?.("[data-css-position-pad]");
+    if (cssPositionPad && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const next = { ...state.cssPosition };
+      if (event.key === "ArrowLeft") next.x -= step;
+      if (event.key === "ArrowRight") next.x += step;
+      if (event.key === "ArrowUp") next.y -= step;
+      if (event.key === "ArrowDown") next.y += step;
+      applyCssPosition(next);
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       closeModal(true);

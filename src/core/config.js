@@ -1,4 +1,4 @@
-export const TOOL_VERSION = '0.13.0';
+export const TOOL_VERSION = '0.13.1';
 
 export const DEFAULTS = {
   version: TOOL_VERSION,
