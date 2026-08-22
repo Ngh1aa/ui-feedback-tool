@@ -386,6 +386,94 @@ export function createUIFeedback(options = {}) {
     markers.length = 0;
   }
 
+  function selectionCandidates(element) {
+    if (!(element instanceof Element)) return [];
+    const candidates = [];
+    let current = element;
+    while (current && current instanceof Element && current !== document.body && current !== document.documentElement && candidates.length < 7) {
+      if (!current.closest('#ui-feedback-host') && !current.matches('script,style,svg,path')) {
+        const rect = current.getBoundingClientRect?.();
+        if (!rect || (rect.width >= 8 && rect.height >= 8)) candidates.push(current);
+      }
+      current = current.parentElement;
+    }
+    return candidates.filter((candidate, index, list) => list.findIndex((item) => item === candidate) === index);
+  }
+
+  function selectionCandidateLabel(element) {
+    const tag = targetLabel(element) || element.tagName?.toLowerCase() || 'Element';
+    const selector = safeText(cssPath(element), 90);
+    const rect = element.getBoundingClientRect?.();
+    const size = rect && rect.width && rect.height ? ` · ${Math.round(rect.width)}×${Math.round(rect.height)}px` : '';
+    return { tag, selector: `${selector}${size}` };
+  }
+
+  function positionSelectionChooser() {
+    const chooser = root.querySelector('[data-selection-chooser]');
+    const source = state.selectionChooser?.source;
+    if (!chooser || !source) return;
+    const rect = source.getBoundingClientRect();
+    const width = Math.min(360, Math.max(260, chooser.offsetWidth || 320));
+    const height = Math.min(window.innerHeight - 24, chooser.offsetHeight || 420);
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left));
+    const top = Math.max(12, Math.min(window.innerHeight - height - 12, rect.bottom + 10));
+    chooser.style.left = `${left}px`;
+    chooser.style.top = `${top}px`;
+  }
+
+  function closeSelectionChooser(resume = false) {
+    root.querySelector('[data-selection-chooser]')?.remove();
+    clearHighlight();
+    const mode = state.selectionChooser?.mode;
+    state.selectionChooser = null;
+    if (resume && mode && state.active && !state.modalOpen) beginPicking(mode, { silent: true });
+    renderToolbar();
+  }
+
+  function openSelectionChooser(source, mode) {
+    const candidates = selectionCandidates(source);
+    if (mode === 'image' || candidates.length <= 1) {
+      openModal(mode === 'image' ? targetForMode(source, mode) : source, mode);
+      return;
+    }
+    stopPicking();
+    state.selectionChooser = { source, mode, candidates };
+    const chooser = document.createElement('div');
+    chooser.className = 'ui-feedback-selection-chooser';
+    chooser.dataset.selectionChooser = 'true';
+    chooser.setAttribute('role', 'dialog');
+    chooser.setAttribute('aria-label', 'Chọn phần tử chính xác');
+    chooser.innerHTML = `<header class="ui-feedback-selection-chooser__header"><div><strong>Chọn phần tử chính xác</strong><small>Chọn đúng lớp muốn chỉnh sửa</small></div><button type="button" data-selection-cancel aria-label="Hủy chọn">×</button></header><div class="ui-feedback-selection-chooser__list">${candidates.map((candidate, index) => { const label = selectionCandidateLabel(candidate); return `<button type="button" class="ui-feedback-selection-choice" data-selection-index="${index}"><span class="ui-feedback-selection-choice__number">${index + 1}</span><span><strong>${escapeHtml(label.tag)}</strong><small>${escapeHtml(label.selector)}</small></span></button>`; }).join('')}</div><footer class="ui-feedback-selection-chooser__footer"><span>Phần tử gần nhất hiển thị trước</span><button type="button" class="ui-feedback-button" data-selection-cancel>Hủy</button></footer>`;
+    root.appendChild(chooser);
+    chooser.onclick = (event) => {
+      const cancel = event.target.closest('[data-selection-cancel]');
+      if (cancel) { event.preventDefault(); closeSelectionChooser(true); return; }
+      const choice = event.target.closest('[data-selection-index]');
+      if (!choice) return;
+      event.preventDefault();
+      const candidate = state.selectionChooser?.candidates?.[Number(choice.dataset.selectionIndex)];
+      const selectedMode = state.selectionChooser?.mode || mode;
+      closeSelectionChooser(false);
+      if (candidate) openModal(candidate, selectedMode);
+    };
+    chooser.onpointerover = (event) => {
+      const choice = event.target.closest('[data-selection-index]');
+      if (!choice) return;
+      const candidate = state.selectionChooser?.candidates?.[Number(choice.dataset.selectionIndex)];
+      if (candidate) highlight(candidate);
+    };
+    positionSelectionChooser();
+    showToast('Đã tìm thấy nhiều lớp phần tử. Chọn card/container muốn chỉnh sửa.');
+  }
+
+  function openPickedElement(rawElement) {
+    if (!(rawElement instanceof Element)) return;
+    const mode = state.mode;
+    const target = targetForMode(rawElement, mode);
+    if (!target) return;
+    openSelectionChooser(target, mode);
+  }
+
   /* ── modal ── */
   function openModal(element, mode, existing = null) {
     // stopPicking() records state._modeBeforePickingStop so closeModal()
@@ -1179,6 +1267,7 @@ export function createUIFeedback(options = {}) {
     // Escape closes modal or panel when active
     if (event.key === 'Escape' && state.active) {
       if (state.modalOpen) { closeModal(true); event.preventDefault(); return; }
+      if (state.selectionChooser) { closeSelectionChooser(true); event.preventDefault(); return; }
       if (state.panelOpen) { togglePanel(false); event.preventDefault(); return; }
       if (state.picking) {
         // Stop cleanly but keep the mode so the next toolbar click
@@ -1348,7 +1437,7 @@ export function createUIFeedback(options = {}) {
     state.pickingLocked = true;
     setTimeout(() => { state.pickingLocked = false; }, 600);
 
-    openModal(element, state.mode);
+    openPickedElement(element);
   }
 
   /* ── document-level picking fallback ── */
@@ -1365,7 +1454,7 @@ export function createUIFeedback(options = {}) {
     event.stopPropagation();
     state.pickingLocked = true;
     setTimeout(() => { state.pickingLocked = false; }, 600);
-    openModal(element, state.mode);
+    openPickedElement(rawElement);
   }
 
   /* ── drag & drop toolbar ── */
@@ -1415,6 +1504,7 @@ export function createUIFeedback(options = {}) {
   /* ── dispose ── */
   function dispose() {
     if (state.modalOpen) closeModal(false);
+    if (state.selectionChooser) closeSelectionChooser(false);
     stopPicking();
     clearMarkers();
     window.removeEventListener('scroll', handleViewportChange);
@@ -1451,6 +1541,7 @@ export function createUIFeedback(options = {}) {
   };
   const handleViewportChange = () => {
     refreshMarkerPositions();
+    if (state.selectionChooser) positionSelectionChooser();
   };
   const reapplyPageChanges = () => {
     if (!state.active) return;

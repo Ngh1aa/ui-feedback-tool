@@ -264,7 +264,8 @@ function createFeedbackState(config) {
     _resumeTimer: null,
     modalSnapshot: null,
     modalCommitted: false,
-    modalImageSource: "",
+    modalImageBaseTransform: "",
+    selectionChooser: null,
     cssTab: "advanced",
     drawerTab: "all",
     collapsed: false,
@@ -1215,6 +1216,21 @@ button { cursor: pointer; }
 .ui-feedback-marker.is-image { background: #fcd34d; border-color: #b45309; color: #78350f; font-size: 11px; line-height: 1; }
 .ui-feedback-marker-layer.is-dark .ui-feedback-marker.is-image { background: #92400e; border-color: #fcd34d; color: #fef3c7; }
 
+/* \u2500\u2500 precise element selection \u2500\u2500 */
+.ui-feedback-selection-chooser { position: fixed; z-index: 2147483002; width: min(360px, calc(100vw - 24px)); max-height: min(520px, calc(100vh - 24px)); overflow: hidden; color: var(--_text); background: var(--_bg-panel); border: 1px solid var(--_border); border-radius: 14px; box-shadow: 0 18px 55px var(--_shadow); }
+.ui-feedback-selection-chooser__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 12px 13px; border-bottom: 1px solid var(--_border); background: var(--_bg-alt); }
+.ui-feedback-selection-chooser__header strong { display: block; font-size: 12px; }
+.ui-feedback-selection-chooser__header small { display: block; margin-top: 3px; color: var(--_text-muted); font-size: 10px; }
+.ui-feedback-selection-chooser__header button { width: 24px; height: 24px; border: 1px solid var(--_border); border-radius: 7px; color: var(--_text-secondary); background: var(--_bg-panel); font-size: 17px; line-height: 1; cursor: pointer; }
+.ui-feedback-selection-chooser__list { display: grid; gap: 6px; max-height: 390px; overflow: auto; padding: 9px; }
+.ui-feedback-selection-choice { display: grid; grid-template-columns: 24px 1fr; align-items: center; gap: 9px; width: 100%; padding: 9px; border: 1px solid var(--_border); border-radius: 9px; color: var(--_text); background: var(--_bg-item); text-align: left; cursor: pointer; }
+.ui-feedback-selection-choice:hover, .ui-feedback-selection-choice:focus-visible { border-color: var(--ui-feedback-accent); background: var(--_bg-hover); outline: none; }
+.ui-feedback-selection-choice__number { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 50%; color: var(--_bg-panel); background: var(--ui-feedback-accent); font-size: 11px; font-weight: 800; }
+.ui-feedback-selection-choice strong { display: block; overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.ui-feedback-selection-choice small { display: block; overflow: hidden; margin-top: 3px; color: var(--_text-muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.ui-feedback-selection-chooser__footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 9px 12px; border-top: 1px solid var(--_border); color: var(--_text-muted); font-size: 9px; }
+.ui-feedback-selection-chooser__footer .ui-feedback-button { width: auto; min-width: 70px; margin: 0; padding: 6px 10px; }
+
 /* \u2500\u2500 picker \u2500\u2500 */
 .ui-feedback-picking,
 .ui-feedback-picking * { cursor: crosshair !important; }
@@ -1239,6 +1255,7 @@ button { cursor: pointer; }
   .ui-feedback-form-row { grid-template-columns: 1fr; gap: 12px; }
   .ui-feedback-modal.is-editor { right: 10px; top: 10px; width: calc(100vw - 20px); height: calc(100vh - 20px); }
   .ui-feedback-coachmark { right: 16px; bottom: 68px; }
+  .ui-feedback-selection-chooser { left: 12px !important; right: 12px; width: auto; max-height: calc(100vh - 24px); }
 }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
@@ -2629,6 +2646,95 @@ function createUIFeedback(options = {}) {
     markers.forEach((m) => m.markerEl?.remove());
     markers.length = 0;
   }
+  function selectionCandidates(element) {
+    if (!(element instanceof Element)) return [];
+    const candidates = [];
+    let current = element;
+    while (current && current instanceof Element && current !== document.body && current !== document.documentElement && candidates.length < 7) {
+      if (!current.closest("#ui-feedback-host") && !current.matches("script,style,svg,path")) {
+        const rect = current.getBoundingClientRect?.();
+        if (!rect || rect.width >= 8 && rect.height >= 8) candidates.push(current);
+      }
+      current = current.parentElement;
+    }
+    return candidates.filter((candidate, index, list) => list.findIndex((item) => item === candidate) === index);
+  }
+  function selectionCandidateLabel(element) {
+    const tag = targetLabel(element) || element.tagName?.toLowerCase() || "Element";
+    const selector = safeText(cssPath(element), 90);
+    const rect = element.getBoundingClientRect?.();
+    const size = rect && rect.width && rect.height ? ` \xB7 ${Math.round(rect.width)}\xD7${Math.round(rect.height)}px` : "";
+    return { tag, selector: `${selector}${size}` };
+  }
+  function positionSelectionChooser() {
+    const chooser = root.querySelector("[data-selection-chooser]");
+    const source = state.selectionChooser?.source;
+    if (!chooser || !source) return;
+    const rect = source.getBoundingClientRect();
+    const width = Math.min(360, Math.max(260, chooser.offsetWidth || 320));
+    const height = Math.min(window.innerHeight - 24, chooser.offsetHeight || 420);
+    const left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left));
+    const top = Math.max(12, Math.min(window.innerHeight - height - 12, rect.bottom + 10));
+    chooser.style.left = `${left}px`;
+    chooser.style.top = `${top}px`;
+  }
+  function closeSelectionChooser(resume = false) {
+    root.querySelector("[data-selection-chooser]")?.remove();
+    clearHighlight();
+    const mode = state.selectionChooser?.mode;
+    state.selectionChooser = null;
+    if (resume && mode && state.active && !state.modalOpen) beginPicking(mode, { silent: true });
+    renderToolbar2();
+  }
+  function openSelectionChooser(source, mode) {
+    const candidates = selectionCandidates(source);
+    if (mode === "image" || candidates.length <= 1) {
+      openModal(mode === "image" ? targetForMode(source, mode) : source, mode);
+      return;
+    }
+    stopPicking();
+    state.selectionChooser = { source, mode, candidates };
+    const chooser = document.createElement("div");
+    chooser.className = "ui-feedback-selection-chooser";
+    chooser.dataset.selectionChooser = "true";
+    chooser.setAttribute("role", "dialog");
+    chooser.setAttribute("aria-label", "Ch\u1ECDn ph\u1EA7n t\u1EED ch\xEDnh x\xE1c");
+    chooser.innerHTML = `<header class="ui-feedback-selection-chooser__header"><div><strong>Ch\u1ECDn ph\u1EA7n t\u1EED ch\xEDnh x\xE1c</strong><small>Ch\u1ECDn \u0111\xFAng l\u1EDBp mu\u1ED1n ch\u1EC9nh s\u1EEDa</small></div><button type="button" data-selection-cancel aria-label="H\u1EE7y ch\u1ECDn">\xD7</button></header><div class="ui-feedback-selection-chooser__list">${candidates.map((candidate, index) => {
+      const label = selectionCandidateLabel(candidate);
+      return `<button type="button" class="ui-feedback-selection-choice" data-selection-index="${index}"><span class="ui-feedback-selection-choice__number">${index + 1}</span><span><strong>${escapeHtml(label.tag)}</strong><small>${escapeHtml(label.selector)}</small></span></button>`;
+    }).join("")}</div><footer class="ui-feedback-selection-chooser__footer"><span>Ph\u1EA7n t\u1EED g\u1EA7n nh\u1EA5t hi\u1EC3n th\u1ECB tr\u01B0\u1EDBc</span><button type="button" class="ui-feedback-button" data-selection-cancel>H\u1EE7y</button></footer>`;
+    root.appendChild(chooser);
+    chooser.onclick = (event) => {
+      const cancel = event.target.closest("[data-selection-cancel]");
+      if (cancel) {
+        event.preventDefault();
+        closeSelectionChooser(true);
+        return;
+      }
+      const choice = event.target.closest("[data-selection-index]");
+      if (!choice) return;
+      event.preventDefault();
+      const candidate = state.selectionChooser?.candidates?.[Number(choice.dataset.selectionIndex)];
+      const selectedMode = state.selectionChooser?.mode || mode;
+      closeSelectionChooser(false);
+      if (candidate) openModal(candidate, selectedMode);
+    };
+    chooser.onpointerover = (event) => {
+      const choice = event.target.closest("[data-selection-index]");
+      if (!choice) return;
+      const candidate = state.selectionChooser?.candidates?.[Number(choice.dataset.selectionIndex)];
+      if (candidate) highlight(candidate);
+    };
+    positionSelectionChooser();
+    showToast("\u0110\xE3 t\xECm th\u1EA5y nhi\u1EC1u l\u1EDBp ph\u1EA7n t\u1EED. Ch\u1ECDn card/container mu\u1ED1n ch\u1EC9nh s\u1EEDa.");
+  }
+  function openPickedElement(rawElement) {
+    if (!(rawElement instanceof Element)) return;
+    const mode = state.mode;
+    const target = targetForMode(rawElement, mode);
+    if (!target) return;
+    openSelectionChooser(target, mode);
+  }
   function openModal(element, mode, existing = null) {
     stopPicking();
     state.target = element;
@@ -3464,6 +3570,11 @@ function createUIFeedback(options = {}) {
         event.preventDefault();
         return;
       }
+      if (state.selectionChooser) {
+        closeSelectionChooser(true);
+        event.preventDefault();
+        return;
+      }
       if (state.panelOpen) {
         togglePanel(false);
         event.preventDefault();
@@ -3602,7 +3713,7 @@ function createUIFeedback(options = {}) {
     setTimeout(() => {
       state.pickingLocked = false;
     }, 600);
-    openModal(element, state.mode);
+    openPickedElement(element);
   }
   function documentPickHandler(event) {
     if (!state.picking || state.pickingLocked) return;
@@ -3617,7 +3728,7 @@ function createUIFeedback(options = {}) {
     setTimeout(() => {
       state.pickingLocked = false;
     }, 600);
-    openModal(element, state.mode);
+    openPickedElement(rawElement);
   }
   function handleDragStart(event) {
     const path = event.composedPath();
@@ -3657,6 +3768,7 @@ function createUIFeedback(options = {}) {
   }
   function dispose() {
     if (state.modalOpen) closeModal(false);
+    if (state.selectionChooser) closeSelectionChooser(false);
     stopPicking();
     clearMarkers();
     window.removeEventListener("scroll", handleViewportChange);
@@ -3691,6 +3803,7 @@ function createUIFeedback(options = {}) {
   };
   const handleViewportChange = () => {
     refreshMarkerPositions();
+    if (state.selectionChooser) positionSelectionChooser();
   };
   const reapplyPageChanges = () => {
     if (!state.active) return;

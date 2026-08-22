@@ -108,6 +108,11 @@ test('critical browser regressions remain guarded in source', () => {
   assert.ok(!index.includes('lastToolbarActionAt'));
   assert.ok(picker.includes("getPropertyValue('outline')"));
   assert.ok(!stylesheet.includes('--ui-feedback-accent: #fff !important'));
+  assert.ok(index.includes('function selectionCandidates(element)'));
+  assert.ok(index.includes('function openSelectionChooser(source, mode)'));
+  assert.ok(index.includes('data-selection-index'));
+  assert.ok(index.includes('openPickedElement(element)'));
+  assert.ok(stylesheet.includes('.ui-feedback-selection-chooser'));
   assert.ok(workflow.includes('listForAuthenticatedUser'));
   assert.ok(!workflow.includes('listForOrg'));
   assert.ok(build.includes('UI Feedback Tool v${packageJson.version}'));

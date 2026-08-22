@@ -71,7 +71,8 @@ test('picker opens the selected tool directly without Inspector or Measurement',
   const state = fs.readFileSync(new URL('../src/core/state.js', import.meta.url), 'utf8');
   const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
   assert.ok(!state.includes('pickerInspector'));
-  assert.ok(index.includes('openModal(element, state.mode);'));
+  assert.ok(index.includes('openPickedElement(element);'));
+  assert.ok(index.includes('openModal(candidate, selectedMode);'));
   assert.ok(index.includes("if (event.type !== 'click') return;"));
   assert.ok(!index.includes('createPickerInspector'));
   assert.ok(!index.includes('createMeasurementController'));
