@@ -4,6 +4,13 @@ import { copyText, escapeMarkdown } from '../core/dom-utils.js';
 export function createGithubIssueController(ctx) {
   const { state, config } = ctx;
 
+  function issueImageValue(item) {
+    if (item.imageSourceType === 'upload' || String(item.value || '').startsWith('data:image/')) {
+      return '[Ảnh upload local — xem trong phiên UI Feedback hoặc đính kèm thủ công]';
+    }
+    return item.value || '';
+  }
+
   function createGithubIssue() {
     if (!/^[\w.-]+\/[\w.-]+$/.test(config.githubRepo || '')) {
       ctx.showToast('Cấu hình githubRepo chưa hợp lệ');
@@ -16,7 +23,8 @@ export function createGithubIssueController(ctx) {
     }
     const lines = [
       '# UI Feedback Review',
-      `\n**Context:** \`${window.innerWidth}x${window.innerHeight}\` · \`${state.theme}\``,
+      `\n**URL:** ${location.href}`,
+      `**Context:** \`${window.innerWidth}x${window.innerHeight}\` · \`${state.theme}\``,
       '',
     ];
     unresolved.forEach((item, index) => {
@@ -30,13 +38,15 @@ export function createGithubIssueController(ctx) {
         lines.push(`- **New CSS:** \`${escapeMarkdown(item.value || '')}\``);
       } else if (item.type === 'image') {
         lines.push(`- **Old image:** ${escapeMarkdown(item.targetText || 'N/A')}`);
-        lines.push(`- **New image:** ${escapeMarkdown(item.value || '')}`);
+        lines.push(`- **New image:** ${escapeMarkdown(issueImageValue(item))}`);
         lines.push(`- **Source:** ${item.imageSourceType === 'upload' ? 'Local upload' : 'Website URL'}`);
       } else {
         lines.push(`- **Priority:** ${item.priority || 'medium'}`);
         lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
       }
       lines.push(`- **Category:** ${categoryLabel(item.category, item.type)}`);
+      lines.push(`- **Page:** \`${escapeMarkdown(item.page || '/')}\``);
+      lines.push(`- **Selector:** \`${escapeMarkdown(item.selector || '')}\``);
       lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || 'N/A')}\``);
       lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : 'N/A'}\``, '');
     });

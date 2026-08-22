@@ -5,6 +5,12 @@ import { ICONS } from '../ui/icons.js';
 export function createCommentsController(ctx) {
   const { state } = ctx;
 
+  function imageDisplayValue(item) {
+    return item.imageSourceType === 'upload' || String(item.value || '').startsWith('data:image/')
+      ? '[Ảnh upload local]'
+      : item.value;
+  }
+
   function getFilteredComments() {
     let items = state.comments;
     if (state.drawerTab === 'comment') items = items.filter((item) => item.type === 'comment');
@@ -40,7 +46,7 @@ export function createCommentsController(ctx) {
       : item.type === 'css'
         ? `<p class="ui-feedback-item__comment">✦ Bộ giao diện: <code>${escapeHtml(item.value)}</code></p>`
         : item.type === 'image'
-          ? `<p class="ui-feedback-item__comment">▧ Thay ảnh (${item.imageSourceType === 'upload' ? 'upload' : 'URL'}): <code>${escapeHtml(item.value)}</code></p>`
+          ? `<p class="ui-feedback-item__comment">▧ Thay ảnh (${item.imageSourceType === 'upload' ? 'upload' : 'URL'}): <code>${escapeHtml(imageDisplayValue(item))}</code></p>`
           : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
     const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}

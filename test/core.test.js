@@ -11,9 +11,10 @@ test('config keeps white accent and merges shortcut safely', () => {
   assert.equal(config.accent, '#ffffff');
   assert.deepEqual(config.shortcut, ['q', 'w', 'e']);
   assert.equal(config.storageKey, 'test');
-  assert.equal(DEFAULTS.version, '0.12.0');
+  assert.equal(DEFAULTS.version, '0.13.0');
   assert.equal(DEFAULTS.githubRepo, '');
-  assert.ok(DEFAULTS.updateMirrors.every((url) => url.includes('ui-feedback-tool')));
+  assert.equal('updateUrl' in DEFAULTS, false);
+  assert.equal('updateMirrors' in DEFAULTS, false);
   assert.deepEqual(mergeConfig({ shortcut: [] }).shortcut, ['q', 'w', 'e']);
   assert.deepEqual(mergeConfig({ shortcut: ['Q', 'Q', 'W'] }).shortcut, ['q', 'w']);
 });
@@ -66,29 +67,16 @@ test('image editor exposes reliable position and zoom controls', () => {
   assert.ok(index.includes('applyImageZoom(state.target'));
 });
 
-test('Picker Inspector contracts keep selection, lock, breadcrumb and measurement isolated', () => {
+test('picker opens the selected tool directly without Inspector or Measurement', () => {
   const state = fs.readFileSync(new URL('../src/core/state.js', import.meta.url), 'utf8');
-  const inspector = fs.readFileSync(new URL('../src/features/picker-inspector.js', import.meta.url), 'utf8');
-  const measurement = fs.readFileSync(new URL('../src/features/measurement.js', import.meta.url), 'utf8');
   const index = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
-  assert.ok(state.includes("phase: 'idle'"));
-  assert.ok(state.includes('candidate: null'));
-  assert.ok(state.includes('locked: false'));
-  assert.ok(state.includes("measurement: { enabled: false, mode: 'box', compareTarget: null }"));
-  assert.ok(inspector.includes('buildBreadcrumb'));
-  assert.ok(inspector.includes('data-breadcrumb-index'));
-  assert.ok(inspector.includes('lockTarget'));
-  assert.ok(inspector.includes('positionInspector'));
-  assert.ok(measurement.includes('getBoundingClientRect'));
-  assert.ok(measurement.includes('ResizeObserver'));
-  assert.ok(measurement.includes('requestAnimationFrame'));
-  assert.ok(measurement.includes('measureGap'));
-  assert.ok(index.includes('pickerInspector?.selectTarget(element)'));
-  assert.ok(index.includes("event.key.toLowerCase() === 'l'"));
-  assert.ok(index.includes("event.key.toLowerCase() === 'm'"));
-  assert.ok(index.includes('ArrowUp'));
-  assert.ok(index.includes('pickerInspector?.closeInspector?.();'));
-  assert.ok(index.includes('measurementController?.destroy?.();'));
+  assert.ok(!state.includes('pickerInspector'));
+  assert.ok(index.includes('openModal(element, state.mode);'));
+  assert.ok(index.includes("if (event.type !== 'click') return;"));
+  assert.ok(!index.includes('createPickerInspector'));
+  assert.ok(!index.includes('createMeasurementController'));
+  assert.ok(!fs.existsSync(new URL('../src/features/picker-inspector.js', import.meta.url)));
+  assert.ok(!fs.existsSync(new URL('../src/features/measurement.js', import.meta.url)));
 });
 
 test('feedback cards support progressive disclosure without losing core actions', () => {
