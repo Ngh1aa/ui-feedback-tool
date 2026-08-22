@@ -33,8 +33,6 @@ export function createCommentsController(ctx) {
   }
 
   function renderItem(item) {
-    const priority = item.priority || 'medium';
-    const resolved = Boolean(item.resolved);
     const expanded = Boolean(state.expandedComments?.[item.id]);
     const time = relativeTime(item.updatedAt || item.createdAt);
     const contextTags = [];
@@ -42,30 +40,30 @@ export function createCommentsController(ctx) {
     if (item.scrollY !== undefined) contextTags.push(`↕️ ${item.scrollY}px`);
     const category = categoryLabel(item.category, item.type);
     const content = item.type === 'edit'
-      ? `<p class="ui-feedback-item__comment">✏️ Thay đổi text: <code>${escapeHtml(item.value)}</code></p>`
+      ? `<p class="ui-feedback-item__comment">✏️ Nội dung mong muốn: <code>${escapeHtml(item.value)}</code></p>`
       : item.type === 'css'
-        ? `<p class="ui-feedback-item__comment">✦ Bộ giao diện: <code>${escapeHtml(item.value)}</code></p>`
+        ? '<p class="ui-feedback-item__comment">✦ Đã ghi nhận các thuộc tính CSS thay đổi</p>'
         : item.type === 'image'
-          ? `<p class="ui-feedback-item__comment">▧ Thay ảnh (${item.imageSourceType === 'upload' ? 'upload' : 'URL'}): <code>${escapeHtml(imageDisplayValue(item))}</code></p>`
+          ? `<p class="ui-feedback-item__comment">▧ Hình ảnh mong muốn: <code>${escapeHtml(imageDisplayValue(item))}</code></p>`
           : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
     const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ''}
       <div class="ui-feedback-item__code" title="Dòng code đầu của component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || 'Không xác định')}</code></div>
     </div>` : '';
-    const priorityLabel = priority === 'high' ? 'Cao' : priority === 'low' ? 'Thấp' : 'Trung bình';
-    return `<article class="ui-feedback-item ${resolved ? 'is-resolved' : ''} ${expanded ? 'is-expanded' : ''}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}" tabindex="0" aria-label="Mở phần tử ${escapeAttribute(item.tag || item.selector)}">
+    const typeLabel = item.type === 'edit' ? 'Sửa chữ' : item.type === 'css' ? 'CSS' : item.type === 'image' ? 'Hình ảnh' : 'Ghi chú';
+    const targetPreview = item.type === 'css' ? 'Thay đổi style của phần tử này' : (item.targetText || 'Không có nội dung xem trước');
+    return `<article class="ui-feedback-item ${expanded ? 'is-expanded' : ''}" data-comment-id="${escapeAttribute(item.id)}" tabindex="0" aria-label="Mở phần tử ${escapeAttribute(item.tag || item.selector)}">
       <div class="ui-feedback-item__meta">
         <div class="ui-feedback-item__identity"><span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">⧉</button></div>
-        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priorityLabel}</span><span class="ui-feedback-resolve-badge ${resolved ? 'is-resolved' : 'is-open'}">${resolved ? `${ICONS.check} Xong` : 'Mở'}</span></div>
+        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(typeLabel)}</span><span class="ui-feedback-category-chip ui-feedback-category-chip--muted">${escapeHtml(category)}</span></div>
       </div>
-      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">·</span> ${escapeHtml(item.targetText || 'Không có nội dung xem trước')}</p>
+      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">·</span> ${escapeHtml(targetPreview)}</p>
       ${content}
       ${details}
       <div class="ui-feedback-item__actions">
         <button class="ui-feedback-mini ui-feedback-mini--details" data-toggle-comment="${escapeAttribute(item.id)}" aria-expanded="${expanded ? 'true' : 'false'}">${expanded ? 'Ẩn chi tiết' : 'Chi tiết'} <span aria-hidden="true">${expanded ? '⌃' : '⌄'}</span></button>
         <span class="ui-feedback-item__action-spacer"></span>
-        <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${escapeAttribute(item.id)}" title="${resolved ? 'Mở lại' : 'Đánh dấu xong'}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? 'Mở lại' : 'Xong'}</button>
         ${!['edit', 'css', 'image'].includes(item.type) ? `<button class="ui-feedback-mini" data-edit-comment="${escapeAttribute(item.id)}">${ICONS.edit} Sửa</button>` : ''}
         <button class="ui-feedback-mini" data-delete-comment="${escapeAttribute(item.id)}">${ICONS.trash} Xóa</button>
       </div>
@@ -75,17 +73,11 @@ export function createCommentsController(ctx) {
   function renderGroupedComments(items) {
     const grouped = items.reduce((groups, item) => {
       const page = item.page || location.pathname || '/';
-      const category = categoryLabel(item.category, item.type);
-      (groups[page] ||= {});
-      (groups[page][category] ||= []).push(item);
+      (groups[page] ||= []).push(item);
       return groups;
     }, {});
-    return Object.entries(grouped).map(([page, categories]) => {
-      const total = Object.values(categories).reduce((sum, group) => sum + group.length, 0);
-      const categoryContent = Object.entries(categories).map(([category, categoryItems]) =>
-        `<div class="ui-feedback-category-group"><div class="ui-feedback-category-label"><span>${escapeHtml(category)}</span><span>${categoryItems.length}</span></div>${categoryItems.map(renderItem).join('')}</div>`,
-      ).join('');
-      return `<section class="ui-feedback-group"><div class="ui-feedback-group__name"><span title="${escapeAttribute(page)}">${escapeHtml(page)}</span><span>${total}</span></div>${categoryContent}</section>`;
+    return Object.entries(grouped).map(([page, pageItems]) => {
+      return `<section class="ui-feedback-group"><div class="ui-feedback-group__name"><span title="${escapeAttribute(page)}">${escapeHtml(page)}</span><span>${pageItems.length}</span></div>${pageItems.map(renderItem).join('')}</section>`;
     }).join('');
   }
 

@@ -1,7 +1,7 @@
-// UI Feedback Tool v0.13.0
+// UI Feedback Tool v0.14.0
 
 // src/core/config.js
-var TOOL_VERSION = "0.13.0";
+var TOOL_VERSION = "0.14.0";
 var DEFAULTS = {
   version: TOOL_VERSION,
   shortcut: ["q", "w", "e"],
@@ -592,7 +592,11 @@ button { cursor: pointer; }
 .ui-feedback-window-grip svg { width: 15px; height: 15px; stroke: currentColor; fill: currentColor; stroke-width: 0; }
 .ui-feedback-window-heading:hover .ui-feedback-window-grip, .ui-feedback-modal__top:hover .ui-feedback-window-grip { color: var(--_text); border-color: var(--ui-feedback-accent); }
 .ui-feedback-drag-hint { margin-left: 6px; color: var(--_text-muted); font-size: 9px; font-weight: 600; opacity: .8; }
-.ui-feedback-panel__actions { display: flex; gap: 5px; }
+.ui-feedback-panel__actions { display: flex; align-items: center; gap: 5px; }
+.ui-feedback-export-button { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 7px 11px; border: 1px solid var(--ui-feedback-accent); border-radius: 9px; color: #111827; background: var(--ui-feedback-accent); font-size: 11px; font-weight: 800; white-space: nowrap; }
+.ui-feedback-export-button svg { width: 14px; height: 14px; stroke: currentColor; fill: none; }
+.ui-feedback-export-button:hover { filter: brightness(.96); transform: translateY(-1px); }
+.ui-feedback-panel__intro { margin: 10px 12px 0; padding: 10px 12px; border: 1px solid var(--_border); border-radius: 10px; color: var(--_text-muted); background: var(--_bg-alt); font-size: 11px; line-height: 1.5; }
 .ui-feedback-panel__tabs { display: flex; gap: 4px; overflow-x: auto; padding: 8px 12px 0; background: var(--_bg-panel); }
 .ui-feedback-panel__tab { flex: 0 0 auto; border: 0; border-bottom: 2px solid transparent; padding: 7px 8px 8px; color: var(--_text-muted); background: transparent; font-size: 10px; font-weight: 800; white-space: nowrap; }
 .ui-feedback-panel__tab:hover, .ui-feedback-panel__tab.is-active { color: var(--_text); border-bottom-color: color-mix(in srgb, var(--ui-feedback-accent), var(--_text) 28%); }
@@ -830,6 +834,7 @@ button { cursor: pointer; }
   font-size: 9px;
   font-weight: 700;
 }
+.ui-feedback-category-chip--muted { color: var(--_text-muted); background: transparent; }
 .ui-feedback-item__actions {
   display: flex;
   justify-content: flex-end;
@@ -902,6 +907,7 @@ button { cursor: pointer; }
 .ui-feedback-modal.is-editor .ui-feedback-modal__content { flex: 1; overflow: auto; }
 .ui-feedback-modal.is-mini { width: min(380px, calc(100vw - 32px)); }
 .ui-feedback-label { display: block; margin: 0 0 7px; color: var(--_text-secondary); font-size: 12px; font-weight: 700; }
+.ui-feedback-input-hint { display: block; margin-top: 8px; color: var(--_text-muted); font-size: 10px; line-height: 1.5; }
 .ui-feedback-field,
 .ui-feedback-textarea,
 .ui-feedback-select {
@@ -1168,6 +1174,7 @@ button { cursor: pointer; }
 .ui-feedback-css-preset:hover { border-color: var(--ui-feedback-accent); background: var(--_bg-hover); }
 .ui-feedback-css-reset { width: 100%; margin-top: 14px; }
 .ui-feedback-position-pad { position: relative; height: 132px; margin: 7px 0; border: 1px solid var(--_border); border-radius: 9px; background: linear-gradient(90deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), linear-gradient(0deg, transparent 49.5%, var(--_border) 49.5%, var(--_border) 50.5%, transparent 50.5%), var(--_bg-alt); cursor: crosshair; touch-action: none; }
+.ui-feedback-position-pad.is-dragging { cursor: grabbing; }
 .ui-feedback-position-pad::after { content: ""; position: absolute; left: calc(50% + var(--pad-x, 0px)); top: calc(50% + var(--pad-y, 0px)); width: 12px; height: 12px; border: 2px solid var(--ui-feedback-accent); border-radius: 50%; background: var(--_bg-panel); transform: translate(-50%, -50%); box-shadow: 0 1px 4px var(--_shadow); }
 .ui-feedback-position-sliders { display: grid; gap: 7px; }
 .ui-feedback-position-inputs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
@@ -1504,33 +1511,31 @@ function createCommentsController(ctx) {
     return firstCodeLine(resolveSelector(item.selector)) || item.codeLine || "";
   }
   function renderItem(item) {
-    const priority = item.priority || "medium";
-    const resolved = Boolean(item.resolved);
     const expanded = Boolean(state.expandedComments?.[item.id]);
     const time = relativeTime(item.updatedAt || item.createdAt);
     const contextTags = [];
     if (item.viewport) contextTags.push(`\u{1F4F1} ${item.viewport}`);
     if (item.scrollY !== void 0) contextTags.push(`\u2195\uFE0F ${item.scrollY}px`);
     const category = categoryLabel(item.category, item.type);
-    const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F Thay \u0111\u1ED5i text: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? `<p class="ui-feedback-item__comment">\u2726 B\u1ED9 giao di\u1EC7n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 Thay \u1EA3nh (${item.imageSourceType === "upload" ? "upload" : "URL"}): <code>${escapeHtml(imageDisplayValue(item))}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
+    const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F N\u1ED9i dung mong mu\u1ED1n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? '<p class="ui-feedback-item__comment">\u2726 \u0110\xE3 ghi nh\u1EADn c\xE1c thu\u1ED9c t\xEDnh CSS thay \u0111\u1ED5i</p>' : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 H\xECnh \u1EA3nh mong mu\u1ED1n: <code>${escapeHtml(imageDisplayValue(item))}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
     const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ""}
       <div class="ui-feedback-item__code" title="D\xF2ng code \u0111\u1EA7u c\u1EE7a component"><code>${escapeHtml(item.codeLine || getItemCodeLine(item) || item.tag || "Kh\xF4ng x\xE1c \u0111\u1ECBnh")}</code></div>
     </div>` : "";
-    const priorityLabel = priority === "high" ? "Cao" : priority === "low" ? "Th\u1EA5p" : "Trung b\xECnh";
-    return `<article class="ui-feedback-item ${resolved ? "is-resolved" : ""} ${expanded ? "is-expanded" : ""}" data-comment-id="${escapeAttribute(item.id)}" data-priority="${escapeAttribute(priority)}" tabindex="0" aria-label="M\u1EDF ph\u1EA7n t\u1EED ${escapeAttribute(item.tag || item.selector)}">
+    const typeLabel = item.type === "edit" ? "S\u1EEDa ch\u1EEF" : item.type === "css" ? "CSS" : item.type === "image" ? "H\xECnh \u1EA3nh" : "Ghi ch\xFA";
+    const targetPreview = item.type === "css" ? "Thay \u0111\u1ED5i style c\u1EE7a ph\u1EA7n t\u1EED n\xE0y" : item.targetText || "Kh\xF4ng c\xF3 n\u1ED9i dung xem tr\u01B0\u1EDBc";
+    return `<article class="ui-feedback-item ${expanded ? "is-expanded" : ""}" data-comment-id="${escapeAttribute(item.id)}" tabindex="0" aria-label="M\u1EDF ph\u1EA7n t\u1EED ${escapeAttribute(item.tag || item.selector)}">
       <div class="ui-feedback-item__meta">
         <div class="ui-feedback-item__identity"><span class="ui-feedback-item__selector" title="${escapeAttribute(item.selector)}">${escapeHtml(item.selector)}</span><button class="ui-feedback-copy-selector" data-copy-selector="${escapeAttribute(item.selector)}" aria-label="Copy selector" title="Copy selector">\u29C9</button></div>
-        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(category)}</span><span class="ui-feedback-priority ui-feedback-priority--${priority}">${priorityLabel}</span><span class="ui-feedback-resolve-badge ${resolved ? "is-resolved" : "is-open"}">${resolved ? `${ICONS.check} Xong` : "M\u1EDF"}</span></div>
+        <div class="ui-feedback-item__badges"><span class="ui-feedback-category-chip">${escapeHtml(typeLabel)}</span><span class="ui-feedback-category-chip ui-feedback-category-chip--muted">${escapeHtml(category)}</span></div>
       </div>
-      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">\xB7</span> ${escapeHtml(item.targetText || "Kh\xF4ng c\xF3 n\u1ED9i dung xem tr\u01B0\u1EDBc")}</p>
+      <p class="ui-feedback-item__target">${escapeHtml(item.tag)} <span aria-hidden="true">\xB7</span> ${escapeHtml(targetPreview)}</p>
       ${content}
       ${details}
       <div class="ui-feedback-item__actions">
         <button class="ui-feedback-mini ui-feedback-mini--details" data-toggle-comment="${escapeAttribute(item.id)}" aria-expanded="${expanded ? "true" : "false"}">${expanded ? "\u1EA8n chi ti\u1EBFt" : "Chi ti\u1EBFt"} <span aria-hidden="true">${expanded ? "\u2303" : "\u2304"}</span></button>
         <span class="ui-feedback-item__action-spacer"></span>
-        <button class="ui-feedback-mini ui-feedback-mini--resolve" data-resolve-comment="${escapeAttribute(item.id)}" title="${resolved ? "M\u1EDF l\u1EA1i" : "\u0110\xE1nh d\u1EA5u xong"}">${resolved ? ICONS.undo : ICONS.check} ${resolved ? "M\u1EDF l\u1EA1i" : "Xong"}</button>
         ${!["edit", "css", "image"].includes(item.type) ? `<button class="ui-feedback-mini" data-edit-comment="${escapeAttribute(item.id)}">${ICONS.edit} S\u1EEDa</button>` : ""}
         <button class="ui-feedback-mini" data-delete-comment="${escapeAttribute(item.id)}">${ICONS.trash} X\xF3a</button>
       </div>
@@ -1538,19 +1543,12 @@ function createCommentsController(ctx) {
   }
   function renderGroupedComments(items) {
     const grouped = items.reduce((groups, item) => {
-      var _a;
       const page = item.page || location.pathname || "/";
-      const category = categoryLabel(item.category, item.type);
-      groups[page] || (groups[page] = {});
-      ((_a = groups[page])[category] || (_a[category] = [])).push(item);
+      (groups[page] || (groups[page] = [])).push(item);
       return groups;
     }, {});
-    return Object.entries(grouped).map(([page, categories]) => {
-      const total = Object.values(categories).reduce((sum, group) => sum + group.length, 0);
-      const categoryContent = Object.entries(categories).map(
-        ([category, categoryItems]) => `<div class="ui-feedback-category-group"><div class="ui-feedback-category-label"><span>${escapeHtml(category)}</span><span>${categoryItems.length}</span></div>${categoryItems.map(renderItem).join("")}</div>`
-      ).join("");
-      return `<section class="ui-feedback-group"><div class="ui-feedback-group__name"><span title="${escapeAttribute(page)}">${escapeHtml(page)}</span><span>${total}</span></div>${categoryContent}</section>`;
+    return Object.entries(grouped).map(([page, pageItems]) => {
+      return `<section class="ui-feedback-group"><div class="ui-feedback-group__name"><span title="${escapeAttribute(page)}">${escapeHtml(page)}</span><span>${pageItems.length}</span></div>${pageItems.map(renderItem).join("")}</section>`;
     }).join("");
   }
   function renderCategoryOptions(selected = "all") {
@@ -1649,53 +1647,115 @@ function createMarkdownExporter(ctx) {
   const { state } = ctx;
   function exportImageValue(item) {
     if (item.imageSourceType === "upload" || String(item.value || "").startsWith("data:image/")) {
-      return "[\u1EA2nh upload local \u2014 d\u1EEF li\u1EC7u base64 kh\xF4ng \u0111\u01B0\u1EE3c \u0111\u01B0a v\xE0o file \u0111\u1EC3 tr\xE1nh file qu\xE1 l\u1EDBn]";
+      return "[\u1EA2nh upload local \u2014 d\xF9ng \u0111\xFAng \u1EA3nh \u0111\xE3 ch\u1ECDn trong phi\xEAn review]";
     }
     return item.value || "";
   }
+  function tableValue(value, fallback = "\u2014") {
+    const text = String(value ?? "").trim();
+    return (text || fallback).replace(/\|/g, "\\|").replace(/\r?\n/g, "<br>");
+  }
+  function codeTableValue(value, fallback = "\u2014") {
+    const text = String(value ?? "").trim();
+    return (text || fallback).replace(/\|/g, "\\|").replace(/`/g, "\\`").replace(/\r?\n/g, " ");
+  }
+  function inlineCode(value, fallback = "\u2014") {
+    const text = String(value ?? "").trim();
+    return (text || fallback).replace(/`/g, "\\`").replace(/\r?\n/g, " ");
+  }
+  function proseValue(value, fallback = "\u2014") {
+    const text = String(value ?? "").trim();
+    return (text || fallback).replace(/\r?\n/g, "  \n");
+  }
+  function parseCssText(value) {
+    return String(value || "").split(";").reduce((result, declaration) => {
+      const separator = declaration.indexOf(":");
+      if (separator < 1) return result;
+      const property = declaration.slice(0, separator).trim().toLowerCase();
+      const cssValue = declaration.slice(separator + 1).trim();
+      if (property) result[property] = cssValue;
+      return result;
+    }, {});
+  }
+  function cssChanges(item) {
+    const before = parseCssText(item.oldValue || item.originalValue || item.targetText);
+    const after = parseCssText(item.value);
+    return [.../* @__PURE__ */ new Set([...Object.keys(before), ...Object.keys(after)])].filter((property) => before[property] !== after[property]).map((property) => ({ property, before: before[property] || "", after: after[property] || "" }));
+  }
+  function renderLocation(item) {
+    return [
+      `- **Trang:** \`${inlineCode(item.page || "/")}\``,
+      `- **Ph\u1EA7n t\u1EED:** ${escapeMarkdown(item.tag || "Kh\xF4ng x\xE1c \u0111\u1ECBnh")}`,
+      `- **Selector:** \`${inlineCode(item.selector || "")}\``,
+      `- **D\xF2ng code nh\u1EADn di\u1EC7n:** \`${inlineCode(item.codeLine || ctx.getItemCodeLine?.(item) || item.tag || "")}\``,
+      item.viewport ? `- **Viewport:** \`${inlineCode(item.viewport)}\`${item.scrollY !== void 0 ? ` \xB7 scroll Y \`${Math.round(item.scrollY)}px\`` : ""}` : ""
+    ].filter(Boolean);
+  }
   function renderItemMarkdown(item, index) {
-    const status = item.resolved ? "\u0110\xE3 x\u1EED l\xFD" : "\u0110ang m\u1EDF";
-    const lines = [`### ${index + 1}. ${escapeMarkdown(item.tag || "Element")} _(${item.type || "comment"})_`];
+    const typeLabel = item.type === "edit" ? "S\u1EEDa n\u1ED9i dung" : item.type === "css" ? "\u0110i\u1EC1u ch\u1EC9nh CSS" : item.type === "image" ? "Thay h\xECnh \u1EA3nh" : "Ghi ch\xFA y\xEAu c\u1EA7u";
+    const lines = [`### ${index + 1}. ${typeLabel}: ${escapeMarkdown(item.tag || "Element")}`, ""];
+    lines.push(...renderLocation(item), "");
     if (item.type === "edit") {
-      lines.push(`- **Text c\u0169:** ${escapeMarkdown(item.targetText || "")}`);
-      lines.push(`- **Text m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
+      lines.push("#### N\u1ED9i dung c\u1EA7n c\u1EADp nh\u1EADt", "");
+      lines.push("| Hi\u1EC7n t\u1EA1i | Mong mu\u1ED1n |", "|---|---|");
+      lines.push(`| ${tableValue(item.oldValue || item.targetText)} | ${tableValue(item.value)} |`, "");
     } else if (item.type === "css") {
-      lines.push(`- **CSS c\u0169:** \`${escapeMarkdown(item.targetText || "")}\``);
-      lines.push(`- **CSS m\u1EDBi:** \`${escapeMarkdown(item.value || "")}\``);
+      const changes = cssChanges(item);
+      lines.push("#### CSS c\u1EA7n c\u1EADp nh\u1EADt", "");
+      if (changes.length) {
+        lines.push("| Thu\u1ED9c t\xEDnh | Hi\u1EC7n t\u1EA1i | Mong mu\u1ED1n |", "|---|---|---|");
+        changes.forEach((change) => lines.push(`| \`${codeTableValue(change.property)}\` | \`${codeTableValue(change.before)}\` | \`${codeTableValue(change.after)}\` |`));
+        lines.push("", "```css", `${item.selector || "/* selector ch\u01B0a x\xE1c \u0111\u1ECBnh */"} {`);
+        changes.forEach((change) => {
+          lines.push(change.after ? `  ${change.property}: ${change.after};` : `  /* X\xF3a ${change.property} */`);
+        });
+        lines.push("}", "```", "");
+      } else {
+        lines.push(`- **CSS mong mu\u1ED1n:** \`${inlineCode(item.value || "Kh\xF4ng c\xF3 thay \u0111\u1ED5i")}\``, "");
+      }
     } else if (item.type === "image") {
-      lines.push(`- **\u1EA2nh c\u0169:** ${escapeMarkdown(item.targetText || "Kh\xF4ng c\xF3")}`);
-      lines.push(`- **\u1EA2nh m\u1EDBi:** ${escapeMarkdown(exportImageValue(item))}`);
-      lines.push(`- **Ngu\u1ED3n:** ${item.imageSourceType === "upload" ? "Upload t\u1EEB m\xE1y" : "URL website"}`);
+      const position = item.newImageState?.objectPosition || item.newImageState?.backgroundPosition || "";
+      const transform = item.newImageState?.transform || "";
+      lines.push("#### H\xECnh \u1EA3nh c\u1EA7n c\u1EADp nh\u1EADt", "");
+      lines.push(`- **\u1EA2nh hi\u1EC7n t\u1EA1i:** ${proseValue(item.targetText || "Kh\xF4ng c\xF3")}`);
+      lines.push(`- **\u1EA2nh mong mu\u1ED1n:** ${proseValue(exportImageValue(item))}`);
+      if (position) lines.push(`- **V\u1ECB tr\xED \u1EA3nh:** \`${inlineCode(position)}\``);
+      if (transform) lines.push(`- **Transform/zoom:** \`${inlineCode(transform)}\``);
+      lines.push("");
     } else {
-      lines.push(`- **\u01AFu ti\xEAn:** ${item.priority || "medium"}`);
-      lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || "")}`);
+      lines.push("#### \xDD \u0111\u1ECBnh thay \u0111\u1ED5i", "");
+      lines.push(proseValue(item.comment || "Ch\u01B0a nh\u1EADp y\xEAu c\u1EA7u."), "");
     }
-    lines.push(`- **Ph\xE2n lo\u1EA1i:** ${categoryLabel(item.category, item.type)}`);
-    lines.push(`- **D\xF2ng code \u0111\u1EA7u:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || "")}\``);
-    lines.push(`- **Selector:** \`${escapeMarkdown(item.selector || "")}\``);
-    lines.push(`- **Tr\u1EA1ng th\xE1i:** ${status}`);
-    if (item.viewport) lines.push(`- **Context:** \`${item.viewport}\` \xB7 \`${item.scrollY}px\``);
-    lines.push(`- **T\u1EA1o l\xFAc:** ${item.createdAt ? formatDate(new Date(item.createdAt)) : "N/A"}`);
-    lines.push(`- **C\u1EADp nh\u1EADt:** ${item.updatedAt ? formatDate(new Date(item.updatedAt)) : "N/A"}`);
+    lines.push(`- **Nh\xF3m:** ${categoryLabel(item.category, item.type)}`);
+    lines.push(`- **Th\u1EDDi \u0111i\u1EC3m ghi nh\u1EADn:** ${item.updatedAt ? formatDate(new Date(item.updatedAt)) : "N/A"}`);
     lines.push("");
     return lines;
   }
-  function exportMarkdown() {
-    if (!state.comments.length) {
-      ctx.showToast("Ch\u01B0a c\xF3 feedback \u0111\u1EC3 xu\u1EA5t");
-      return;
-    }
-    const exportedItems = state.comments.map((item) => ({ ...item }));
-    const resolvedCount = state.comments.filter((item) => item.resolved).length;
-    const openCount = state.comments.length - resolvedCount;
-    const editCount = state.comments.filter((item) => ["edit", "css", "image"].includes(item.type)).length;
-    const feedbackCount = state.comments.length - editCount;
+  function buildMarkdown({ href = globalThis.location?.href || "", now = /* @__PURE__ */ new Date() } = {}) {
+    const counts = state.comments.reduce((result, item) => {
+      result[item.type || "comment"] = (result[item.type || "comment"] || 0) + 1;
+      return result;
+    }, {});
     const lines = [
-      "# UI/UX Feedback",
+      "# Y\xEAu c\u1EA7u c\u1EADp nh\u1EADt UI/UX",
       "",
-      `- **URL:** ${location.href}`,
-      `- **Ng\xE0y xu\u1EA5t:** ${formatDate(/* @__PURE__ */ new Date())}`,
-      `- **T\u1ED5ng feedback:** ${state.comments.length} (${feedbackCount} ghi ch\xFA, ${editCount} ch\u1EC9nh s\u1EEDa, ${openCount} m\u1EDF, ${resolvedCount} \u0111\xE3 x\u1EED l\xFD)`,
+      "> \u0110\xE2y l\xE0 t\xE0i li\u1EC7u y\xEAu c\u1EA7u ch\u1EC9nh s\u1EEDa \u0111\u01B0\u1EE3c t\u1EA1o t\u1EEB UI Feedback Tool. H\xE3y th\u1EF1c hi\u1EC7n \u0111\xFAng c\xE1c thay \u0111\u1ED5i b\xEAn d\u01B0\u1EDBi v\xE0 gi\u1EEF nguy\xEAn nh\u1EEFng ph\u1EA7n kh\xF4ng \u0111\u01B0\u1EE3c \u0111\u1EC1 c\u1EADp.",
+      "",
+      "## Nguy\xEAn t\u1EAFc th\u1EF1c hi\u1EC7n",
+      "",
+      "1. X\xE1c \u0111\u1ECBnh ph\u1EA7n t\u1EED b\u1EB1ng trang, selector v\xE0 d\xF2ng code nh\u1EADn di\u1EC7n.",
+      "2. \u01AFu ti\xEAn gi\xE1 tr\u1ECB trong c\u1ED9t **Mong mu\u1ED1n**; c\u1ED9t **Hi\u1EC7n t\u1EA1i** ch\u1EC9 d\xF9ng \u0111\u1EC3 \u0111\u1ED1i chi\u1EBFu.",
+      "3. Gi\u1EEF responsive, accessibility v\xE0 h\xE0nh vi hi\u1EC7n c\xF3 n\u1EBFu y\xEAu c\u1EA7u kh\xF4ng n\xF3i kh\xE1c.",
+      "4. Kh\xF4ng t\u1EF1 thay \u0111\u1ED5i n\u1ED9i dung, m\xE0u s\u1EAFc, kho\u1EA3ng c\xE1ch ho\u1EB7c h\xECnh \u1EA3nh ngo\xE0i ph\u1EA1m vi t\xE0i li\u1EC7u.",
+      "",
+      "## Th\xF4ng tin phi\xEAn review",
+      "",
+      `- **URL xu\u1EA5t file:** ${href || "Kh\xF4ng x\xE1c \u0111\u1ECBnh"}`,
+      `- **Ng\xE0y xu\u1EA5t:** ${formatDate(now)}`,
+      `- **T\u1ED5ng s\u1ED1 thay \u0111\u1ED5i:** ${state.comments.length}`,
+      `- **Th\xE0nh ph\u1EA7n:** ${counts.comment || 0} ghi ch\xFA \xB7 ${counts.edit || 0} s\u1EEDa n\u1ED9i dung \xB7 ${counts.css || 0} CSS \xB7 ${counts.image || 0} h\xECnh \u1EA3nh`,
+      "",
+      "## Danh s\xE1ch thay \u0111\u1ED5i",
       ""
     ];
     const grouped = state.comments.reduce((groups, item) => {
@@ -1704,103 +1764,29 @@ function createMarkdownExporter(ctx) {
       return groups;
     }, {});
     Object.entries(grouped).forEach(([page, items]) => {
-      lines.push(`## ${page}`, "");
-      items.forEach((item, index) => renderItemMarkdown(item, index).forEach((line) => lines.push(line)));
+      lines.push(`## Trang: ${escapeMarkdown(page)}`, "");
+      items.forEach((item, index) => lines.push(...renderItemMarkdown(item, index)));
     });
-    lines.push("---", "", "## T\xF3m t\u1EAFt", "", "| Lo\u1EA1i | S\u1ED1 l\u01B0\u1EE3ng |", "|------|----------|");
-    lines.push(`| Feedback (ghi ch\xFA) | ${feedbackCount} |`);
-    lines.push(`| Edit (s\u1EEDa text) | ${state.comments.filter((item) => item.type === "edit").length} |`);
-    lines.push(`| CSS (B\u1ED9 giao di\u1EC7n) | ${state.comments.filter((item) => item.type === "css").length} |`);
-    lines.push(`| Image (thay \u1EA3nh) | ${state.comments.filter((item) => item.type === "image").length} |`, "");
-    lines.push("### Theo m\u1EE9c \u0111\u1ED9 (ch\u1EC9 feedback)", "| M\u1EE9c \u0111\u1ED9 | M\u1EDF | Xong | T\u1ED5ng |", "|--------|-----|------|------|");
-    ["high", "medium", "low"].forEach((priority) => {
-      const all = state.comments.filter((item) => !["edit", "css", "image"].includes(item.type) && (item.priority || "medium") === priority);
-      const resolved = all.filter((item) => item.resolved).length;
-      const label = priority === "high" ? "Cao" : priority === "medium" ? "Trung b\xECnh" : "Th\u1EA5p";
-      lines.push(`| ${label} | ${all.length - resolved} | ${resolved} | ${all.length} |`);
-    });
-    lines.push("");
-    const blob = new Blob([lines.join("\n").replace(/\n\n\n+/g, "\n\n")], { type: "text/markdown;charset=utf-8" });
+    return lines.join("\n").replace(/\n\n\n+/g, "\n\n").trimEnd() + "\n";
+  }
+  function exportMarkdown() {
+    if (!state.comments.length) {
+      ctx.showToast("Ch\u01B0a c\xF3 thay \u0111\u1ED5i \u0111\u1EC3 xu\u1EA5t");
+      return;
+    }
+    const markdown = buildMarkdown();
+    const blob = new Blob([markdown], { type: "text/markdown;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = url;
-    anchor.download = `ui-feedback-${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, 19)}.md`;
+    anchor.download = `ui-changes-${(/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-").slice(0, 19)}.md`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1e3);
-    const exportedCount = state.comments.length;
-    state.comments = [];
-    state.undoStack = exportedItems.length ? [{ type: "export-clear", items: exportedItems }] : [];
-    ctx.persist();
-    ctx.clearMarkers();
-    state.panelOpen = false;
-    ctx.renderToolbar();
-    ctx.showToast(exportedCount ? `\u0110\xE3 xu\u1EA5t v\xE0 l\xE0m s\u1EA1ch ${exportedCount} m\u1EE5c` : "\u0110\xE3 xu\u1EA5t file Markdown", { undo: exportedCount > 0 });
+    ctx.showToast(`\u0110\xE3 xu\u1EA5t ${state.comments.length} thay \u0111\u1ED5i; danh s\xE1ch v\u1EABn \u0111\u01B0\u1EE3c gi\u1EEF l\u1EA1i`);
   }
-  return { exportMarkdown, renderItemMarkdown };
-}
-
-// src/features/github-issue.js
-function createGithubIssueController(ctx) {
-  const { state, config } = ctx;
-  function issueImageValue(item) {
-    if (item.imageSourceType === "upload" || String(item.value || "").startsWith("data:image/")) {
-      return "[\u1EA2nh upload local \u2014 xem trong phi\xEAn UI Feedback ho\u1EB7c \u0111\xEDnh k\xE8m th\u1EE7 c\xF4ng]";
-    }
-    return item.value || "";
-  }
-  function createGithubIssue() {
-    if (!/^[\w.-]+\/[\w.-]+$/.test(config.githubRepo || "")) {
-      ctx.showToast("C\u1EA5u h\xECnh githubRepo ch\u01B0a h\u1EE3p l\u1EC7");
-      return;
-    }
-    const unresolved = state.comments.filter((item) => !item.resolved);
-    if (!unresolved.length) {
-      ctx.showToast("Kh\xF4ng c\xF3 feedback n\xE0o \u0111ang m\u1EDF!");
-      return;
-    }
-    const lines = [
-      "# UI Feedback Review",
-      `
-**URL:** ${location.href}`,
-      `**Context:** \`${window.innerWidth}x${window.innerHeight}\` \xB7 \`${state.theme}\``,
-      ""
-    ];
-    unresolved.forEach((item, index) => {
-      const typeLabel = item.type === "edit" ? "\u270F\uFE0F Edit" : item.type === "css" ? "\u2726 B\u1ED9 giao di\u1EC7n" : item.type === "image" ? "\u25A7 Image" : "\u{1F4AC} Feedback";
-      lines.push(`### ${index + 1}. ${escapeMarkdown(item.tag)} _(${typeLabel})_`);
-      if (item.type === "edit") {
-        lines.push(`- **Current text:** ${escapeMarkdown(item.targetText || "")}`);
-        lines.push(`- **New text:** ${escapeMarkdown(item.value || "")}`);
-      } else if (item.type === "css") {
-        lines.push(`- **Old CSS:** \`${escapeMarkdown(item.targetText || "")}\``);
-        lines.push(`- **New CSS:** \`${escapeMarkdown(item.value || "")}\``);
-      } else if (item.type === "image") {
-        lines.push(`- **Old image:** ${escapeMarkdown(item.targetText || "N/A")}`);
-        lines.push(`- **New image:** ${escapeMarkdown(issueImageValue(item))}`);
-        lines.push(`- **Source:** ${item.imageSourceType === "upload" ? "Local upload" : "Website URL"}`);
-      } else {
-        lines.push(`- **Priority:** ${item.priority || "medium"}`);
-        lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || "")}`);
-      }
-      lines.push(`- **Category:** ${categoryLabel(item.category, item.type)}`);
-      lines.push(`- **Page:** \`${escapeMarkdown(item.page || "/")}\``);
-      lines.push(`- **Selector:** \`${escapeMarkdown(item.selector || "")}\``);
-      lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || "N/A")}\``);
-      lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : "N/A"}\``, "");
-    });
-    const markdown = lines.join("\n");
-    const issueUrl = `https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review&body=${encodeURIComponent(markdown)}`;
-    if (issueUrl.length > 7500) {
-      window.open(`https://github.com/${config.githubRepo}/issues/new?title=UI+Feedback+Review`, "_blank", "noopener,noreferrer");
-      copyText(markdown).then((copied) => ctx.showToast(copied ? "N\u1ED9i dung d\xE0i \u0111\xE3 \u0111\u01B0\u1EE3c copy \u0111\u1EC3 d\xE1n v\xE0o Issue" : "Issue \u0111\xE3 m\u1EDF; n\u1ED9i dung qu\xE1 d\xE0i \u0111\u1EC3 \u0111i\u1EC1n t\u1EF1 \u0111\u1ED9ng"));
-      return;
-    }
-    window.open(issueUrl, "_blank", "noopener,noreferrer");
-    ctx.showToast("\u0110ang m\u1EDF trang t\u1EA1o Issue");
-  }
-  return { createGithubIssue };
+  return { exportMarkdown, buildMarkdown, renderItemMarkdown, cssChanges };
 }
 
 // src/features/css-editor.js
@@ -2268,16 +2254,16 @@ function renderToolbar(ctx) {
   }
   const undoCount = state.undoStack.length;
   const undoBadge = undoCount ? `<span class="ui-feedback-badge ui-feedback-badge--undo">${undoCount}</span>` : "";
-  const coachmark = state.coachmarkVisible ? '<aside class="ui-feedback-coachmark" role="status"><strong>B\u1EAFt \u0111\u1EA7u v\u1EDBi UI Feedback</strong><p>Ghi nh\u1EADn thay \u0111\u1ED5i ngay tr\xEAn b\u1EA3n preview, kh\xF4ng c\u1EA7n r\u1EDDi kh\u1ECFi trang.</p><ol class="ui-feedback-coachmark__steps"><li>Ch\u1ECDn m\u1ED9t c\xF4ng c\u1EE5 tr\xEAn thanh dock.</li><li>R\xEA chu\u1ED9t v\xE0 b\u1EA5m v\xE0o ph\u1EA7n t\u1EED c\u1EA7n review.</li><li>L\u01B0u feedback ho\u1EB7c ho\xE0n t\xE1c b\u1EB1ng n\xFAt Undo.</li></ol><button type="button" data-coachmark-dismiss>\u0110\xE3 hi\u1EC3u</button></aside>' : "";
+  const coachmark = state.coachmarkVisible ? '<aside class="ui-feedback-coachmark" role="status"><strong>3 b\u01B0\u1EDBc \u0111\u1EC3 ghi y\xEAu c\u1EA7u</strong><ol class="ui-feedback-coachmark__steps"><li>Ch\u1ECDn Ghi ch\xFA, S\u1EEDa ch\u1EEF, Ch\u1EC9nh CSS ho\u1EB7c \u0110\u1ED5i \u1EA3nh.</li><li>B\u1EA5m v\xE0o ph\u1EA7n t\u1EED c\u1EA7n thay \u0111\u1ED5i v\xE0 ch\u1EC9nh tr\u1EF1c ti\u1EBFp.</li><li>M\u1EDF Danh s\xE1ch r\u1ED3i b\u1EA5m Xu\u1EA5t .md.</li></ol><button type="button" data-coachmark-dismiss>\u0110\xE3 hi\u1EC3u</button></aside>' : "";
   const bubble = `<button class="ui-feedback-toolbar-bubble" data-action="collapse" aria-label="M\u1EDF thanh c\xF4ng c\u1EE5" title="M\u1EDF thanh c\xF4ng c\u1EE5">${ICONS.grip}<span class="ui-feedback-badge" ${state.comments.length ? "" : "hidden"}>${state.comments.length}</span></button>`;
   const dock = `<div class="ui-feedback-toolbar" role="toolbar" aria-label="UI Feedback tools" style="${getToolbarStyle()}">
       <div class="ui-feedback-toolbar-grip" data-drag-handle aria-label="K\xE9o \u0111\u1EC3 di chuy\u1EC3n toolbar">${ICONS.grip}</div>
-      <button class="ui-feedback-tool ${state.panelOpen ? "is-active" : ""}" data-action="list" aria-label="M\u1EDF danh s\xE1ch feedback" title="Danh s\xE1ch feedback">${ICONS.clipboard}<span class="ui-feedback-tool__label">Feedback</span><span class="ui-feedback-badge" ${state.comments.length ? "" : "hidden"}>${state.comments.length}</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === "comment" ? "is-active" : ""}" data-action="comment" aria-label="Th\xEAm note" title="Th\xEAm note">${ICONS.comment}<span class="ui-feedback-tool__label">Note</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === "edit" ? "is-active" : ""}" data-action="edit" aria-label="S\u1EEDa n\u1ED9i dung UI" title="S\u1EEDa text">${ICONS.pencil}<span class="ui-feedback-tool__label">S\u1EEDa text</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === "css" ? "is-active" : ""}" data-action="css" aria-label="M\u1EDF B\u1ED9 CSS" title="B\u1ED9 CSS">${ICONS.paintbrush}<span class="ui-feedback-tool__label">B\u1ED9 CSS</span></button>
-      <button class="ui-feedback-tool ${state.picking && state.mode === "image" ? "is-active" : ""}" data-action="image" aria-label="Thay \u1EA3nh" title="Thay \u1EA3nh">${ICONS.image}<span class="ui-feedback-tool__label">Thay \u1EA3nh</span></button>
-      ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Ho\xE0n t\xE1c thao t\xE1c g\u1EA7n nh\u1EA5t" title="Ho\xE0n t\xE1c (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Undo</span>${undoBadge}</button>` : ""}
+      <button class="ui-feedback-tool ${state.panelOpen ? "is-active" : ""}" data-action="list" aria-label="M\u1EDF danh s\xE1ch thay \u0111\u1ED5i" title="Danh s\xE1ch thay \u0111\u1ED5i">${ICONS.clipboard}<span class="ui-feedback-tool__label">Danh s\xE1ch</span><span class="ui-feedback-badge" ${state.comments.length ? "" : "hidden"}>${state.comments.length}</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "comment" ? "is-active" : ""}" data-action="comment" aria-label="Ghi ch\xFA y\xEAu c\u1EA7u" title="Ghi ch\xFA y\xEAu c\u1EA7u">${ICONS.comment}<span class="ui-feedback-tool__label">Ghi ch\xFA</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "edit" ? "is-active" : ""}" data-action="edit" aria-label="S\u1EEDa n\u1ED9i dung" title="S\u1EEDa n\u1ED9i dung">${ICONS.pencil}<span class="ui-feedback-tool__label">S\u1EEDa ch\u1EEF</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "css" ? "is-active" : ""}" data-action="css" aria-label="Ch\u1EC9nh CSS" title="Ch\u1EC9nh CSS">${ICONS.paintbrush}<span class="ui-feedback-tool__label">Ch\u1EC9nh CSS</span></button>
+      <button class="ui-feedback-tool ${state.picking && state.mode === "image" ? "is-active" : ""}" data-action="image" aria-label="\u0110\u1ED5i h\xECnh \u1EA3nh" title="\u0110\u1ED5i h\xECnh \u1EA3nh">${ICONS.image}<span class="ui-feedback-tool__label">\u0110\u1ED5i \u1EA3nh</span></button>
+      ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Ho\xE0n t\xE1c thay \u0111\u1ED5i g\u1EA7n nh\u1EA5t" title="Ho\xE0n t\xE1c (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Ho\xE0n t\xE1c</span>${undoBadge}</button>` : ""}
       <button class="ui-feedback-tool" data-action="collapse" aria-label="Thu g\u1ECDn thanh c\xF4ng c\u1EE5" title="Thu g\u1ECDn">${ICONS.collapse}</button>
     </div>`;
   root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ""}${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div><div data-ui-feedback-toast></div>`;
@@ -2332,7 +2318,6 @@ function createUIFeedback(options = {}) {
   let commentsController;
   let toastController;
   let markdownExporter;
-  let githubIssueController;
   let panelController;
   let modalController;
   let cssEditor;
@@ -2438,43 +2423,21 @@ function createUIFeedback(options = {}) {
     renderToolbar2();
     renderPanel();
   }
-  function getFilteredComments() {
-    return commentsController.getFilteredComments();
-  }
   function renderGroupedComments(items) {
     return commentsController.renderGroupedComments(items);
-  }
-  function renderCategoryOptions(selected = "all") {
-    return commentsController.renderCategoryOptions(selected);
   }
   function renderPanel() {
     const mount = root.querySelector("[data-ui-feedback-panel]");
     if (!mount || !state.panelOpen) return;
-    const filtered = getFilteredComments();
-    const resolvedCount = state.comments.filter((c) => c.resolved).length;
-    const openCount = state.comments.filter((c) => !c.resolved && !["edit", "css", "image"].includes(c.type)).length;
-    const editCount = state.comments.filter((c) => ["edit", "css", "image"].includes(c.type)).length;
-    const content = renderGroupedComments(filtered);
-    mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh s\xE1ch feedback">
-      <header class="ui-feedback-panel__header" data-panel-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Feedback</strong><small>${openCount} \u0111ang m\u1EDF \xB7 ${resolvedCount} \u0111\xE3 xong \xB7 ${editCount} ch\u1EC9nh s\u1EEDa <span class="ui-feedback-drag-hint" title="K\xE9o \u0111\u1EC3 di chuy\u1EC3n">K\xE9o</span></small></div></div><span class="ui-feedback-panel__actions">${config.githubRepo ? `<button class="ui-feedback-icon-button" data-panel-action="github" aria-label="T\u1EA1o GitHub Issue" title="T\u1EA1o GitHub Issue">${ICONS.github}</button>` : ""}<button class="ui-feedback-icon-button" data-panel-action="export" aria-label="Xu\u1EA5t Markdown" title="Xu\u1EA5t Markdown">${ICONS.download}</button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh" title="\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5">${ICONS.close}</button></span></header>
-      <div class="ui-feedback-panel__tabs" role="tablist" aria-label="Nh\xF3m feedback"><button class="ui-feedback-panel__tab ${state.drawerTab === "all" ? "is-active" : ""}" data-panel-tab="all" role="tab" aria-selected="${state.drawerTab === "all"}">T\u1EA5t c\u1EA3 <span>${state.comments.length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "comment" ? "is-active" : ""}" data-panel-tab="comment" role="tab" aria-selected="${state.drawerTab === "comment"}">Ghi ch\xFA <span>${state.comments.filter((c) => c.type === "comment").length}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "edit" ? "is-active" : ""}" data-panel-tab="edit" role="tab" aria-selected="${state.drawerTab === "edit"}">Ch\u1EC9nh s\u1EEDa <span>${editCount}</span></button><button class="ui-feedback-panel__tab ${state.drawerTab === "resolved" ? "is-active" : ""}" data-panel-tab="resolved" role="tab" aria-selected="${state.drawerTab === "resolved"}">\u0110\xE3 xong <span>${resolvedCount}</span></button></div>
-      <div class="ui-feedback-panel__filter">
-        <div class="ui-feedback-search-wrap">${ICONS.search}<input class="ui-feedback-search-input" data-panel-search type="text" placeholder="T\xECm feedback\u2026" value="${escapeAttribute(state.searchQuery)}" /></div>
-        <select class="ui-feedback-filter-select" data-panel-filter aria-label="L\u1ECDc theo m\u1EE9c \u0111\u1ED9">
-          <option value="all" ${state.filterPriority === "all" ? "selected" : ""}>M\u1EE9c \u0111\u1ED9</option>
-          <option value="high" ${state.filterPriority === "high" ? "selected" : ""}>Cao</option>
-          <option value="medium" ${state.filterPriority === "medium" ? "selected" : ""}>Trung b\xECnh</option>
-          <option value="low" ${state.filterPriority === "low" ? "selected" : ""}>Th\u1EA5p</option>
-        </select>
-        <select class="ui-feedback-filter-select ui-feedback-filter-select--category" data-panel-category aria-label="L\u1ECDc theo ph\xE2n lo\u1EA1i">${renderCategoryOptions(state.filterCategory)}</select>
-      </div>
-      <div class="ui-feedback-panel__body">${content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== "all" || state.filterCategory !== "all" ? "Kh\xF4ng t\xECm th\u1EA5y feedback ph\xF9 h\u1EE3p." : "Ch\u01B0a c\xF3 feedback. Ch\u1ECDn bi\u1EC3u t\u01B0\u1EE3ng comment r\u1ED3i b\u1EA5m v\xE0o m\u1ED9t ph\u1EA7n t\u1EED tr\xEAn trang."}</div>`}</div>
+    const content = renderGroupedComments(state.comments);
+    mount.innerHTML = `<aside class="ui-feedback-panel" aria-label="Danh s\xE1ch thay \u0111\u1ED5i">
+      <header class="ui-feedback-panel__header" data-panel-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><strong>Danh s\xE1ch thay \u0111\u1ED5i</strong><small>${state.comments.length} m\u1EE5c \u0111\xE3 ghi nh\u1EADn <span class="ui-feedback-drag-hint" title="K\xE9o \u0111\u1EC3 di chuy\u1EC3n">K\xE9o</span></small></div></div><span class="ui-feedback-panel__actions"><button class="ui-feedback-export-button" data-panel-action="export" aria-label="Xu\u1EA5t file Markdown" title="Xu\u1EA5t file Markdown">${ICONS.download}<span>Xu\u1EA5t .md</span></button><button class="ui-feedback-icon-button" data-panel-action="reset-position" aria-label="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh" title="\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED">${ICONS.undo}</button><button class="ui-feedback-icon-button" data-panel-action="close" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5">${ICONS.close}</button></span></header>
+      <div class="ui-feedback-panel__intro">File Markdown s\u1EBD m\xF4 t\u1EA3 r\xF5 ph\u1EA7n t\u1EED, tr\u1EA1ng th\xE1i hi\u1EC7n t\u1EA1i v\xE0 thay \u0111\u1ED5i mong mu\u1ED1n \u0111\u1EC3 AI c\xF3 th\u1EC3 th\u1EF1c hi\u1EC7n ngay.</div>
+      <div class="ui-feedback-panel__body">${content || '<div class="ui-feedback-empty">Ch\u01B0a c\xF3 thay \u0111\u1ED5i. Ch\u1ECDn m\u1ED9t c\xF4ng c\u1EE5 tr\xEAn thanh d\u01B0\u1EDBi r\u1ED3i b\u1EA5m v\xE0o ph\u1EA7n t\u1EED c\u1EA7n ch\u1EC9nh.</div>'}</div>
     </aside>`;
     applyPanelPosition();
     mount.onclick = handlePanelClick;
     mount.onpointerdown = handlePanelPointerDown;
-    mount.oninput = handlePanelInput;
-    mount.onchange = handlePanelChange;
     mount.onkeydown = handlePanelKeydown;
   }
   function applyPanelPosition() {
@@ -2484,14 +2447,9 @@ function createUIFeedback(options = {}) {
     return panelController.handlePointerDown(event);
   }
   function handlePanelClick(event) {
-    const target = event.target.closest("[data-panel-action], [data-panel-tab], [data-edit-comment], [data-delete-comment], [data-resolve-comment], [data-copy-selector], [data-toggle-comment], [data-comment-id]");
+    const target = event.target.closest("[data-panel-action], [data-edit-comment], [data-delete-comment], [data-copy-selector], [data-toggle-comment], [data-comment-id]");
     if (!target) return;
     event.stopPropagation();
-    if (target.dataset.panelTab) {
-      state.drawerTab = target.dataset.panelTab;
-      renderPanel();
-      return;
-    }
     if (target.dataset.toggleComment) {
       state.expandedComments[target.dataset.toggleComment] = !state.expandedComments[target.dataset.toggleComment];
       renderPanel();
@@ -2509,47 +2467,14 @@ function createUIFeedback(options = {}) {
     }
     if (target.dataset.panelAction === "close") togglePanel(false);
     else if (target.dataset.panelAction === "export") exportMarkdown();
-    else if (target.dataset.panelAction === "github") createGithubIssue();
     else if (target.dataset.editComment) editComment(target.dataset.editComment);
     else if (target.dataset.deleteComment) deleteComment(target.dataset.deleteComment);
-    else if (target.dataset.resolveComment) resolveComment(target.dataset.resolveComment);
     else {
       const card = event.target.closest("[data-comment-id]");
       if (card) focusComment(card.dataset.commentId);
     }
   }
-  function handlePanelInput(event) {
-    if (event.target.matches("[data-panel-search]")) {
-      state.searchQuery = event.target.value;
-      const body = root.querySelector(".ui-feedback-panel__body");
-      if (body) {
-        const filtered = getFilteredComments();
-        const content = renderGroupedComments(filtered);
-        body.innerHTML = content || `<div class="ui-feedback-empty">${state.searchQuery || state.filterPriority !== "all" || state.filterCategory !== "all" ? "Kh\xF4ng t\xECm th\u1EA5y feedback ph\xF9 h\u1EE3p." : "Ch\u01B0a c\xF3 feedback."}</div>`;
-      }
-    }
-  }
-  function handlePanelChange(event) {
-    if (event.target.matches("[data-panel-filter]")) {
-      state.filterPriority = event.target.value;
-      renderPanel();
-    } else if (event.target.matches("[data-panel-category]")) {
-      state.filterCategory = event.target.value;
-      renderPanel();
-    }
-  }
   function handlePanelKeydown(event) {
-    const tab = event.target.closest?.("[data-panel-tab]");
-    if (tab && ["ArrowLeft", "ArrowRight"].includes(event.key)) {
-      event.preventDefault();
-      const tabs = [...event.currentTarget.querySelectorAll("[data-panel-tab]")];
-      const offset = event.key === "ArrowRight" ? 1 : -1;
-      const next = tabs[(tabs.indexOf(tab) + offset + tabs.length) % tabs.length];
-      state.drawerTab = next.dataset.panelTab;
-      renderPanel();
-      root.querySelector(`[data-panel-tab="${state.drawerTab}"]`)?.focus();
-      return;
-    }
     const card = event.target.closest?.("[data-comment-id]");
     if (card === event.target && (event.key === "Enter" || event.key === " ")) {
       event.preventDefault();
@@ -2611,8 +2536,7 @@ function createUIFeedback(options = {}) {
       const marker = document.createElement("button");
       marker.type = "button";
       const typeClass = comment.type === "edit" ? " is-edit" : comment.type === "css" ? " is-css" : comment.type === "image" ? " is-image" : "";
-      const resolvedClass = comment.resolved ? " is-resolved" : "";
-      marker.className = `ui-feedback-marker${typeClass}${resolvedClass}`;
+      marker.className = `ui-feedback-marker${typeClass}`;
       if (comment.type === "edit") marker.textContent = "\u270E";
       else if (comment.type === "css") marker.textContent = "\u2726";
       else if (comment.type === "image") marker.textContent = "\u25A7";
@@ -2845,9 +2769,8 @@ function createUIFeedback(options = {}) {
     const isCss = state.mode === "css";
     const isImage = state.mode === "image";
     const currentText = existing?.comment || (isEdit ? String(state.target?.textContent || "") : "");
-    const priorityValue = existing?.priority || "medium";
     const title = isEdit ? "S\u1EEDa n\u1ED9i dung UI" : isCss ? "B\u1ED9 giao di\u1EC7n" : isImage ? "Thay \u1EA3nh" : "Ghi ch\xFA feedback";
-    const commentContent = isEdit ? `<label class="ui-feedback-label" for="ui-feedback-input">N\u1ED9i dung hi\u1EC3n th\u1ECB</label><textarea id="ui-feedback-input" class="ui-feedback-textarea ui-feedback-textarea--edit" data-feedback-input>${escapeHtml(currentText)}</textarea>` : isCss ? renderCssContent() : isImage ? renderImageContent() : `<label class="ui-feedback-label" for="ui-feedback-input">Element n\xE0y c\u1EA7n s\u1EEDa g\xEC?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="V\xED d\u1EE5: T\u0103ng kho\u1EA3ng c\xE1ch gi\u1EEFa ti\xEAu \u0111\u1EC1 v\xE0 danh s\xE1ch\u2026">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">M\u1EE9c \u0111\u1ED9 \u01B0u ti\xEAn</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === "high" ? "selected" : ""}>Cao</option><option value="medium" ${priorityValue === "medium" ? "selected" : ""}>Trung b\xECnh</option><option value="low" ${priorityValue === "low" ? "selected" : ""}>Th\u1EA5p</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Ph\xE2n lo\u1EA1i</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || "other")}</select></div></div>`;
+    const commentContent = isEdit ? `<label class="ui-feedback-label" for="ui-feedback-input">N\u1ED9i dung hi\u1EC3n th\u1ECB</label><textarea id="ui-feedback-input" class="ui-feedback-textarea ui-feedback-textarea--edit" data-feedback-input>${escapeHtml(currentText)}</textarea>` : isCss ? renderCssContent() : isImage ? renderImageContent() : `<label class="ui-feedback-label" for="ui-feedback-input">B\u1EA1n mu\u1ED1n thay \u0111\u1ED5i g\xEC \u1EDF ph\u1EA7n t\u1EED n\xE0y?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="M\xF4 t\u1EA3 ng\u1EAFn g\u1ECDn k\u1EBFt qu\u1EA3 mong mu\u1ED1n. V\xED d\u1EE5: T\u0103ng kho\u1EA3ng c\xE1ch ph\xEDa tr\xEAn \u0111\u1EC3 ti\xEAu \u0111\u1EC1 tho\xE1ng h\u01A1n\u2026">${escapeHtml(currentText)}</textarea><small class="ui-feedback-input-hint">Vi\u1EBFt theo k\u1EBFt qu\u1EA3 mong mu\u1ED1n; file Markdown s\u1EBD t\u1EF1 b\u1ED5 sung trang, selector v\xE0 th\xF4ng tin ph\u1EA7n t\u1EED.</small>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">\u0110\xF3ng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button" data-image-restore type="button">Kh\xF4i ph\u1EE5c</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u \u1EA3nh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">H\u1EE7y</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u</button>`;
     const modalClass = isCss || isImage ? "ui-feedback-modal is-editor" : "ui-feedback-modal is-mini";
     mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">K\xE9o \u0111\u1EC3 di chuy\u1EC3n</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div><button type="button" class="ui-feedback-icon-button ui-feedback-modal__close" data-modal-action="cancel" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5" title="\u0110\xF3ng">${ICONS.close}</button></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
@@ -2943,7 +2866,44 @@ function createUIFeedback(options = {}) {
     document.addEventListener("pointerup", onEnd, true);
     document.addEventListener("pointercancel", onEnd, true);
   }
+  let cssPositionDragState = null;
+  function handleCssPositionPointerDown(event) {
+    if (state.mode !== "css" || !state.modalOpen || event.button !== 0) return false;
+    const pad = event.target.closest?.("[data-css-position-pad]");
+    if (!pad) return false;
+    event.preventDefault();
+    event.stopPropagation();
+    cssPositionDragState = { pad, pointerId: event.pointerId };
+    pad.classList.add("is-dragging");
+    updateCssPositionFromPointer(event.clientX, event.clientY);
+    try {
+      pad.setPointerCapture?.(event.pointerId);
+    } catch {
+    }
+    const onMove = (moveEvent) => {
+      if (!cssPositionDragState || moveEvent.pointerId !== cssPositionDragState.pointerId) return;
+      moveEvent.preventDefault();
+      updateCssPositionFromPointer(moveEvent.clientX, moveEvent.clientY);
+    };
+    const onEnd = (endEvent) => {
+      if (endEvent?.pointerId != null && endEvent.pointerId !== cssPositionDragState?.pointerId) return;
+      pad.classList.remove("is-dragging");
+      try {
+        pad.releasePointerCapture?.(cssPositionDragState?.pointerId);
+      } catch {
+      }
+      cssPositionDragState = null;
+      document.removeEventListener("pointermove", onMove, true);
+      document.removeEventListener("pointerup", onEnd, true);
+      document.removeEventListener("pointercancel", onEnd, true);
+    };
+    document.addEventListener("pointermove", onMove, true);
+    document.addEventListener("pointerup", onEnd, true);
+    document.addEventListener("pointercancel", onEnd, true);
+    return true;
+  }
   function handleModalPointerDown(event) {
+    if (handleCssPositionPointerDown(event)) return;
     handleImagePointerDown(event);
     return modalController.handlePointerDown(event);
   }
@@ -3108,7 +3068,9 @@ function createUIFeedback(options = {}) {
   }
   function handleModalInput(event) {
     const target = event.target;
-    if (target.matches("[data-css-color]")) {
+    if (applyCssSelectControl(target)) {
+      return;
+    } else if (target.matches("[data-css-color]")) {
       applyCssProperty(target.dataset.cssColor, target.value);
       const card = target.closest("[data-css-card]");
       const hex = card?.querySelector("[data-css-hex]");
@@ -3182,11 +3144,10 @@ function createUIFeedback(options = {}) {
       state.modalImageSource = target.value.trim();
     }
   }
-  function handleModalChange(event) {
-    const target = event.target;
+  function applyCssSelectControl(target) {
     if (target.matches("[data-css-select-prop]")) {
       applyCssProperty(target.dataset.cssSelectProp, target.value);
-      return;
+      return true;
     }
     if (target.matches("[data-css-font]")) {
       const value = target.value;
@@ -3194,9 +3155,15 @@ function createUIFeedback(options = {}) {
         ensureGoogleFont(value);
         applyCssProperty(target.dataset.cssFont, `'${value}', sans-serif`);
       } else applyCssProperty(target.dataset.cssFont, "");
-      renderModal();
-      return;
+      const label = target.closest(".ui-feedback-font-row")?.querySelector(".ui-feedback-font-row__value");
+      if (label) label.textContent = value || "M\u1EB7c \u0111\u1ECBnh c\u1EE7a website";
+      return true;
     }
+    return false;
+  }
+  function handleModalChange(event) {
+    const target = event.target;
+    if (applyCssSelectControl(target)) return;
     if (target.matches("[data-image-url]")) {
       previewImageSource(state.modalImageSource);
       return;
@@ -3204,6 +3171,18 @@ function createUIFeedback(options = {}) {
     if (target.matches("[data-image-file]") && target.files?.[0]) loadImageFile(target.files[0]);
   }
   function handleModalKeydown(event) {
+    const cssPositionPad = event.target.closest?.("[data-css-position-pad]");
+    if (cssPositionPad && ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(event.key)) {
+      event.preventDefault();
+      const step = event.shiftKey ? 10 : 1;
+      const next = { ...state.cssPosition };
+      if (event.key === "ArrowLeft") next.x -= step;
+      if (event.key === "ArrowRight") next.x += step;
+      if (event.key === "ArrowUp") next.y -= step;
+      if (event.key === "ArrowDown") next.y += step;
+      applyCssPosition(next);
+      return;
+    }
     if (event.key === "Escape") {
       event.preventDefault();
       closeModal(true);
@@ -3299,6 +3278,7 @@ function createUIFeedback(options = {}) {
           category: modeUsed === "edit" ? "content" : { colors: "color", typography: "typography", spacing: "spacing", position: "layout" }[state.cssTab] || "other",
           codeLine: firstCodeLine(state.target),
           targetText: safeText(oldValue, 120),
+          oldValue,
           value: newValue,
           page: location.pathname || "/",
           viewport: `${window.innerWidth}x${window.innerHeight}`,
@@ -3321,8 +3301,8 @@ function createUIFeedback(options = {}) {
     } else {
       const item = existing || { id: generateId(), createdAt: (/* @__PURE__ */ new Date()).toISOString(), type: "comment" };
       item.comment = value;
-      item.priority = root.querySelector("[data-feedback-priority]")?.value || item.priority || "medium";
-      item.category = root.querySelector("[data-feedback-category]")?.value || item.category || "other";
+      item.priority = item.priority || "medium";
+      item.category = item.category || "other";
       item.selector = cssPath(state.target);
       item.tag = targetLabel(state.target);
       item.codeLine = firstCodeLine(state.target);
@@ -3382,17 +3362,11 @@ function createUIFeedback(options = {}) {
   function undoAction() {
     return commentsController.undoAction();
   }
-  function resolveComment(id) {
-    return commentsController.resolveComment(id);
-  }
   function exportMarkdown() {
     return markdownExporter.exportMarkdown();
   }
   function showToast(message, opts = {}) {
     return toastController?.showToast(message, opts);
-  }
-  function createGithubIssue() {
-    return githubIssueController.createGithubIssue();
   }
   function toggle() {
     const nextActive = !state.active;
@@ -3684,7 +3658,6 @@ function createUIFeedback(options = {}) {
   toastController = createToastController({ root, undoAction: (...args) => commentsController?.undoAction(...args) });
   commentsController = createCommentsController(featureContext);
   markdownExporter = createMarkdownExporter(featureContext);
-  githubIssueController = createGithubIssueController(featureContext);
   if (typeof MutationObserver === "function") {
     domObserver = new MutationObserver((mutations) => {
       if (!state.active || !mutations.some((mutation) => !host.contains(mutation.target))) return;
