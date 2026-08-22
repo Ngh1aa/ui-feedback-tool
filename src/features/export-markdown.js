@@ -4,6 +4,13 @@ import { escapeMarkdown, formatDate } from '../core/dom-utils.js';
 export function createMarkdownExporter(ctx) {
   const { state } = ctx;
 
+  function exportImageValue(item) {
+    if (item.imageSourceType === 'upload' || String(item.value || '').startsWith('data:image/')) {
+      return '[Ảnh upload local — dữ liệu base64 không được đưa vào file để tránh file quá lớn]';
+    }
+    return item.value || '';
+  }
+
   function renderItemMarkdown(item, index) {
     const status = item.resolved ? 'Đã xử lý' : 'Đang mở';
     const lines = [`### ${index + 1}. ${escapeMarkdown(item.tag || 'Element')} _(${item.type || 'comment'})_`];
@@ -15,7 +22,7 @@ export function createMarkdownExporter(ctx) {
       lines.push(`- **CSS mới:** \`${escapeMarkdown(item.value || '')}\``);
     } else if (item.type === 'image') {
       lines.push(`- **Ảnh cũ:** ${escapeMarkdown(item.targetText || 'Không có')}`);
-      lines.push(`- **Ảnh mới:** ${escapeMarkdown(item.value || '')}`);
+      lines.push(`- **Ảnh mới:** ${escapeMarkdown(exportImageValue(item))}`);
       lines.push(`- **Nguồn:** ${item.imageSourceType === 'upload' ? 'Upload từ máy' : 'URL website'}`);
     } else {
       lines.push(`- **Ưu tiên:** ${item.priority || 'medium'}`);
@@ -33,6 +40,10 @@ export function createMarkdownExporter(ctx) {
   }
 
   function exportMarkdown() {
+    if (!state.comments.length) {
+      ctx.showToast('Chưa có feedback để xuất');
+      return;
+    }
     const exportedItems = state.comments.map((item) => ({ ...item }));
     const resolvedCount = state.comments.filter((item) => item.resolved).length;
     const openCount = state.comments.length - resolvedCount;

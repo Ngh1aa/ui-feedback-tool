@@ -1,12 +1,7 @@
-export const TOOL_VERSION = '0.12.0';
+export const TOOL_VERSION = '0.13.0';
 
 export const DEFAULTS = {
   version: TOOL_VERSION,
-  updateUrl: 'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
-  updateMirrors: [
-    'https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js',
-    'https://ngh1aa.github.io/ui-feedback-tool/src/ui-feedback.js',
-  ],
   shortcut: ['q', 'w', 'e'],
   storageKey: 'ui-feedback-session',
   accent: '#ffffff',

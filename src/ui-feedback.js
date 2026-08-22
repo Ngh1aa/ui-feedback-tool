@@ -1,14 +1,9 @@
-// UI Feedback Tool v0.12.0
+// UI Feedback Tool v0.13.0
 
 // src/core/config.js
-var TOOL_VERSION = "0.12.0";
+var TOOL_VERSION = "0.13.0";
 var DEFAULTS = {
   version: TOOL_VERSION,
-  updateUrl: "https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js",
-  updateMirrors: [
-    "https://raw.githubusercontent.com/Ngh1aa/ui-feedback-tool/main/src/ui-feedback.js",
-    "https://ngh1aa.github.io/ui-feedback-tool/src/ui-feedback.js"
-  ],
   shortcut: ["q", "w", "e"],
   storageKey: "ui-feedback-session",
   accent: "#ffffff",
@@ -120,7 +115,8 @@ function safeText(value, max = 180) {
   return text.length > max ? `${text.slice(0, max - 1)}\u2026` : text;
 }
 function isEditable(target) {
-  return typeof HTMLElement !== "undefined" && target instanceof HTMLElement && (target.matches('input, textarea, select, [contenteditable="true"]') || Boolean(target.closest('input, textarea, select, [contenteditable="true"]')));
+  const editableSelector = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+  return typeof HTMLElement !== "undefined" && target instanceof HTMLElement && (target.matches(editableSelector) || Boolean(target.closest(editableSelector)));
 }
 function cssEscape(value) {
   const input = String(value || "");
@@ -279,21 +275,14 @@ function createFeedbackState(config) {
     modalImageZoom: 100,
     modalImagePosition: { x: 50, y: 50 },
     modalPosition: { x: 0, y: 0 },
-    panelPosition: { x: 0, y: 0 },
-    pickerInspector: {
-      phase: "idle",
-      candidate: null,
-      selected: null,
-      locked: false,
-      breadcrumb: [],
-      measurement: { enabled: false, mode: "box", compareTarget: null }
-    },
-    updateBusy: false
+    panelPosition: { x: 0, y: 0 }
   };
   function persist() {
     try {
       localStorage.setItem(config.storageKey, JSON.stringify(state.comments));
+      return true;
     } catch {
+      return false;
     }
   }
   function persistActive() {
@@ -909,8 +898,8 @@ button { cursor: pointer; }
 .ui-feedback-modal__top .ui-feedback-drag-hint { display: inline-flex; margin: 0; }
 .ui-feedback-modal__top p { overflow: hidden; margin: 0; color: var(--_text-secondary); font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .ui-feedback-modal__content { padding: 17px 20px; }
-.ui-feedback-modal.is-inspector { left: auto; right: 22px; top: 22px; transform: translate(var(--ui-feedback-modal-x), var(--ui-feedback-modal-y)); width: min(520px, calc(100vw - 32px)); height: calc(100vh - 44px); display: flex; flex-direction: column; animation: uiFeedbackSlideIn .25s cubic-bezier(.4,0,.2,1) both; }
-.ui-feedback-modal.is-inspector .ui-feedback-modal__content { flex: 1; overflow: auto; }
+.ui-feedback-modal.is-editor { left: auto; right: 22px; top: 22px; transform: translate(var(--ui-feedback-modal-x), var(--ui-feedback-modal-y)); width: min(520px, calc(100vw - 32px)); height: calc(100vh - 44px); display: flex; flex-direction: column; animation: uiFeedbackSlideIn .25s cubic-bezier(.4,0,.2,1) both; }
+.ui-feedback-modal.is-editor .ui-feedback-modal__content { flex: 1; overflow: auto; }
 .ui-feedback-modal.is-mini { width: min(380px, calc(100vw - 32px)); }
 .ui-feedback-label { display: block; margin: 0 0 7px; color: var(--_text-secondary); font-size: 12px; font-weight: 700; }
 .ui-feedback-field,
@@ -1228,107 +1217,6 @@ button { cursor: pointer; }
   background: transparent;
   cursor: crosshair;
 }
-.ui-feedback-measurement-layer {
-  position: fixed;
-  inset: 0;
-  z-index: 2147483015;
-  pointer-events: none;
-  overflow: visible;
-}
-.ui-feedback-measurement-box,
-.ui-feedback-measurement-margin {
-  position: fixed;
-  pointer-events: none;
-}
-.ui-feedback-measurement-box {
-  border: 1px solid #fff;
-  background: rgba(255,255,255,.035);
-  box-shadow: 0 0 0 1px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.12);
-}
-.ui-feedback-measurement-margin {
-  border: 1px dashed rgba(255,255,255,.42);
-  background: rgba(255,255,255,.025);
-}
-.ui-feedback-measurement-edge { position: absolute; display: block; pointer-events: none; border: 1px dashed rgba(255,255,255,.28); }
-.ui-feedback-measurement-edge--padding { border-color: rgba(255,255,255,.52); }
-.ui-feedback-measurement-edge--border { border-color: rgba(255,255,255,.82); }
-.ui-feedback-measurement-label {
-  position: absolute;
-  top: -25px;
-  left: 0;
-  padding: 4px 7px;
-  border: 1px solid rgba(255,255,255,.2);
-  border-radius: 6px;
-  color: #111;
-  background: #fff;
-  font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
-  white-space: nowrap;
-}
-.ui-feedback-measurement-guide { position: fixed; border-top: 1px solid #fff; border-left: 1px solid transparent; }
-.ui-feedback-measurement-guide--y { border-top: 0; border-left: 1px solid #fff; }
-.ui-feedback-measurement-guide::before,
-.ui-feedback-measurement-guide::after { content: ''; position: absolute; width: 7px; height: 7px; border: 1px solid #fff; border-radius: 50%; background: #181818; }
-.ui-feedback-measurement-guide::before { left: -4px; top: -4px; }
-.ui-feedback-measurement-guide::after { right: -4px; top: -4px; }
-.ui-feedback-measurement-guide--y::before { left: -4px; top: -4px; }
-.ui-feedback-measurement-guide--y::after { right: auto; left: -4px; bottom: -4px; top: auto; }
-.ui-feedback-measurement-guide span { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); padding: 3px 6px; border-radius: 5px; color: #111; background: #fff; font: 700 10px/1 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
-.ui-feedback-measurement-guide--y span { top: 50%; left: 8px; transform: translateY(-50%); }
-.ui-feedback-inspector {
-  position: fixed;
-  z-index: 2147483020;
-  width: 340px;
-  max-height: min(620px, calc(100vh - 24px));
-  overflow: hidden;
-  border: 1px solid rgba(255,255,255,.14);
-  border-radius: 16px;
-  color: #f1f1f1;
-  background: #181818;
-  box-shadow: 0 26px 80px rgba(0,0,0,.52), 0 0 0 1px rgba(255,255,255,.03);
-  pointer-events: auto;
-  animation: uiFeedbackFadeIn .16s ease both;
-}
-.ui-feedback-inspector__header { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 13px 14px 11px; border-bottom: 1px solid rgba(255,255,255,.1); background: linear-gradient(180deg, #202020, #181818); }
-.ui-feedback-inspector__header .ui-feedback-window-heading { min-width: 0; }
-.ui-feedback-inspector__header strong { display: block; color: #fff; font-size: 14px; letter-spacing: -.01em; }
-.ui-feedback-inspector__header small { display: block; margin-top: 2px; color: #888; font-size: 10px; }
-.ui-feedback-inspector__header .ui-feedback-window-grip { width: 25px; height: 30px; font-size: 12px; }
-.ui-feedback-inspector__actions { display: flex; gap: 4px; }
-.ui-feedback-inspector__actions .ui-feedback-icon-button { width: 30px; height: 30px; color: #aaa; }
-.ui-feedback-inspector__body { display: grid; gap: 12px; max-height: min(560px, calc(100vh - 88px)); overflow: auto; padding: 13px; }
-.ui-feedback-inspector__crumbs { display: flex; align-items: center; gap: 4px; min-width: 0; overflow: visible; color: #999; font-size: 10px; }
-.ui-feedback-inspector__crumb { min-width: 0; max-width: 100px; overflow: hidden; border: 0; border-radius: 5px; padding: 4px 5px; color: #aaa; background: transparent; text-overflow: ellipsis; white-space: nowrap; }
-.ui-feedback-inspector__crumb:hover, .ui-feedback-inspector__crumb:focus-visible { color: #111; background: #fff; outline: none; }
-.ui-feedback-inspector__crumb-separator { color: #555; }
-.ui-feedback-inspector__overflow { position: relative; flex: 0 0 auto; }
-.ui-feedback-inspector__overflow summary { list-style: none; cursor: pointer; padding: 3px 5px; border-radius: 5px; color: #aaa; background: #252525; }
-.ui-feedback-inspector__overflow summary::-webkit-details-marker { display: none; }
-.ui-feedback-inspector__overflow-menu { position: absolute; top: 25px; left: 0; z-index: 2; display: grid; gap: 2px; min-width: 180px; padding: 5px; border: 1px solid rgba(255,255,255,.14); border-radius: 8px; background: #222; box-shadow: 0 12px 30px rgba(0,0,0,.4); }
-.ui-feedback-inspector__overflow-menu .ui-feedback-inspector__crumb { max-width: none; text-align: left; }
-.ui-feedback-inspector__target { display: flex; align-items: flex-start; justify-content: space-between; gap: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.1); border-radius: 10px; background: #202020; }
-.ui-feedback-inspector__target strong { display: block; overflow: hidden; color: #f1f1f1; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.ui-feedback-inspector__target small { display: block; max-width: 245px; margin-top: 4px; overflow: hidden; color: #777; font: 10px/1.35 ui-monospace, SFMono-Regular, Menlo, monospace; text-overflow: ellipsis; white-space: nowrap; }
-.ui-feedback-inspector__copy { flex: 0 0 auto; border: 1px solid rgba(255,255,255,.14); border-radius: 6px; padding: 5px 7px; color: #aaa; background: #292929; font-size: 10px; }
-.ui-feedback-inspector__copy:hover { color: #111; background: #fff; }
-.ui-feedback-inspector__actions-grid, .ui-feedback-inspector__measure-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; }
-.ui-feedback-inspector__actions-grid button, .ui-feedback-inspector__measure-actions button { min-height: 36px; border: 1px solid rgba(255,255,255,.12); border-radius: 9px; color: #ddd; background: #222; font-size: 11px; }
-.ui-feedback-inspector__actions-grid button:hover, .ui-feedback-inspector__measure-actions button:hover, .ui-feedback-inspector__measure-actions button.is-active { border-color: #fff; color: #111; background: #fff; }
-.ui-feedback-inspector__measurement { display: grid; gap: 8px; padding: 10px; border: 1px solid rgba(255,255,255,.11); border-radius: 10px; background: #202020; }
-.ui-feedback-inspector__section-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.ui-feedback-inspector__section-head strong { color: #eee; font-size: 11px; }
-.ui-feedback-inspector__section-head button { border: 0; color: #aaa; background: transparent; font-size: 10px; }
-.ui-feedback-inspector__metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 5px; }
-.ui-feedback-inspector__metrics span { display: grid; gap: 2px; color: #ddd; font: 10px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
-.ui-feedback-inspector__metrics b { color: #777; font: 700 9px/1 sans-serif; }
-.ui-feedback-inspector__hint { margin: 0; color: #888; font-size: 10px; line-height: 1.45; }
-.ui-feedback-inspector__hint b { color: #fff; }
-.ui-feedback-inspector__shortcut { margin: 0; color: #666; font-size: 9px; }
-.ui-feedback-inspector__shortcut kbd { padding: 2px 4px; border: 1px solid rgba(255,255,255,.12); border-radius: 4px; color: #aaa; background: #222; font: 9px ui-monospace, monospace; }
-.ui-feedback-inspector button:focus-visible, .ui-feedback-inspector [tabindex]:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
-.ui-feedback-picking [data-picker-inspector], .ui-feedback-picking [data-picker-inspector] * { cursor: default !important; }
-.ui-feedback-picking [data-picker-inspector] button, .ui-feedback-picking [data-picker-inspector] summary { cursor: pointer !important; }
-.ui-feedback-inspector.is-locked { border-color: rgba(255,255,255,.3); }
-
 /* \u2500\u2500 responsive \u2500\u2500 */
 @media (max-width: 640px) {
   .ui-feedback-css-tabs { grid-template-columns: repeat(6, minmax(72px, 1fr)); overflow-x: auto; scrollbar-width: thin; }
@@ -1341,9 +1229,7 @@ button { cursor: pointer; }
   .ui-feedback-tool__label { display: none; }
   .ui-feedback-panel { right: 10px; left: 10px; width: auto; }
   .ui-feedback-form-row { grid-template-columns: 1fr; gap: 12px; }
-  .ui-feedback-modal.is-inspector { right: 10px; top: 10px; width: calc(100vw - 20px); height: calc(100vh - 20px); }
-  .ui-feedback-inspector { left: 12px !important; right: 12px !important; bottom: 12px !important; top: auto !important; width: auto !important; max-height: min(78vh, 620px); border-radius: 18px 18px 12px 12px; }
-  .ui-feedback-inspector__body { max-height: calc(78vh - 62px); padding-bottom: max(13px, env(safe-area-inset-bottom)); }
+  .ui-feedback-modal.is-editor { right: 10px; top: 10px; width: calc(100vw - 20px); height: calc(100vh - 20px); }
   .ui-feedback-coachmark { right: 16px; bottom: 68px; }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -1430,7 +1316,7 @@ button { cursor: pointer; }
   .ui-feedback-icon-button:focus-visible { color: #fff; background: rgba(255,255,255,.10); }
   @media (max-width: 560px) {
     .ui-feedback-panel { right: 12px; width: min(420px, calc(100vw - 24px)); }
-    .ui-feedback-modal.is-inspector { right: 12px; width: calc(100vw - 24px); height: calc(100vh - 24px); }
+    .ui-feedback-modal.is-editor { right: 12px; width: calc(100vw - 24px); height: calc(100vh - 24px); }
   }
 
   /* \u2500\u2500 v0.9 visual refresh: modern minimalism \u2500\u2500 */
@@ -1596,6 +1482,9 @@ var ICONS = {
 // src/features/comments.js
 function createCommentsController(ctx) {
   const { state } = ctx;
+  function imageDisplayValue(item) {
+    return item.imageSourceType === "upload" || String(item.value || "").startsWith("data:image/") ? "[\u1EA2nh upload local]" : item.value;
+  }
   function getFilteredComments() {
     let items = state.comments;
     if (state.drawerTab === "comment") items = items.filter((item) => item.type === "comment");
@@ -1623,7 +1512,7 @@ function createCommentsController(ctx) {
     if (item.viewport) contextTags.push(`\u{1F4F1} ${item.viewport}`);
     if (item.scrollY !== void 0) contextTags.push(`\u2195\uFE0F ${item.scrollY}px`);
     const category = categoryLabel(item.category, item.type);
-    const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F Thay \u0111\u1ED5i text: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? `<p class="ui-feedback-item__comment">\u2726 B\u1ED9 giao di\u1EC7n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 Thay \u1EA3nh (${item.imageSourceType === "upload" ? "upload" : "URL"}): <code>${escapeHtml(item.value)}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
+    const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F Thay \u0111\u1ED5i text: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? `<p class="ui-feedback-item__comment">\u2726 B\u1ED9 giao di\u1EC7n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 Thay \u1EA3nh (${item.imageSourceType === "upload" ? "upload" : "URL"}): <code>${escapeHtml(imageDisplayValue(item))}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
     const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ""}
@@ -1758,6 +1647,12 @@ function createCommentsController(ctx) {
 // src/features/export-markdown.js
 function createMarkdownExporter(ctx) {
   const { state } = ctx;
+  function exportImageValue(item) {
+    if (item.imageSourceType === "upload" || String(item.value || "").startsWith("data:image/")) {
+      return "[\u1EA2nh upload local \u2014 d\u1EEF li\u1EC7u base64 kh\xF4ng \u0111\u01B0\u1EE3c \u0111\u01B0a v\xE0o file \u0111\u1EC3 tr\xE1nh file qu\xE1 l\u1EDBn]";
+    }
+    return item.value || "";
+  }
   function renderItemMarkdown(item, index) {
     const status = item.resolved ? "\u0110\xE3 x\u1EED l\xFD" : "\u0110ang m\u1EDF";
     const lines = [`### ${index + 1}. ${escapeMarkdown(item.tag || "Element")} _(${item.type || "comment"})_`];
@@ -1769,7 +1664,7 @@ function createMarkdownExporter(ctx) {
       lines.push(`- **CSS m\u1EDBi:** \`${escapeMarkdown(item.value || "")}\``);
     } else if (item.type === "image") {
       lines.push(`- **\u1EA2nh c\u0169:** ${escapeMarkdown(item.targetText || "Kh\xF4ng c\xF3")}`);
-      lines.push(`- **\u1EA2nh m\u1EDBi:** ${escapeMarkdown(item.value || "")}`);
+      lines.push(`- **\u1EA2nh m\u1EDBi:** ${escapeMarkdown(exportImageValue(item))}`);
       lines.push(`- **Ngu\u1ED3n:** ${item.imageSourceType === "upload" ? "Upload t\u1EEB m\xE1y" : "URL website"}`);
     } else {
       lines.push(`- **\u01AFu ti\xEAn:** ${item.priority || "medium"}`);
@@ -1786,6 +1681,10 @@ function createMarkdownExporter(ctx) {
     return lines;
   }
   function exportMarkdown() {
+    if (!state.comments.length) {
+      ctx.showToast("Ch\u01B0a c\xF3 feedback \u0111\u1EC3 xu\u1EA5t");
+      return;
+    }
     const exportedItems = state.comments.map((item) => ({ ...item }));
     const resolvedCount = state.comments.filter((item) => item.resolved).length;
     const openCount = state.comments.length - resolvedCount;
@@ -1845,6 +1744,12 @@ function createMarkdownExporter(ctx) {
 // src/features/github-issue.js
 function createGithubIssueController(ctx) {
   const { state, config } = ctx;
+  function issueImageValue(item) {
+    if (item.imageSourceType === "upload" || String(item.value || "").startsWith("data:image/")) {
+      return "[\u1EA2nh upload local \u2014 xem trong phi\xEAn UI Feedback ho\u1EB7c \u0111\xEDnh k\xE8m th\u1EE7 c\xF4ng]";
+    }
+    return item.value || "";
+  }
   function createGithubIssue() {
     if (!/^[\w.-]+\/[\w.-]+$/.test(config.githubRepo || "")) {
       ctx.showToast("C\u1EA5u h\xECnh githubRepo ch\u01B0a h\u1EE3p l\u1EC7");
@@ -1858,7 +1763,8 @@ function createGithubIssueController(ctx) {
     const lines = [
       "# UI Feedback Review",
       `
-**Context:** \`${window.innerWidth}x${window.innerHeight}\` \xB7 \`${state.theme}\``,
+**URL:** ${location.href}`,
+      `**Context:** \`${window.innerWidth}x${window.innerHeight}\` \xB7 \`${state.theme}\``,
       ""
     ];
     unresolved.forEach((item, index) => {
@@ -1872,13 +1778,15 @@ function createGithubIssueController(ctx) {
         lines.push(`- **New CSS:** \`${escapeMarkdown(item.value || "")}\``);
       } else if (item.type === "image") {
         lines.push(`- **Old image:** ${escapeMarkdown(item.targetText || "N/A")}`);
-        lines.push(`- **New image:** ${escapeMarkdown(item.value || "")}`);
+        lines.push(`- **New image:** ${escapeMarkdown(issueImageValue(item))}`);
         lines.push(`- **Source:** ${item.imageSourceType === "upload" ? "Local upload" : "Website URL"}`);
       } else {
         lines.push(`- **Priority:** ${item.priority || "medium"}`);
         lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || "")}`);
       }
       lines.push(`- **Category:** ${categoryLabel(item.category, item.type)}`);
+      lines.push(`- **Page:** \`${escapeMarkdown(item.page || "/")}\``);
+      lines.push(`- **Selector:** \`${escapeMarkdown(item.selector || "")}\``);
       lines.push(`- **Component code:** \`${escapeMarkdown(item.codeLine || ctx.getItemCodeLine(item) || item.tag || "N/A")}\``);
       lines.push(`- **Element:** \`${item.targetText ? escapeMarkdown(item.targetText.substring(0, 60)) : "N/A"}\``, "");
     });
@@ -1986,8 +1894,8 @@ function createImageEditor() {
       if (axis === "x" && part === "left" || axis === "y" && part === "top") return 0;
       if (part === "center") return 50;
       if (axis === "x" && part === "right" || axis === "y" && part === "bottom") return 100;
-      const numeric2 = parseFloat(part);
-      return Number.isFinite(numeric2) ? Math.max(0, Math.min(100, numeric2)) : fallback;
+      const numeric = parseFloat(part);
+      return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : fallback;
     };
     const horizontal = parts.find((part) => ["left", "right"].includes(part));
     const vertical = parts.find((part) => ["top", "bottom"].includes(part));
@@ -2158,16 +2066,9 @@ function createPickerController(ctx) {
   }
   function beginPicking(mode, opts = {}) {
     clearResumeTimer();
-    if (state.pickerInspector?.phase && state.pickerInspector.phase !== "idle") ctx.closePickerInspector?.();
     state.panelOpen = false;
     state.mode = mode;
     state.picking = true;
-    state.pickerInspector.phase = "picking";
-    state.pickerInspector.candidate = null;
-    state.pickerInspector.selected = null;
-    state.pickerInspector.locked = false;
-    state.pickerInspector.breadcrumb = [];
-    state.pickerInspector.measurement = { enabled: false, mode: "box", compareTarget: null };
     state.pickingLocked = false;
     state._modeBeforePickingStop = null;
     root.classList.add("ui-feedback-picking");
@@ -2179,7 +2080,6 @@ function createPickerController(ctx) {
     if (state.picking) state._modeBeforePickingStop = state.mode;
     state.picking = false;
     state.pickingLocked = false;
-    if (!state.pickerInspector?.selected) state.pickerInspector.phase = "idle";
     root.classList.remove("ui-feedback-picking");
     clearHighlight();
     if (opts.rerender) ctx.renderToolbar();
@@ -2197,335 +2097,6 @@ function createPickerController(ctx) {
     }, 80);
   }
   return { clearResumeTimer, clearHighlight, highlight, beginPicking, stopPicking, resumePickingIfNeeded };
-}
-
-// src/features/measurement.js
-function numeric(value) {
-  const parsed = parseFloat(value);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-function sideValues(style, prefix) {
-  return {
-    top: numeric(style.getPropertyValue(`${prefix}-top`)),
-    right: numeric(style.getPropertyValue(`${prefix}-right`)),
-    bottom: numeric(style.getPropertyValue(`${prefix}-bottom`)),
-    left: numeric(style.getPropertyValue(`${prefix}-left`))
-  };
-}
-function measureBox(element) {
-  if (!(element instanceof Element)) return null;
-  const rect = element.getBoundingClientRect();
-  const style = getComputedStyle(element);
-  return {
-    rect: {
-      x: rect.x,
-      y: rect.y,
-      top: rect.top,
-      right: rect.right,
-      bottom: rect.bottom,
-      left: rect.left,
-      width: rect.width,
-      height: rect.height
-    },
-    padding: sideValues(style, "padding"),
-    margin: sideValues(style, "margin"),
-    border: {
-      top: numeric(style.borderTopWidth),
-      right: numeric(style.borderRightWidth),
-      bottom: numeric(style.borderBottomWidth),
-      left: numeric(style.borderLeftWidth)
-    },
-    display: style.display
-  };
-}
-function measureGap(elementA, elementB) {
-  const first = measureBox(elementA)?.rect;
-  const second = measureBox(elementB)?.rect;
-  if (!first || !second || elementA === elementB) return null;
-  const horizontal = second.left >= first.right ? second.left - first.right : first.left >= second.right ? first.left - second.right : 0;
-  const vertical = second.top >= first.bottom ? second.top - first.bottom : first.top >= second.bottom ? first.top - second.bottom : 0;
-  let axis = "x";
-  let distance = horizontal;
-  if (!horizontal || vertical > 0 && vertical < horizontal) {
-    axis = "y";
-    distance = vertical;
-  }
-  if (!horizontal && !vertical) {
-    axis = "overlap";
-    distance = 0;
-  }
-  const horizontalPoint = second.left >= first.right ? { x1: first.right, x2: second.left, y: Math.max(first.top, Math.min(first.bottom, second.top)) } : { x1: second.right, x2: first.left, y: Math.max(second.top, Math.min(second.bottom, first.top)) };
-  const verticalPoint = second.top >= first.bottom ? { y1: first.bottom, y2: second.top, x: Math.max(first.left, Math.min(first.right, second.left)) } : { y1: second.bottom, y2: first.top, x: Math.max(second.left, Math.min(second.right, first.left)) };
-  return { axis, distance, first, second, horizontalPoint, verticalPoint };
-}
-function px(value) {
-  return `${Math.round(value * 10) / 10}px`;
-}
-function createMeasurementController(ctx) {
-  const { state, root } = ctx;
-  let observer = null;
-  let raf = 0;
-  let scrollBound = false;
-  function mount() {
-    return root.querySelector("[data-picker-measurement-layer]");
-  }
-  function clearOverlay() {
-    cancelAnimationFrame(raf);
-    raf = 0;
-    const layer = mount();
-    if (layer) layer.innerHTML = "";
-  }
-  function renderBoxOverlay(element, data = measureBox(element)) {
-    const layer = mount();
-    if (!layer || !data) return;
-    const { rect, padding, margin, border } = data;
-    layer.innerHTML = `<div class="ui-feedback-measurement-box" style="left:${px(rect.left)};top:${px(rect.top)};width:${px(rect.width)};height:${px(rect.height)}"><span class="ui-feedback-measurement-label">${Math.round(rect.width)} \xD7 ${Math.round(rect.height)}</span><i class="ui-feedback-measurement-edge ui-feedback-measurement-edge--padding" style="inset:${px(border.top + padding.top)} ${px(border.right + padding.right)} ${px(border.bottom + padding.bottom)} ${px(border.left + padding.left)}"></i><i class="ui-feedback-measurement-edge ui-feedback-measurement-edge--border" style="inset:${px(border.top / 2)} ${px(border.right / 2)} ${px(border.bottom / 2)} ${px(border.left / 2)}"></i></div><div class="ui-feedback-measurement-margin" style="left:${px(rect.left - margin.left)};top:${px(rect.top - margin.top)};width:${px(rect.width + margin.left + margin.right)};height:${px(rect.height + margin.top + margin.bottom)}"></div>`;
-  }
-  function renderGapOverlay(data) {
-    const layer = mount();
-    if (!layer || !data || data.axis === "overlap") return;
-    if (data.axis === "x") {
-      const y = data.horizontalPoint.y;
-      const left = Math.min(data.horizontalPoint.x1, data.horizontalPoint.x2);
-      layer.innerHTML = `<div class="ui-feedback-measurement-guide ui-feedback-measurement-guide--x" style="left:${px(left)};top:${px(y)};width:${px(data.distance)}"><span>${Math.round(data.distance)}px</span></div>`;
-    } else {
-      const x = data.verticalPoint.x;
-      const top = Math.min(data.verticalPoint.y1, data.verticalPoint.y2);
-      layer.innerHTML = `<div class="ui-feedback-measurement-guide ui-feedback-measurement-guide--y" style="left:${px(x)};top:${px(top)};height:${px(data.distance)}"><span>${Math.round(data.distance)}px</span></div>`;
-    }
-  }
-  function recalibrate() {
-    cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(() => {
-      raf = 0;
-      const inspector = state.pickerInspector;
-      const selected = inspector?.selected?.element;
-      if (!inspector?.measurement?.enabled || !selected?.isConnected) {
-        clearOverlay();
-        return;
-      }
-      if (inspector.measurement.mode === "gap") {
-        renderGapOverlay(measureGap(selected, inspector.measurement.compareTarget));
-      } else {
-        renderBoxOverlay(selected);
-      }
-    });
-  }
-  function observe(...elements) {
-    observer?.disconnect();
-    observer = typeof ResizeObserver === "function" && elements.some(Boolean) ? new ResizeObserver(recalibrate) : null;
-    elements.filter((element) => element instanceof Element).forEach((element) => observer?.observe(element));
-    if (!scrollBound) {
-      window.addEventListener("scroll", recalibrate, { passive: true });
-      window.addEventListener("resize", recalibrate, { passive: true });
-      scrollBound = true;
-    }
-  }
-  function enable(element, mode = "box") {
-    state.pickerInspector.measurement.enabled = true;
-    state.pickerInspector.measurement.mode = mode;
-    state.pickerInspector.measurement.compareTarget = null;
-    observe(element);
-    recalibrate();
-  }
-  function disable() {
-    state.pickerInspector.measurement.enabled = false;
-    state.pickerInspector.measurement.compareTarget = null;
-    observer?.disconnect();
-    observer = null;
-    clearOverlay();
-  }
-  function setMode(mode) {
-    state.pickerInspector.measurement.mode = mode;
-    state.pickerInspector.measurement.enabled = true;
-    observe(state.pickerInspector.selected?.element, state.pickerInspector.measurement.compareTarget);
-    recalibrate();
-  }
-  function setCompareTarget(element) {
-    if (!(element instanceof Element) || element.closest("#ui-feedback-host")) return false;
-    state.pickerInspector.measurement.compareTarget = element;
-    state.pickerInspector.measurement.enabled = true;
-    observe(state.pickerInspector.selected?.element, element);
-    recalibrate();
-    return true;
-  }
-  function getSnapshot() {
-    const inspector = state.pickerInspector;
-    const box = inspector?.selected?.element ? measureBox(inspector.selected.element) : null;
-    const gap = inspector?.measurement?.mode === "gap" ? measureGap(inspector.selected?.element, inspector.measurement.compareTarget) : null;
-    return { box, gap };
-  }
-  function destroy() {
-    disable();
-    if (scrollBound) {
-      window.removeEventListener("scroll", recalibrate);
-      window.removeEventListener("resize", recalibrate);
-      scrollBound = false;
-    }
-  }
-  return { measureBox, measureGap, renderBoxOverlay, renderGapOverlay, clearOverlay, recalibrate, enable, disable, setMode, setCompareTarget, getSnapshot, destroy };
-}
-
-// src/features/picker-inspector.js
-var TOOL_SELECTOR = "#ui-feedback-host";
-var MAX_BREADCRUMB_SEGMENTS = 5;
-function isInspectable(element) {
-  return element instanceof Element && element !== document.documentElement && element !== document.body && !element.closest(TOOL_SELECTOR);
-}
-function segmentFor(element, index) {
-  const label = targetLabel(element) || element.tagName.toLowerCase();
-  return {
-    index,
-    element,
-    label,
-    tag: element.tagName.toLowerCase(),
-    selector: cssPath(element)
-  };
-}
-function buildBreadcrumb(element) {
-  if (!isInspectable(element)) return [];
-  const chain = [];
-  let current = element;
-  while (isInspectable(current)) {
-    chain.unshift(segmentFor(current, chain.length));
-    current = current.parentElement;
-  }
-  return chain.map((item, index) => ({ ...item, index }));
-}
-function renderBreadcrumb(items) {
-  if (!items.length) return "";
-  const button = (item) => `<button type="button" class="ui-feedback-inspector__crumb" data-breadcrumb-index="${item.index}" title="${escapeHtml(item.selector)}" aria-label="Ch\u1ECDn ${escapeHtml(item.label)}">${escapeHtml(item.label)}</button>`;
-  if (items.length <= MAX_BREADCRUMB_SEGMENTS) return items.map(button).join('<span class="ui-feedback-inspector__crumb-separator" aria-hidden="true">\u203A</span>');
-  const middle = items.slice(1, -3);
-  return `${button(items[0])}<span class="ui-feedback-inspector__crumb-separator" aria-hidden="true">\u203A</span><details class="ui-feedback-inspector__overflow"><summary aria-label="Hi\u1EC7n c\xE1c ph\u1EA7n t\u1EED cha \u1EDF gi\u1EEFa">\u2026</summary><div class="ui-feedback-inspector__overflow-menu">${middle.map(button).join("")}</div></details><span class="ui-feedback-inspector__crumb-separator" aria-hidden="true">\u203A</span>${items.slice(-3).map(button).join('<span class="ui-feedback-inspector__crumb-separator" aria-hidden="true">\u203A</span>')}`;
-}
-function formatSides(sides) {
-  if (!sides) return "\u2014";
-  return `${Math.round(sides.top)} / ${Math.round(sides.right)} / ${Math.round(sides.bottom)} / ${Math.round(sides.left)}px`;
-}
-function createPickerInspector(ctx) {
-  const { state, root, renderToolbar: renderToolbar2, measurement } = ctx;
-  function selectedElement() {
-    return state.pickerInspector?.selected?.element || null;
-  }
-  function selectTarget(element) {
-    if (!isInspectable(element) || state.pickerInspector.locked) return false;
-    const breadcrumb = buildBreadcrumb(element);
-    state.pickerInspector.phase = "selected";
-    state.pickerInspector.candidate = null;
-    state.pickerInspector.selected = { element, selector: cssPath(element), label: targetLabel(element), breadcrumb };
-    state.pickerInspector.breadcrumb = breadcrumb;
-    state.pickerInspector.measurement.compareTarget = null;
-    state.picking = false;
-    state.pickingLocked = false;
-    root.classList.remove("ui-feedback-picking");
-    ctx.clearHighlight?.();
-    renderToolbar2();
-    requestAnimationFrame(() => {
-      positionInspector(element);
-      root.querySelector("[data-picker-inspector]")?.focus({ preventScroll: true });
-    });
-    return true;
-  }
-  function setCandidate(element) {
-    if (!isInspectable(element)) return false;
-    state.pickerInspector.candidate = { element, selector: cssPath(element), label: targetLabel(element) };
-    return true;
-  }
-  function lockTarget() {
-    if (!selectedElement()) return false;
-    state.pickerInspector.phase = "locked";
-    state.pickerInspector.locked = true;
-    renderToolbar2();
-    positionInspector(selectedElement());
-    return true;
-  }
-  function unlockTarget() {
-    if (!selectedElement()) return false;
-    state.pickerInspector.phase = "selected";
-    state.pickerInspector.locked = false;
-    renderToolbar2();
-    positionInspector(selectedElement());
-    return true;
-  }
-  function selectBreadcrumb(index) {
-    const item = state.pickerInspector.breadcrumb?.[Number(index)];
-    if (!item?.element || !item.element.isConnected) return false;
-    state.pickerInspector.locked = false;
-    return selectTarget(item.element);
-  }
-  function closeInspector() {
-    measurement?.disable();
-    state.pickerInspector.phase = "idle";
-    state.pickerInspector.candidate = null;
-    state.pickerInspector.selected = null;
-    state.pickerInspector.locked = false;
-    state.pickerInspector.breadcrumb = [];
-    state.pickerInspector.measurement = { enabled: false, mode: "box", compareTarget: null };
-    ctx.clearHighlight?.();
-    renderToolbar2();
-  }
-  function openAction(action) {
-    const element = selectedElement();
-    if (!element || !element.isConnected) {
-      closeInspector();
-      ctx.showToast?.("Ph\u1EA7n t\u1EED \u0111\xE3 thay \u0111\u1ED5i ho\u1EB7c kh\xF4ng c\xF2n tr\xEAn trang");
-      return false;
-    }
-    if (["comment", "edit", "css", "image"].includes(action)) lockTarget();
-    ctx.onAction?.(action, element);
-    return true;
-  }
-  function measurementMarkup() {
-    const inspector = state.pickerInspector;
-    if (!inspector.measurement.enabled) return "";
-    const snapshot = measurement?.getSnapshot?.() || {};
-    if (inspector.measurement.mode === "gap") {
-      const gap = snapshot.gap;
-      return `<section class="ui-feedback-inspector__measurement" aria-label="\u0110o kho\u1EA3ng c\xE1ch"><div class="ui-feedback-inspector__section-head"><strong>\u0110o kho\u1EA3ng c\xE1ch</strong><button type="button" data-inspector-action="measure-box" aria-label="\u0110o box" title="\u0110o box">Box</button></div><p class="ui-feedback-inspector__hint">${gap ? `Kho\u1EA3ng c\xE1ch ng\u1EAFn nh\u1EA5t theo tr\u1EE5c <b>${gap.axis}</b>: <b>${Math.round(gap.distance)}px</b>` : "\u0110ang ch\u1EDD ph\u1EA7n t\u1EED th\u1EE9 hai\u2026"}</p></section>`;
-    }
-    const box = snapshot.box;
-    if (!box) return "";
-    return `<section class="ui-feedback-inspector__measurement" aria-label="\u0110o k\xEDch th\u01B0\u1EDBc"><div class="ui-feedback-inspector__section-head"><strong>\u0110o box</strong><button type="button" data-inspector-action="measure-gap" aria-label="\u0110o kho\u1EA3ng c\xE1ch" title="\u0110o kho\u1EA3ng c\xE1ch">Gap</button></div><div class="ui-feedback-inspector__metrics"><span><b>W</b>${Math.round(box.rect.width)}px</span><span><b>H</b>${Math.round(box.rect.height)}px</span><span><b>X</b>${Math.round(box.rect.x)}px</span><span><b>Y</b>${Math.round(box.rect.y)}px</span></div><p class="ui-feedback-inspector__hint">Padding ${formatSides(box.padding)} \xB7 Margin ${formatSides(box.margin)}</p></section>`;
-  }
-  function renderInspector() {
-    const inspector = state.pickerInspector;
-    if (!inspector || !inspector.selected || inspector.phase === "idle") return "";
-    const selected = inspector.selected;
-    const lockLabel = inspector.locked ? "M\u1EDF kh\xF3a selection" : "Kh\xF3a selection";
-    return `<aside class="ui-feedback-inspector ${inspector.locked ? "is-locked" : ""}" data-picker-inspector role="dialog" aria-label="Picker Inspector" tabindex="-1"><header class="ui-feedback-inspector__header"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">\u22EE\u22EE</span><div><strong>Inspector</strong><small>${inspector.locked ? "Selection \u0111\xE3 kh\xF3a" : "Selection \u0111ang m\u1EDF"}</small></div></div><div class="ui-feedback-inspector__actions"><button type="button" class="ui-feedback-icon-button" data-inspector-action="lock" aria-label="${lockLabel}" title="${lockLabel}">${inspector.locked ? "\u{1F512}" : "\u2311"}</button><button type="button" class="ui-feedback-icon-button" data-inspector-action="close" aria-label="\u0110\xF3ng Inspector" title="\u0110\xF3ng">\xD7</button></div></header><div class="ui-feedback-inspector__body"><div class="ui-feedback-inspector__crumbs" aria-label="Breadcrumb DOM">${renderBreadcrumb(selected.breadcrumb)}</div><div class="ui-feedback-inspector__target"><div><strong>${escapeHtml(selected.label || selected.tag)}</strong><small>${escapeHtml(selected.selector)}</small></div><button type="button" class="ui-feedback-inspector__copy" data-inspector-action="copy" aria-label="Copy selector" title="Copy selector">Copy</button></div><div class="ui-feedback-inspector__actions-grid"><button type="button" data-inspector-action="comment">Comment</button><button type="button" data-inspector-action="edit">S\u1EEDa text</button><button type="button" data-inspector-action="css">B\u1ED9 CSS</button><button type="button" data-inspector-action="image">Thay \u1EA3nh</button></div><div class="ui-feedback-inspector__measure-actions"><button type="button" data-inspector-action="measure-box" class="${inspector.measurement.enabled && inspector.measurement.mode === "box" ? "is-active" : ""}">\u0110o box</button><button type="button" data-inspector-action="measure-gap" class="${inspector.measurement.enabled && inspector.measurement.mode === "gap" ? "is-active" : ""}">\u0110o gap</button></div>${measurementMarkup()}<p class="ui-feedback-inspector__shortcut"><kbd>Enter</kbd> ch\u1ECDn \xB7 <kbd>L</kbd> kh\xF3a \xB7 <kbd>M</kbd> \u0111o \xB7 <kbd>Esc</kbd> \u0111\xF3ng</p></div></aside>`;
-  }
-  function positionInspector(target = selectedElement()) {
-    const inspector = root.querySelector("[data-picker-inspector]");
-    if (!inspector || !(target instanceof Element)) return;
-    if (window.innerWidth <= 640) {
-      inspector.style.left = "12px";
-      inspector.style.right = "12px";
-      inspector.style.top = "auto";
-      inspector.style.bottom = "12px";
-      return;
-    }
-    const rect = target.getBoundingClientRect();
-    const width = Math.min(340, Math.max(300, window.innerWidth - 24));
-    const height = Math.min(inspector.offsetHeight || 380, window.innerHeight - 24);
-    const gap = 12;
-    let left = rect.right + gap;
-    let top = rect.top;
-    if (left + width > window.innerWidth - 12) left = rect.left - width - gap;
-    if (left < 12) left = Math.max(12, Math.min(window.innerWidth - width - 12, rect.left));
-    if (top + height > window.innerHeight - 12) top = window.innerHeight - height - 12;
-    top = Math.max(12, top);
-    inspector.style.left = `${Math.round(left)}px`;
-    inspector.style.top = `${Math.round(top)}px`;
-    inspector.style.width = `${Math.round(width)}px`;
-    inspector.style.right = "auto";
-    inspector.style.bottom = "auto";
-  }
-  function refresh() {
-    renderToolbar2();
-    requestAnimationFrame(() => positionInspector());
-  }
-  return { selectTarget, setCandidate, lockTarget, unlockTarget, selectBreadcrumb, closeInspector, openAction, renderInspector, positionInspector, refresh, selectedElement };
 }
 
 // src/ui/panel.js
@@ -2689,8 +2260,7 @@ function renderToolbar(ctx) {
     getToolbarStyle,
     dismissCoachmark,
     renderPanel,
-    renderModal,
-    renderInspector
+    renderModal
   } = ctx;
   if (!state.active) {
     root.innerHTML = "";
@@ -2698,7 +2268,6 @@ function renderToolbar(ctx) {
   }
   const undoCount = state.undoStack.length;
   const undoBadge = undoCount ? `<span class="ui-feedback-badge ui-feedback-badge--undo">${undoCount}</span>` : "";
-  const updateLabel = state.updateBusy ? "\u0110ang ki\u1EC3m tra" : "Update";
   const coachmark = state.coachmarkVisible ? '<aside class="ui-feedback-coachmark" role="status"><strong>B\u1EAFt \u0111\u1EA7u v\u1EDBi UI Feedback</strong><p>Ghi nh\u1EADn thay \u0111\u1ED5i ngay tr\xEAn b\u1EA3n preview, kh\xF4ng c\u1EA7n r\u1EDDi kh\u1ECFi trang.</p><ol class="ui-feedback-coachmark__steps"><li>Ch\u1ECDn m\u1ED9t c\xF4ng c\u1EE5 tr\xEAn thanh dock.</li><li>R\xEA chu\u1ED9t v\xE0 b\u1EA5m v\xE0o ph\u1EA7n t\u1EED c\u1EA7n review.</li><li>L\u01B0u feedback ho\u1EB7c ho\xE0n t\xE1c b\u1EB1ng n\xFAt Undo.</li></ol><button type="button" data-coachmark-dismiss>\u0110\xE3 hi\u1EC3u</button></aside>' : "";
   const bubble = `<button class="ui-feedback-toolbar-bubble" data-action="collapse" aria-label="M\u1EDF thanh c\xF4ng c\u1EE5" title="M\u1EDF thanh c\xF4ng c\u1EE5">${ICONS.grip}<span class="ui-feedback-badge" ${state.comments.length ? "" : "hidden"}>${state.comments.length}</span></button>`;
   const dock = `<div class="ui-feedback-toolbar" role="toolbar" aria-label="UI Feedback tools" style="${getToolbarStyle()}">
@@ -2708,11 +2277,10 @@ function renderToolbar(ctx) {
       <button class="ui-feedback-tool ${state.picking && state.mode === "edit" ? "is-active" : ""}" data-action="edit" aria-label="S\u1EEDa n\u1ED9i dung UI" title="S\u1EEDa text">${ICONS.pencil}<span class="ui-feedback-tool__label">S\u1EEDa text</span></button>
       <button class="ui-feedback-tool ${state.picking && state.mode === "css" ? "is-active" : ""}" data-action="css" aria-label="M\u1EDF B\u1ED9 CSS" title="B\u1ED9 CSS">${ICONS.paintbrush}<span class="ui-feedback-tool__label">B\u1ED9 CSS</span></button>
       <button class="ui-feedback-tool ${state.picking && state.mode === "image" ? "is-active" : ""}" data-action="image" aria-label="Thay \u1EA3nh" title="Thay \u1EA3nh">${ICONS.image}<span class="ui-feedback-tool__label">Thay \u1EA3nh</span></button>
-      <button class="ui-feedback-tool ui-feedback-tool--update ${state.updateBusy ? "is-busy" : ""}" data-action="update" aria-label="Ki\u1EC3m tra v\xE0 c\u1EADp nh\u1EADt UI Feedback tool" title="Ki\u1EC3m tra b\u1EA3n c\u1EADp nh\u1EADt" aria-busy="${state.updateBusy ? "true" : "false"}">${ICONS.refresh}<span class="ui-feedback-tool__label">${updateLabel}</span></button>
       ${undoCount ? `<button class="ui-feedback-tool" data-action="undo" aria-label="Ho\xE0n t\xE1c thao t\xE1c g\u1EA7n nh\u1EA5t" title="Ho\xE0n t\xE1c (${undoCount})">${ICONS.undo}<span class="ui-feedback-tool__label">Undo</span>${undoBadge}</button>` : ""}
       <button class="ui-feedback-tool" data-action="collapse" aria-label="Thu g\u1ECDn thanh c\xF4ng c\u1EE5" title="Thu g\u1ECDn">${ICONS.collapse}</button>
     </div>`;
-  root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ""}<div class="ui-feedback-measurement-layer" data-picker-measurement-layer aria-hidden="true"></div>${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div>${renderInspector ? renderInspector() : ""}<div data-ui-feedback-toast></div>`;
+  root.innerHTML = `${state.picking ? '<div class="ui-feedback-picker-layer" data-picker-layer aria-hidden="true"></div>' : ""}${state.collapsed ? bubble : dock}${coachmark}<div data-ui-feedback-panel></div><div data-ui-feedback-modal></div><div data-ui-feedback-toast></div>`;
   if (state.panelOpen) renderPanel();
   if (state.modalOpen) renderModal();
 }
@@ -2770,8 +2338,6 @@ function createUIFeedback(options = {}) {
   let cssEditor;
   const imageEditor = createImageEditor();
   let pickerController;
-  let measurementController;
-  let pickerInspector;
   let themeMedia = null;
   let themeChangeHandler = null;
   let domObserver = null;
@@ -2819,7 +2385,10 @@ function createUIFeedback(options = {}) {
       if (!element) return;
       if (item.type === "edit" && element.textContent !== (item.value || "")) element.textContent = item.value || "";
       else if (item.type === "css" && element.style.cssText !== (item.value || "")) element.style.cssText = item.value || "";
-      else if (item.type === "image") applyImageState(element, item.newImageState || { kind: "src", src: item.value || "" });
+      else if (item.type === "image") {
+        const snapshot = { ...item.newImageState || { kind: "src" }, src: item.value || item.newImageState?.src || "" };
+        applyImageState(element, snapshot);
+      }
     });
   }
   function renderToolbar2() {
@@ -2828,88 +2397,9 @@ function createUIFeedback(options = {}) {
       root,
       getToolbarStyle,
       renderPanel,
-      renderModal,
-      renderInspector: () => pickerInspector?.renderInspector?.() || ""
+      renderModal
     });
   }
-  function normalizeVersion(value) {
-    const match = String(value || "").match(/\d+(?:\.\d+){0,2}/);
-    return match ? match[0].split(".").map(Number) : [0];
-  }
-  function compareVersions(left, right) {
-    const a = normalizeVersion(left);
-    const b = normalizeVersion(right);
-    for (let i = 0; i < 3; i += 1) {
-      const delta = (a[i] || 0) - (b[i] || 0);
-      if (delta) return delta;
-    }
-    return 0;
-  }
-  function extractToolVersion(source) {
-    const value = String(source || "");
-    return value.match(/UI Feedback Tool v(\d+(?:\.\d+){2})/)?.[1] || value.match(/TOOL_VERSION\s*=\s*["'](\d+(?:\.\d+){2})["']/)?.[1] || "";
-  }
-  async function updateTool() {
-    if (state.updateBusy) return;
-    state.updateBusy = true;
-    let feedbackMessage = "";
-    renderToolbar2();
-    try {
-      const candidateUrls = [...new Set([
-        ...Array.isArray(config.updateMirrors) ? config.updateMirrors : [],
-        config.updateUrl
-      ].filter(Boolean))];
-      const currentVersion = config.version || TOOL_VERSION;
-      let newest = null;
-      const failures = [];
-      for (const candidate of candidateUrls) {
-        try {
-          const updateUrl = new URL(candidate, document.baseURI);
-          updateUrl.searchParams.set("ui_feedback_update", String(Date.now()));
-          const response = await fetch(updateUrl.href, { cache: "no-store", credentials: "omit" });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const source2 = await response.text();
-          const version = extractToolVersion(source2);
-          if (!version) throw new Error("missing version");
-          if (!newest || compareVersions(version, newest.version) > 0) {
-            newest = { source: source2, version, url: updateUrl.href };
-          }
-        } catch (error) {
-          failures.push(`${candidate}: ${error.message}`);
-        }
-      }
-      if (!newest) {
-        throw new Error(`No reachable update mirror. ${failures.join(" | ")}`);
-      }
-      const { source, version: latestVersion } = newest;
-      if (compareVersions(latestVersion, currentVersion) <= 0) {
-        feedbackMessage = `UI Feedback \u0111ang \u1EDF b\u1EA3n m\u1EDBi nh\u1EA5t \xB7 v${currentVersion}`;
-        return;
-      }
-      const blobUrl = URL.createObjectURL(new Blob([source], { type: "text/javascript" }));
-      try {
-        const updatedModule = await import(`${blobUrl}#ui-feedback-${latestVersion}-${Date.now()}`);
-        if (typeof updatedModule.createUIFeedback !== "function") throw new Error("Updated module is invalid");
-        const preservedOptions = { ...config, version: latestVersion, updateMirrors: config.updateMirrors, updateUrl: config.updateUrl };
-        dispose();
-        const updatedInstance = updatedModule.createUIFeedback(preservedOptions);
-        setTimeout(() => updatedInstance?.notify?.(`\u0110\xE3 c\u1EADp nh\u1EADt UI Feedback l\xEAn v${latestVersion}`), 0);
-      } finally {
-        URL.revokeObjectURL(blobUrl);
-      }
-    } catch (error) {
-      console.warn("[UI Feedback] Update failed:", error);
-      feedbackMessage = "Kh\xF4ng th\u1EC3 c\u1EADp nh\u1EADt tool t\u1EEB c\xE1c mirror. Ki\u1EC3m tra k\u1EBFt n\u1ED1i r\u1ED3i th\u1EED l\u1EA1i.";
-    } finally {
-      state.updateBusy = false;
-      if (root.isConnected) {
-        renderToolbar2();
-        if (feedbackMessage) showToast(feedbackMessage);
-      }
-    }
-  }
-  let lastToolbarAction = "";
-  let lastToolbarActionAt = 0;
   function dispatchToolbarAction(action) {
     if (action === "activate") toggle();
     if (action === "list") togglePanel();
@@ -2918,7 +2408,6 @@ function createUIFeedback(options = {}) {
     if (action === "edit") toggleMode("edit");
     if (action === "css") toggleMode("css");
     if (action === "image") toggleMode("image");
-    if (action === "update") updateTool();
     if (action === "collapse") {
       state.collapsed = !state.collapsed;
       renderToolbar2();
@@ -2934,10 +2423,6 @@ function createUIFeedback(options = {}) {
   function triggerToolbarAction(event, button) {
     const action = button?.dataset?.action;
     if (!action) return;
-    const now = performance.now();
-    if (action === lastToolbarAction && now - lastToolbarActionAt < 500) return;
-    lastToolbarAction = action;
-    lastToolbarActionAt = now;
     event.preventDefault();
     event.stopPropagation();
     dispatchToolbarAction(action);
@@ -3359,12 +2844,12 @@ function createUIFeedback(options = {}) {
     const isEdit = state.mode === "edit";
     const isCss = state.mode === "css";
     const isImage = state.mode === "image";
-    const currentText = existing?.comment || (isEdit ? safeText(state.target?.textContent, 500) : "");
+    const currentText = existing?.comment || (isEdit ? String(state.target?.textContent || "") : "");
     const priorityValue = existing?.priority || "medium";
     const title = isEdit ? "S\u1EEDa n\u1ED9i dung UI" : isCss ? "B\u1ED9 giao di\u1EC7n" : isImage ? "Thay \u1EA3nh" : "Ghi ch\xFA feedback";
-    const commentContent = isEdit ? `<label class="ui-feedback-label" for="ui-feedback-input">N\u1ED9i dung hi\u1EC3n th\u1ECB</label><input id="ui-feedback-input" class="ui-feedback-field" data-feedback-input value="${escapeAttribute(currentText)}" />` : isCss ? renderCssContent() : isImage ? renderImageContent() : `<label class="ui-feedback-label" for="ui-feedback-input">Element n\xE0y c\u1EA7n s\u1EEDa g\xEC?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="V\xED d\u1EE5: T\u0103ng kho\u1EA3ng c\xE1ch gi\u1EEFa ti\xEAu \u0111\u1EC1 v\xE0 danh s\xE1ch\u2026">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">M\u1EE9c \u0111\u1ED9 \u01B0u ti\xEAn</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === "high" ? "selected" : ""}>Cao</option><option value="medium" ${priorityValue === "medium" ? "selected" : ""}>Trung b\xECnh</option><option value="low" ${priorityValue === "low" ? "selected" : ""}>Th\u1EA5p</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Ph\xE2n lo\u1EA1i</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || "other")}</select></div></div>`;
+    const commentContent = isEdit ? `<label class="ui-feedback-label" for="ui-feedback-input">N\u1ED9i dung hi\u1EC3n th\u1ECB</label><textarea id="ui-feedback-input" class="ui-feedback-textarea ui-feedback-textarea--edit" data-feedback-input>${escapeHtml(currentText)}</textarea>` : isCss ? renderCssContent() : isImage ? renderImageContent() : `<label class="ui-feedback-label" for="ui-feedback-input">Element n\xE0y c\u1EA7n s\u1EEDa g\xEC?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="V\xED d\u1EE5: T\u0103ng kho\u1EA3ng c\xE1ch gi\u1EEFa ti\xEAu \u0111\u1EC1 v\xE0 danh s\xE1ch\u2026">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">M\u1EE9c \u0111\u1ED9 \u01B0u ti\xEAn</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === "high" ? "selected" : ""}>Cao</option><option value="medium" ${priorityValue === "medium" ? "selected" : ""}>Trung b\xECnh</option><option value="low" ${priorityValue === "low" ? "selected" : ""}>Th\u1EA5p</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Ph\xE2n lo\u1EA1i</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || "other")}</select></div></div>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">\u0110\xF3ng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button" data-image-restore type="button">Kh\xF4i ph\u1EE5c</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u \u1EA3nh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">H\u1EE7y</button><button class="ui-feedback-button" data-modal-action="reset-position" title="\u0110\u01B0a c\u1EEDa s\u1ED5 v\u1EC1 v\u1ECB tr\xED m\u1EB7c \u0111\u1ECBnh">\u0110\u1EB7t l\u1EA1i v\u1ECB tr\xED</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">L\u01B0u</button>`;
-    const modalClass = isCss || isImage ? "ui-feedback-modal is-inspector" : "ui-feedback-modal is-mini";
+    const modalClass = isCss || isImage ? "ui-feedback-modal is-editor" : "ui-feedback-modal is-mini";
     mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="K\xE9o v\xF9ng ti\xEAu \u0111\u1EC1 \u0111\u1EC3 di chuy\u1EC3n c\u1EEDa s\u1ED5"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">K\xE9o \u0111\u1EC3 di chuy\u1EC3n</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div><button type="button" class="ui-feedback-icon-button ui-feedback-modal__close" data-modal-action="cancel" aria-label="\u0110\xF3ng c\u1EEDa s\u1ED5" title="\u0110\xF3ng">${ICONS.close}</button></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
     applyModalPosition();
     mount.onclick = handleModalClick;
@@ -3749,9 +3234,10 @@ function createUIFeedback(options = {}) {
   }
   function saveModal() {
     const input = root.querySelector("[data-feedback-input]");
-    const value = input?.value?.trim() || "";
     const existing = editingExisting;
     const modeUsed = state.mode;
+    const rawValue = input?.value || "";
+    const value = modeUsed === "edit" ? rawValue : rawValue.trim();
     if (modeUsed === "image") {
       const source = state.modalImageSource || value;
       if (!validateImageSource(source)) {
@@ -3763,6 +3249,11 @@ function createUIFeedback(options = {}) {
       applyImageSource(state.target, source);
       applyImagePosition(state.target, state.modalImagePosition || { x: 50, y: 50 });
       applyImageZoom(state.target, state.modalImageZoom || 100, state.modalImageBaseTransform || "");
+      const newImageState = captureImageState(state.target);
+      delete newImageState.src;
+      delete newImageState.effectiveSrc;
+      delete newImageState.backgroundImage;
+      const oldImageReference = oldImageState.src || oldImageState.backgroundImage || "";
       const item = {
         id: generateId(),
         type: "image",
@@ -3770,11 +3261,11 @@ function createUIFeedback(options = {}) {
         selector: cssPath(state.target),
         tag: targetLabel(state.target),
         codeLine: firstCodeLine(state.target),
-        targetText: oldImageState.src || oldImageState.backgroundImage || "",
+        targetText: String(oldImageReference).startsWith("data:image/") ? "[\u1EA2nh upload local tr\u01B0\u1EDBc \u0111\xF3]" : oldImageReference,
         value: source,
         imageSourceType: source.startsWith("data:image/") ? "upload" : "url",
         oldImageState,
-        newImageState: captureImageState(state.target),
+        newImageState,
         page: location.pathname || "/",
         viewport: `${window.innerWidth}x${window.innerHeight}`,
         scrollY: Math.round(window.scrollY),
@@ -3783,14 +3274,14 @@ function createUIFeedback(options = {}) {
       };
       state.comments.push(item);
       state.undoStack.push({ type: "image", id: item.id, selector: item.selector, oldImageState });
-      persist();
+      const persisted = persist();
       state.modalCommitted = true;
-      showToast("\u0110\xE3 thay \u1EA3nh tr\xEAn trang", { undo: true });
+      showToast(persisted ? "\u0110\xE3 thay \u1EA3nh tr\xEAn trang" : "\u0110\xE3 thay \u1EA3nh trong phi\xEAn n\xE0y nh\u01B0ng kh\xF4ng th\u1EC3 l\u01B0u v\xE0o tr\xECnh duy\u1EC7t", { undo: true });
       editingExisting = null;
       closeModal(true);
       return;
     }
-    if (modeUsed !== "css" && !value) {
+    if (modeUsed !== "css" && !value.trim()) {
       input?.focus();
       showToast("Vui l\xF2ng nh\u1EADp n\u1ED9i dung tr\u01B0\u1EDBc khi l\u01B0u");
       return;
@@ -3823,9 +3314,10 @@ function createUIFeedback(options = {}) {
           oldValue
         });
       }
-      persist();
+      const persisted = persist();
       state.modalCommitted = true;
-      showToast(modeUsed === "edit" ? "\u0110\xE3 c\u1EADp nh\u1EADt n\u1ED9i dung tr\xEAn trang" : "\u0110\xE3 apply B\u1ED9 giao di\u1EC7n", { undo: true });
+      const successMessage = modeUsed === "edit" ? "\u0110\xE3 c\u1EADp nh\u1EADt n\u1ED9i dung tr\xEAn trang" : "\u0110\xE3 apply B\u1ED9 giao di\u1EC7n";
+      showToast(persisted ? successMessage : `${successMessage} trong phi\xEAn n\xE0y nh\u01B0ng kh\xF4ng th\u1EC3 l\u01B0u v\xE0o tr\xECnh duy\u1EC7t`, { undo: true });
     } else {
       const item = existing || { id: generateId(), createdAt: (/* @__PURE__ */ new Date()).toISOString(), type: "comment" };
       item.comment = value;
@@ -3840,9 +3332,10 @@ function createUIFeedback(options = {}) {
       item.scrollY = Math.round(window.scrollY);
       item.updatedAt = (/* @__PURE__ */ new Date()).toISOString();
       if (!existing) state.comments.push(item);
-      persist();
+      const persisted = persist();
       state.modalCommitted = true;
-      showToast(existing ? "\u0110\xE3 c\u1EADp nh\u1EADt feedback" : "\u0110\xE3 l\u01B0u feedback");
+      const successMessage = existing ? "\u0110\xE3 c\u1EADp nh\u1EADt feedback" : "\u0110\xE3 l\u01B0u feedback";
+      showToast(persisted ? successMessage : `${successMessage} trong phi\xEAn n\xE0y nh\u01B0ng kh\xF4ng th\u1EC3 l\u01B0u v\xE0o tr\xECnh duy\u1EC7t`);
       setTimeout(() => {
         const badge = root.querySelector(".ui-feedback-badge");
         if (badge) {
@@ -3902,7 +3395,9 @@ function createUIFeedback(options = {}) {
     return githubIssueController.createGithubIssue();
   }
   function toggle() {
-    state.active = !state.active;
+    const nextActive = !state.active;
+    if (!nextActive && state.modalOpen) closeModal(false);
+    state.active = nextActive;
     if (state.active) state.coachmarkVisible = config.coachmark !== false && !hasSeenCoachmark();
     persistActive();
     state.panelOpen = false;
@@ -3914,8 +3409,6 @@ function createUIFeedback(options = {}) {
     if (state.active) {
       placeMarkers();
     } else {
-      pickerInspector?.closeInspector?.();
-      measurementController?.destroy?.();
       clearMarkers();
     }
     showToast(state.active ? "UI Feedback \u0111\xE3 b\u1EADt" : "UI Feedback \u0111\xE3 t\u1EAFt");
@@ -3924,56 +3417,8 @@ function createUIFeedback(options = {}) {
     const fromCode = typeof event.code === "string" && event.code.startsWith("Key") ? event.code.slice(3) : "";
     return (fromCode || event.key || "").toLowerCase();
   }
-  function navigateInspector(direction) {
-    const selected = state.pickerInspector?.selected?.element;
-    if (!selected || !selected.isConnected) return false;
-    let next = null;
-    if (direction === "parent") next = selected.parentElement;
-    if (direction === "child") next = [...selected.children].find((element) => !element.closest("#ui-feedback-host")) || null;
-    if (direction === "prev") next = selected.previousElementSibling;
-    if (direction === "next") next = selected.nextElementSibling;
-    if (!next || next === document.body || next === document.documentElement || next.closest("#ui-feedback-host")) return false;
-    if (state.pickerInspector.locked) pickerInspector?.unlockTarget();
-    return Boolean(pickerInspector?.selectTarget(next));
-  }
   function keydown(event) {
-    const inspector = state.pickerInspector;
     const editableTarget = (event.composedPath?.() || [event.target]).some((node) => node instanceof Element && isEditable(node));
-    const isFormControl = editableTarget;
-    if (state.active && !state.modalOpen && !state.panelOpen) {
-      if (event.key === "Enter" && state.picking && inspector?.candidate?.element) {
-        event.preventDefault();
-        pickerInspector?.selectTarget(inspector.candidate.element);
-        return;
-      }
-      if (event.key === "Escape" && inspector?.phase && inspector.phase !== "idle") {
-        event.preventDefault();
-        pickerInspector?.closeInspector();
-        stopPicking({ rerender: true });
-        return;
-      }
-      if (!isFormControl && inspector?.selected?.element) {
-        if (event.key.toLowerCase() === "l") {
-          event.preventDefault();
-          if (inspector.locked) pickerInspector?.unlockTarget();
-          else pickerInspector?.lockTarget();
-          return;
-        }
-        if (event.key.toLowerCase() === "m") {
-          event.preventDefault();
-          if (inspector.measurement.enabled) measurementController?.disable();
-          else measurementController?.enable(inspector.selected.element, "box");
-          pickerInspector?.refresh();
-          return;
-        }
-        const navigation = { ArrowUp: "parent", ArrowDown: "child", ArrowLeft: "prev", ArrowRight: "next" };
-        if (navigation[event.key]) {
-          event.preventDefault();
-          navigateInspector(navigation[event.key]);
-          return;
-        }
-      }
-    }
     if (event.key === "Escape" && state.active) {
       if (state.modalOpen) {
         closeModal(true);
@@ -4029,7 +3474,13 @@ function createUIFeedback(options = {}) {
         return;
       }
     }
-    if (!config.shortcut.includes(key)) return;
+    if (!config.shortcut.includes(key)) {
+      if (!["shift", "control", "alt", "meta"].includes(key)) {
+        recentShortcutKeys.length = 0;
+        clearTimeout(shortcutTimer);
+      }
+      return;
+    }
     pressed.add(key);
     if (!event.repeat) {
       recentShortcutKeys.push(key);
@@ -4078,20 +3529,13 @@ function createUIFeedback(options = {}) {
     if (!state.picking || event.composedPath?.().includes(host)) return;
     const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (!element) return;
-    if (state.pickerInspector?.measurement?.mode === "gap" && state.pickerInspector.selected?.element) {
-      if (element !== state.pickerInspector.selected.element) {
-        pickerInspector?.setCandidate(element);
-        highlight(element);
-      }
-      return;
-    }
-    pickerInspector?.setCandidate(element);
     highlight(element);
   }
   function handleHostEvent(event) {
     const path = event.composedPath();
     const coachmarkDismiss = path.find((node) => node instanceof Element && node.matches?.("[data-coachmark-dismiss]"));
     if (coachmarkDismiss) {
+      if (event.type !== "click") return;
       event.preventDefault();
       event.stopPropagation();
       dismissCoachmark();
@@ -4101,35 +3545,8 @@ function createUIFeedback(options = {}) {
       (node) => node instanceof HTMLButtonElement && node.dataset?.action
     );
     if (button) {
-      triggerToolbarAction(event, button);
-      return;
-    }
-    const inspectorControl = path.find((node) => node instanceof Element && node.matches?.("[data-inspector-action], [data-breadcrumb-index]"));
-    if (inspectorControl) {
       if (event.type !== "click") return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (inspectorControl.dataset.breadcrumbIndex !== void 0) {
-        pickerInspector?.selectBreadcrumb(inspectorControl.dataset.breadcrumbIndex);
-        return;
-      }
-      const action = inspectorControl.dataset.inspectorAction;
-      if (action === "close") {
-        pickerInspector?.closeInspector();
-        stopPicking({ rerender: true });
-        return;
-      }
-      if (action === "lock") {
-        if (state.pickerInspector?.locked) pickerInspector?.unlockTarget();
-        else pickerInspector?.lockTarget();
-        return;
-      }
-      if (action === "copy") {
-        const selector = state.pickerInspector?.selected?.selector || "";
-        copyText(selector).then((copied) => showToast(copied ? "\u0110\xE3 copy selector" : "Kh\xF4ng th\u1EC3 copy selector"));
-        return;
-      }
-      pickerInspector?.openAction(action);
+      triggerToolbarAction(event, button);
       return;
     }
     if (!state.picking || state.pickingLocked) return;
@@ -4137,6 +3554,7 @@ function createUIFeedback(options = {}) {
       (node) => node instanceof Element && node.matches?.("[data-picker-layer]")
     );
     if (!picker) return;
+    if (event.type !== "click") return;
     const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (!element) return;
     event.preventDefault();
@@ -4145,20 +3563,12 @@ function createUIFeedback(options = {}) {
     setTimeout(() => {
       state.pickingLocked = false;
     }, 600);
-    if (state.pickerInspector?.measurement?.mode === "gap" && state.pickerInspector.selected?.element) {
-      if (element !== state.pickerInspector.selected.element) {
-        measurementController?.setCompareTarget(element);
-        stopPicking({ rerender: false });
-        pickerInspector?.refresh();
-        showToast("\u0110\xE3 \u0111o kho\u1EA3ng c\xE1ch gi\u1EEFa hai ph\u1EA7n t\u1EED");
-      }
-      return;
-    }
-    pickerInspector?.selectTarget(element);
+    openModal(element, state.mode);
   }
   function documentPickHandler(event) {
     if (!state.picking || state.pickingLocked) return;
     if (event.composedPath().includes(host)) return;
+    if (event.type !== "click") return;
     const rawElement = event.target instanceof Element ? event.target : null;
     const element = targetForMode(rawElement);
     if (!element || element === document.documentElement || element === document.body) return;
@@ -4168,16 +3578,7 @@ function createUIFeedback(options = {}) {
     setTimeout(() => {
       state.pickingLocked = false;
     }, 600);
-    if (state.pickerInspector?.measurement?.mode === "gap" && state.pickerInspector.selected?.element) {
-      if (element !== state.pickerInspector.selected.element) {
-        measurementController?.setCompareTarget(element);
-        stopPicking({ rerender: false });
-        pickerInspector?.refresh();
-        showToast("\u0110\xE3 \u0111o kho\u1EA3ng c\xE1ch gi\u1EEFa hai ph\u1EA7n t\u1EED");
-      }
-      return;
-    }
-    pickerInspector?.selectTarget(element);
+    openModal(element, state.mode);
   }
   function handleDragStart(event) {
     const path = event.composedPath();
@@ -4216,9 +3617,8 @@ function createUIFeedback(options = {}) {
     document.addEventListener("pointercancel", onEnd, true);
   }
   function dispose() {
+    if (state.modalOpen) closeModal(false);
     stopPicking();
-    pickerInspector?.closeInspector?.();
-    measurementController?.destroy?.();
     clearMarkers();
     window.removeEventListener("scroll", handleViewportChange);
     window.removeEventListener("resize", handleViewportChange);
@@ -4252,7 +3652,6 @@ function createUIFeedback(options = {}) {
   };
   const handleViewportChange = () => {
     refreshMarkerPositions();
-    pickerInspector?.positionInspector?.();
   };
   const reapplyPageChanges = () => {
     if (!state.active) return;
@@ -4266,35 +3665,7 @@ function createUIFeedback(options = {}) {
   panelController = createPanelController({ state, root, showToast });
   modalController = createModalController({ state, root, showToast });
   cssEditor = createCssEditor({ state, root });
-  measurementController = createMeasurementController({ state, root });
-  pickerController = createPickerController({ state, root, config, renderToolbar: renderToolbar2, showToast, closePickerInspector: () => pickerInspector?.closeInspector?.() });
-  pickerInspector = createPickerInspector({
-    state,
-    root,
-    renderToolbar: renderToolbar2,
-    measurement: measurementController,
-    clearHighlight: () => pickerController?.clearHighlight?.(),
-    showToast,
-    onAction: (action, element) => {
-      if (action === "measure-box") {
-        measurementController.enable(element, "box");
-        pickerInspector.refresh();
-        return;
-      }
-      if (action === "measure-gap") {
-        measurementController.enable(element, "gap");
-        state.mode = "measure-gap";
-        state.picking = true;
-        state.pickingLocked = false;
-        root.classList.add("ui-feedback-picking");
-        renderToolbar2();
-        showToast("R\xEA chu\u1ED9t v\xE0 b\u1EA5m ph\u1EA7n t\u1EED th\u1EE9 hai \u0111\u1EC3 \u0111o gap");
-        return;
-      }
-      if (action === "copy") return;
-      openModal(element, action);
-    }
-  });
+  pickerController = createPickerController({ state, root, config, renderToolbar: renderToolbar2, showToast });
   const featureContext = {
     state,
     root,
@@ -4308,9 +3679,7 @@ function createUIFeedback(options = {}) {
     getItemCodeLine,
     openModalWithExisting,
     restoreImageState,
-    showToast: (...args) => toastController?.showToast(...args),
-    pickerInspector,
-    measurementController
+    showToast: (...args) => toastController?.showToast(...args)
   };
   toastController = createToastController({ root, undoAction: (...args) => commentsController?.undoAction(...args) });
   commentsController = createCommentsController(featureContext);
@@ -4341,7 +3710,6 @@ function createUIFeedback(options = {}) {
     toggle,
     exportMarkdown,
     getComments: () => [...state.comments],
-    updateTool,
     notify: showToast,
     dispose
   };

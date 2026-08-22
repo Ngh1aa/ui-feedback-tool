@@ -1,5 +1,5 @@
 /**
- * UI Feedback Tool v0.12.0
+ * UI Feedback Tool v0.13.0
  * ---------------------
  * Công cụ ghi nhận feedback UI/UX trực tiếp trên trang web.
  * Bật / tắt bằng cách nhấn đồng thời Q + W + E.
@@ -76,7 +76,7 @@
  */
 
 
-import { TOOL_VERSION, CSS_COLOR_FIELDS, EXTRA_COLOR_FIELDS, FONT_OPTIONS, FONT_WEIGHT_OPTIONS, TEXT_ALIGN_OPTIONS, CSS_SPACING_SIDES, mergeConfig } from './core/config.js';
+import { CSS_COLOR_FIELDS, EXTRA_COLOR_FIELDS, FONT_OPTIONS, FONT_WEIGHT_OPTIONS, TEXT_ALIGN_OPTIONS, CSS_SPACING_SIDES, mergeConfig } from './core/config.js';
 import { copyText, cssPath, escapeAttribute, escapeHtml, firstCodeLine, generateId, isEditable, resolveSelector, safeText, targetLabel } from './core/dom-utils.js';
 import { createFeedbackState } from './core/state.js';
 import { STYLESHEET } from './stylesheet.js';
@@ -86,8 +86,6 @@ import { createGithubIssueController } from './features/github-issue.js';
 import { createCssEditor } from './features/css-editor.js';
 import { createImageEditor } from './features/image-editor.js';
 import { createPickerController } from './features/picker.js';
-import { createMeasurementController } from './features/measurement.js';
-import { createPickerInspector } from './features/picker-inspector.js';
 import { createPanelController } from './ui/panel.js';
 import { createModalController } from './ui/modal.js';
 import { renderToolbar as renderToolbarView } from './ui/toolbar.js';
@@ -117,8 +115,6 @@ export function createUIFeedback(options = {}) {
   let cssEditor;
   const imageEditor = createImageEditor();
   let pickerController;
-  let measurementController;
-  let pickerInspector;
   let themeMedia = null;
   let themeChangeHandler = null;
   let domObserver = null;
@@ -179,7 +175,10 @@ export function createUIFeedback(options = {}) {
         if (!element) return;
         if (item.type === 'edit' && element.textContent !== (item.value || '')) element.textContent = item.value || '';
         else if (item.type === 'css' && element.style.cssText !== (item.value || '')) element.style.cssText = item.value || '';
-        else if (item.type === 'image') applyImageState(element, item.newImageState || { kind: 'src', src: item.value || '' });
+        else if (item.type === 'image') {
+          const snapshot = { ...(item.newImageState || { kind: 'src' }), src: item.value || item.newImageState?.src || '' };
+          applyImageState(element, snapshot);
+        }
       });
   }
   /* ── rendering ── */
@@ -190,100 +189,10 @@ export function createUIFeedback(options = {}) {
       getToolbarStyle,
       renderPanel,
       renderModal,
-      renderInspector: () => pickerInspector?.renderInspector?.() || '',
     });
   }
 
-  /* ── toolbar update ── */
-  function normalizeVersion(value) {
-    const match = String(value || '').match(/\d+(?:\.\d+){0,2}/);
-    return match ? match[0].split('.').map(Number) : [0];
-  }
-
-  function compareVersions(left, right) {
-    const a = normalizeVersion(left);
-    const b = normalizeVersion(right);
-    for (let i = 0; i < 3; i += 1) {
-      const delta = (a[i] || 0) - (b[i] || 0);
-      if (delta) return delta;
-    }
-    return 0;
-  }
-
-  function extractToolVersion(source) {
-    const value = String(source || '');
-    return value.match(/UI Feedback Tool v(\d+(?:\.\d+){2})/)?.[1]
-      || value.match(/TOOL_VERSION\s*=\s*["'](\d+(?:\.\d+){2})["']/)?.[1]
-      || '';
-  }
-
-  async function updateTool() {
-    if (state.updateBusy) return;
-    state.updateBusy = true;
-    let feedbackMessage = '';
-    renderToolbar();
-    try {
-      const candidateUrls = [...new Set([
-        ...(Array.isArray(config.updateMirrors) ? config.updateMirrors : []),
-        config.updateUrl,
-      ].filter(Boolean))];
-      const currentVersion = config.version || TOOL_VERSION;
-      let newest = null;
-      const failures = [];
-
-      for (const candidate of candidateUrls) {
-        try {
-          const updateUrl = new URL(candidate, document.baseURI);
-          updateUrl.searchParams.set('ui_feedback_update', String(Date.now()));
-          const response = await fetch(updateUrl.href, { cache: 'no-store', credentials: 'omit' });
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          const source = await response.text();
-          const version = extractToolVersion(source);
-          if (!version) throw new Error('missing version');
-          if (!newest || compareVersions(version, newest.version) > 0) {
-            newest = { source, version, url: updateUrl.href };
-          }
-        } catch (error) {
-          failures.push(`${candidate}: ${error.message}`);
-        }
-      }
-
-      if (!newest) {
-        throw new Error(`No reachable update mirror. ${failures.join(' | ')}`);
-      }
-      const { source, version: latestVersion } = newest;
-      if (compareVersions(latestVersion, currentVersion) <= 0) {
-        feedbackMessage = `UI Feedback đang ở bản mới nhất · v${currentVersion}`;
-        return;
-      }
-
-      const blobUrl = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
-      try {
-        const updatedModule = await import(`${blobUrl}#ui-feedback-${latestVersion}-${Date.now()}`);
-        if (typeof updatedModule.createUIFeedback !== 'function') throw new Error('Updated module is invalid');
-        const preservedOptions = { ...config, version: latestVersion, updateMirrors: config.updateMirrors, updateUrl: config.updateUrl };
-        dispose();
-        const updatedInstance = updatedModule.createUIFeedback(preservedOptions);
-        setTimeout(() => updatedInstance?.notify?.(`Đã cập nhật UI Feedback lên v${latestVersion}`), 0);
-      } finally {
-        URL.revokeObjectURL(blobUrl);
-      }
-    } catch (error) {
-      console.warn('[UI Feedback] Update failed:', error);
-      feedbackMessage = 'Không thể cập nhật tool từ các mirror. Kiểm tra kết nối rồi thử lại.';
-    } finally {
-      state.updateBusy = false;
-      if (root.isConnected) {
-        renderToolbar();
-        if (feedbackMessage) showToast(feedbackMessage);
-      }
-    }
-  }
-
   /* ── toolbar actions ── */
-  let lastToolbarAction = '';
-  let lastToolbarActionAt = 0;
-
   function dispatchToolbarAction(action) {
     if (action === 'activate') toggle();
     if (action === 'list') togglePanel();
@@ -292,7 +201,6 @@ export function createUIFeedback(options = {}) {
     if (action === 'edit') toggleMode('edit');
     if (action === 'css') toggleMode('css');
     if (action === 'image') toggleMode('image');
-    if (action === 'update') updateTool();
     if (action === 'collapse') { state.collapsed = !state.collapsed; renderToolbar(); }
   }
 
@@ -310,10 +218,6 @@ export function createUIFeedback(options = {}) {
   function triggerToolbarAction(event, button) {
     const action = button?.dataset?.action;
     if (!action) return;
-    const now = performance.now();
-    if (action === lastToolbarAction && now - lastToolbarActionAt < 500) return;
-    lastToolbarAction = action;
-    lastToolbarActionAt = now;
     event.preventDefault();
     event.stopPropagation();
     dispatchToolbarAction(action);
@@ -740,18 +644,18 @@ export function createUIFeedback(options = {}) {
     const isEdit = state.mode === 'edit';
     const isCss = state.mode === 'css';
     const isImage = state.mode === 'image';
-    const currentText = existing?.comment || (isEdit ? safeText(state.target?.textContent, 500) : '');
+    const currentText = existing?.comment || (isEdit ? String(state.target?.textContent || '') : '');
     const priorityValue = existing?.priority || 'medium';
     const title = isEdit ? 'Sửa nội dung UI' : isCss ? 'Bộ giao diện' : isImage ? 'Thay ảnh' : 'Ghi chú feedback';
     const commentContent = isEdit
-      ? `<label class="ui-feedback-label" for="ui-feedback-input">Nội dung hiển thị</label><input id="ui-feedback-input" class="ui-feedback-field" data-feedback-input value="${escapeAttribute(currentText)}" />`
+      ? `<label class="ui-feedback-label" for="ui-feedback-input">Nội dung hiển thị</label><textarea id="ui-feedback-input" class="ui-feedback-textarea ui-feedback-textarea--edit" data-feedback-input>${escapeHtml(currentText)}</textarea>`
       : isCss
         ? renderCssContent()
         : isImage
           ? renderImageContent()
           : `<label class="ui-feedback-label" for="ui-feedback-input">Element này cần sửa gì?</label><textarea id="ui-feedback-input" class="ui-feedback-textarea" data-feedback-input placeholder="Ví dụ: Tăng khoảng cách giữa tiêu đề và danh sách…">${escapeHtml(currentText)}</textarea><div class="ui-feedback-form-row"><div><label class="ui-feedback-label" for="ui-feedback-priority">Mức độ ưu tiên</label><select id="ui-feedback-priority" class="ui-feedback-select" data-feedback-priority><option value="high" ${priorityValue === 'high' ? 'selected' : ''}>Cao</option><option value="medium" ${priorityValue === 'medium' ? 'selected' : ''}>Trung bình</option><option value="low" ${priorityValue === 'low' ? 'selected' : ''}>Thấp</option></select></div><div><label class="ui-feedback-label" for="ui-feedback-category">Phân loại</label><select id="ui-feedback-category" class="ui-feedback-select" data-feedback-category>${renderCategoryOptions(existing?.category || 'other')}</select></div></div>`;
     const footer = isImage ? `<button class="ui-feedback-button" data-modal-action="cancel">Đóng</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button" data-image-restore type="button">Khôi phục</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu ảnh</button>` : `<button class="ui-feedback-button" data-modal-action="cancel">Hủy</button><button class="ui-feedback-button" data-modal-action="reset-position" title="Đưa cửa sổ về vị trí mặc định">Đặt lại vị trí</button><button class="ui-feedback-button ui-feedback-button--primary" data-modal-action="save">Lưu</button>`;
-    const modalClass = isCss || isImage ? 'ui-feedback-modal is-inspector' : 'ui-feedback-modal is-mini';
+    const modalClass = isCss || isImage ? 'ui-feedback-modal is-editor' : 'ui-feedback-modal is-mini';
     mount.innerHTML = `<div class="ui-feedback-scrim" data-modal-action="cancel"></div><section class="${modalClass}" role="dialog" aria-modal="true" aria-labelledby="ui-feedback-title"><div class="ui-feedback-modal__top" data-modal-drag-handle title="Kéo vùng tiêu đề để di chuyển cửa sổ"><div class="ui-feedback-window-heading"><span class="ui-feedback-window-grip" aria-hidden="true">${ICONS.grip}</span><div><span class="ui-feedback-drag-hint">Kéo để di chuyển</span><h2 id="ui-feedback-title">${title}</h2><p>${escapeHtml(targetLabel(state.target))} · ${escapeHtml(safeText(cssPath(state.target), 90))}</p></div></div><button type="button" class="ui-feedback-icon-button ui-feedback-modal__close" data-modal-action="cancel" aria-label="Đóng cửa sổ" title="Đóng">${ICONS.close}</button></div><div class="ui-feedback-modal__content">${commentContent}</div><footer class="ui-feedback-modal__footer">${footer}</footer></section>`;
     applyModalPosition();
     mount.onclick = handleModalClick;
@@ -1080,9 +984,10 @@ export function createUIFeedback(options = {}) {
 
   function saveModal() {
     const input = root.querySelector('[data-feedback-input]');
-    const value = input?.value?.trim() || '';
     const existing = editingExisting;
     const modeUsed = state.mode;
+    const rawValue = input?.value || '';
+    const value = modeUsed === 'edit' ? rawValue : rawValue.trim();
     if (modeUsed === 'image') {
       const source = state.modalImageSource || value;
       if (!validateImageSource(source)) {
@@ -1094,25 +999,32 @@ export function createUIFeedback(options = {}) {
       applyImageSource(state.target, source);
       applyImagePosition(state.target, state.modalImagePosition || { x: 50, y: 50 });
       applyImageZoom(state.target, state.modalImageZoom || 100, state.modalImageBaseTransform || '');
+      const newImageState = captureImageState(state.target);
+      // `value` is the canonical image source. Do not duplicate a potentially
+      // large data URL inside newImageState as well.
+      delete newImageState.src;
+      delete newImageState.effectiveSrc;
+      delete newImageState.backgroundImage;
+      const oldImageReference = oldImageState.src || oldImageState.backgroundImage || '';
       const item = {
         id: generateId(), type: 'image', category: 'image', selector: cssPath(state.target), tag: targetLabel(state.target),
         codeLine: firstCodeLine(state.target),
-        targetText: oldImageState.src || oldImageState.backgroundImage || '', value: source,
+        targetText: String(oldImageReference).startsWith('data:image/') ? '[Ảnh upload local trước đó]' : oldImageReference, value: source,
         imageSourceType: source.startsWith('data:image/') ? 'upload' : 'url',
-        oldImageState, newImageState: captureImageState(state.target), page: location.pathname || '/',
+        oldImageState, newImageState, page: location.pathname || '/',
         viewport: `${window.innerWidth}x${window.innerHeight}`, scrollY: Math.round(window.scrollY),
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       };
       state.comments.push(item);
       state.undoStack.push({ type: 'image', id: item.id, selector: item.selector, oldImageState });
-      persist();
+      const persisted = persist();
       state.modalCommitted = true;
-      showToast('Đã thay ảnh trên trang', { undo: true });
+      showToast(persisted ? 'Đã thay ảnh trên trang' : 'Đã thay ảnh trong phiên này nhưng không thể lưu vào trình duyệt', { undo: true });
       editingExisting = null;
       closeModal(true);
       return;
     }
-    if (modeUsed !== 'css' && !value) {
+    if (modeUsed !== 'css' && !value.trim()) {
       input?.focus();
       showToast('Vui lòng nhập nội dung trước khi lưu');
       return;
@@ -1147,9 +1059,10 @@ export function createUIFeedback(options = {}) {
           oldValue: oldValue
         });
       }
-      persist();
+      const persisted = persist();
       state.modalCommitted = true;
-      showToast(modeUsed === 'edit' ? 'Đã cập nhật nội dung trên trang' : 'Đã apply Bộ giao diện', { undo: true });
+      const successMessage = modeUsed === 'edit' ? 'Đã cập nhật nội dung trên trang' : 'Đã apply Bộ giao diện';
+      showToast(persisted ? successMessage : `${successMessage} trong phiên này nhưng không thể lưu vào trình duyệt`, { undo: true });
     } else {
       const item = existing || { id: generateId(), createdAt: new Date().toISOString(), type: 'comment' };
       item.comment = value;
@@ -1164,9 +1077,10 @@ export function createUIFeedback(options = {}) {
       item.scrollY = Math.round(window.scrollY);
       item.updatedAt = new Date().toISOString();
       if (!existing) state.comments.push(item);
-      persist();
+      const persisted = persist();
       state.modalCommitted = true;
-      showToast(existing ? 'Đã cập nhật feedback' : 'Đã lưu feedback');
+      const successMessage = existing ? 'Đã cập nhật feedback' : 'Đã lưu feedback';
+      showToast(persisted ? successMessage : `${successMessage} trong phiên này nhưng không thể lưu vào trình duyệt`);
       // Pulse the badge
       setTimeout(() => {
         const badge = root.querySelector('.ui-feedback-badge');
@@ -1231,7 +1145,11 @@ export function createUIFeedback(options = {}) {
 
   /* ── toggle ── */
   function toggle() {
-    state.active = !state.active;
+    const nextActive = !state.active;
+    // CSS/image editors preview changes directly on the page. Turning the
+    // tool off must behave like Cancel and restore an uncommitted preview.
+    if (!nextActive && state.modalOpen) closeModal(false);
+    state.active = nextActive;
     if (state.active) state.coachmarkVisible = config.coachmark !== false && !hasSeenCoachmark();
     persistActive();
     state.panelOpen = false;
@@ -1244,11 +1162,6 @@ export function createUIFeedback(options = {}) {
     if (state.active) {
       placeMarkers();
     } else {
-      // A hard toggle must discard transient Inspector/measurement state;
-      // otherwise stale DOM references and ResizeObserver listeners survive
-      // until the next activation.
-      pickerInspector?.closeInspector?.();
-      measurementController?.destroy?.();
       clearMarkers();
     }
     showToast(state.active ? 'UI Feedback đã bật' : 'UI Feedback đã tắt');
@@ -1260,56 +1173,8 @@ export function createUIFeedback(options = {}) {
     return (fromCode || event.key || '').toLowerCase();
   }
 
-  function navigateInspector(direction) {
-    const selected = state.pickerInspector?.selected?.element;
-    if (!selected || !selected.isConnected) return false;
-    let next = null;
-    if (direction === 'parent') next = selected.parentElement;
-    if (direction === 'child') next = [...selected.children].find((element) => !element.closest('#ui-feedback-host')) || null;
-    if (direction === 'prev') next = selected.previousElementSibling;
-    if (direction === 'next') next = selected.nextElementSibling;
-    if (!next || next === document.body || next === document.documentElement || next.closest('#ui-feedback-host')) return false;
-    if (state.pickerInspector.locked) pickerInspector?.unlockTarget();
-    return Boolean(pickerInspector?.selectTarget(next));
-  }
-
   function keydown(event) {
-    const inspector = state.pickerInspector;
     const editableTarget = (event.composedPath?.() || [event.target]).some((node) => node instanceof Element && isEditable(node));
-    const isFormControl = editableTarget;
-    if (state.active && !state.modalOpen && !state.panelOpen) {
-      if (event.key === 'Enter' && state.picking && inspector?.candidate?.element) {
-        event.preventDefault();
-        pickerInspector?.selectTarget(inspector.candidate.element);
-        return;
-      }
-      if (event.key === 'Escape' && inspector?.phase && inspector.phase !== 'idle') {
-        event.preventDefault();
-        pickerInspector?.closeInspector();
-        stopPicking({ rerender: true });
-        return;
-      }
-      if (!isFormControl && inspector?.selected?.element) {
-        if (event.key.toLowerCase() === 'l') {
-          event.preventDefault();
-          if (inspector.locked) pickerInspector?.unlockTarget(); else pickerInspector?.lockTarget();
-          return;
-        }
-        if (event.key.toLowerCase() === 'm') {
-          event.preventDefault();
-          if (inspector.measurement.enabled) measurementController?.disable();
-          else measurementController?.enable(inspector.selected.element, 'box');
-          pickerInspector?.refresh();
-          return;
-        }
-        const navigation = { ArrowUp: 'parent', ArrowDown: 'child', ArrowLeft: 'prev', ArrowRight: 'next' };
-        if (navigation[event.key]) {
-          event.preventDefault();
-          navigateInspector(navigation[event.key]);
-          return;
-        }
-      }
-    }
 
     // Escape closes modal or panel when active
     if (event.key === 'Escape' && state.active) {
@@ -1367,7 +1232,13 @@ export function createUIFeedback(options = {}) {
       }
     }
 
-    if (!config.shortcut.includes(key)) return;
+    if (!config.shortcut.includes(key)) {
+      if (!['shift', 'control', 'alt', 'meta'].includes(key)) {
+        recentShortcutKeys.length = 0;
+        clearTimeout(shortcutTimer);
+      }
+      return;
+    }
     pressed.add(key);
     if (!event.repeat) {
       recentShortcutKeys.push(key);
@@ -1428,14 +1299,6 @@ export function createUIFeedback(options = {}) {
     if (!state.picking || event.composedPath?.().includes(host)) return;
     const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (!element) return;
-    if (state.pickerInspector?.measurement?.mode === 'gap' && state.pickerInspector.selected?.element) {
-      if (element !== state.pickerInspector.selected.element) {
-        pickerInspector?.setCandidate(element);
-        highlight(element);
-      }
-      return;
-    }
-    pickerInspector?.setCandidate(element);
     highlight(element);
   }
 
@@ -1446,49 +1309,34 @@ export function createUIFeedback(options = {}) {
 
     // 1) coachmark
     const coachmarkDismiss = path.find((node) => node instanceof Element && node.matches?.('[data-coachmark-dismiss]'));
-    if (coachmarkDismiss) { event.preventDefault(); event.stopPropagation(); dismissCoachmark(); return; }
+    if (coachmarkDismiss) {
+      if (event.type !== 'click') return;
+      event.preventDefault();
+      event.stopPropagation();
+      dismissCoachmark();
+      return;
+    }
 
     // 2) toolbar buttons
     const button = path.find(
       (node) => node instanceof HTMLButtonElement && node.dataset?.action,
     );
     if (button) {
+      if (event.type !== 'click') return;
       triggerToolbarAction(event, button);
       return;
     }
 
-    // 3) Picker Inspector controls
-    const inspectorControl = path.find((node) => node instanceof Element && node.matches?.('[data-inspector-action], [data-breadcrumb-index]'));
-    if (inspectorControl) {
-      if (event.type !== 'click') return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (inspectorControl.dataset.breadcrumbIndex !== undefined) {
-        pickerInspector?.selectBreadcrumb(inspectorControl.dataset.breadcrumbIndex);
-        return;
-      }
-      const action = inspectorControl.dataset.inspectorAction;
-      if (action === 'close') { pickerInspector?.closeInspector(); stopPicking({ rerender: true }); return; }
-      if (action === 'lock') {
-        if (state.pickerInspector?.locked) pickerInspector?.unlockTarget();
-        else pickerInspector?.lockTarget();
-        return;
-      }
-      if (action === 'copy') {
-        const selector = state.pickerInspector?.selected?.selector || '';
-        copyText(selector).then((copied) => showToast(copied ? 'Đã copy selector' : 'Không thể copy selector'));
-        return;
-      }
-      pickerInspector?.openAction(action);
-      return;
-    }
-
-    // 4) picker layer interactions
+    // 3) picker layer interactions
     if (!state.picking || state.pickingLocked) return;
     const picker = path.find(
       (node) => node instanceof Element && node.matches?.('[data-picker-layer]'),
     );
     if (!picker) return;
+    // Wait for click before opening the editor. Opening it on pointerdown can
+    // make the companion click land on the newly mounted modal scrim and
+    // immediately close the editor.
+    if (event.type !== 'click') return;
 
     const element = targetForMode(elementAtPoint(event.clientX, event.clientY));
     if (!element) return;
@@ -1500,17 +1348,7 @@ export function createUIFeedback(options = {}) {
     state.pickingLocked = true;
     setTimeout(() => { state.pickingLocked = false; }, 600);
 
-    if (state.pickerInspector?.measurement?.mode === 'gap' && state.pickerInspector.selected?.element) {
-      if (element !== state.pickerInspector.selected.element) {
-        measurementController?.setCompareTarget(element);
-        stopPicking({ rerender: false });
-        pickerInspector?.refresh();
-        showToast('Đã đo khoảng cách giữa hai phần tử');
-      }
-      return;
-    }
-
-    pickerInspector?.selectTarget(element);
+    openModal(element, state.mode);
   }
 
   /* ── document-level picking fallback ── */
@@ -1519,6 +1357,7 @@ export function createUIFeedback(options = {}) {
   function documentPickHandler(event) {
     if (!state.picking || state.pickingLocked) return;
     if (event.composedPath().includes(host)) return;
+    if (event.type !== 'click') return;
     const rawElement = event.target instanceof Element ? event.target : null;
     const element = targetForMode(rawElement);
     if (!element || element === document.documentElement || element === document.body) return;
@@ -1526,16 +1365,7 @@ export function createUIFeedback(options = {}) {
     event.stopPropagation();
     state.pickingLocked = true;
     setTimeout(() => { state.pickingLocked = false; }, 600);
-    if (state.pickerInspector?.measurement?.mode === 'gap' && state.pickerInspector.selected?.element) {
-      if (element !== state.pickerInspector.selected.element) {
-        measurementController?.setCompareTarget(element);
-        stopPicking({ rerender: false });
-        pickerInspector?.refresh();
-        showToast('Đã đo khoảng cách giữa hai phần tử');
-      }
-      return;
-    }
-    pickerInspector?.selectTarget(element);
+    openModal(element, state.mode);
   }
 
   /* ── drag & drop toolbar ── */
@@ -1584,9 +1414,8 @@ export function createUIFeedback(options = {}) {
 
   /* ── dispose ── */
   function dispose() {
+    if (state.modalOpen) closeModal(false);
     stopPicking();
-    pickerInspector?.closeInspector?.();
-    measurementController?.destroy?.();
     clearMarkers();
     window.removeEventListener('scroll', handleViewportChange);
     window.removeEventListener('resize', handleViewportChange);
@@ -1622,7 +1451,6 @@ export function createUIFeedback(options = {}) {
   };
   const handleViewportChange = () => {
     refreshMarkerPositions();
-    pickerInspector?.positionInspector?.();
   };
   const reapplyPageChanges = () => {
     if (!state.active) return;
@@ -1637,35 +1465,7 @@ export function createUIFeedback(options = {}) {
   panelController = createPanelController({ state, root, showToast });
   modalController = createModalController({ state, root, showToast });
   cssEditor = createCssEditor({ state, root });
-  measurementController = createMeasurementController({ state, root });
-  pickerController = createPickerController({ state, root, config, renderToolbar, showToast, closePickerInspector: () => pickerInspector?.closeInspector?.() });
-  pickerInspector = createPickerInspector({
-    state,
-    root,
-    renderToolbar,
-    measurement: measurementController,
-    clearHighlight: () => pickerController?.clearHighlight?.(),
-    showToast,
-    onAction: (action, element) => {
-      if (action === 'measure-box') {
-        measurementController.enable(element, 'box');
-        pickerInspector.refresh();
-        return;
-      }
-      if (action === 'measure-gap') {
-        measurementController.enable(element, 'gap');
-        state.mode = 'measure-gap';
-        state.picking = true;
-        state.pickingLocked = false;
-        root.classList.add('ui-feedback-picking');
-        renderToolbar();
-        showToast('Rê chuột và bấm phần tử thứ hai để đo gap');
-        return;
-      }
-      if (action === 'copy') return;
-      openModal(element, action);
-    },
-  });
+  pickerController = createPickerController({ state, root, config, renderToolbar, showToast });
 
   const featureContext = {
     state,
@@ -1681,8 +1481,6 @@ export function createUIFeedback(options = {}) {
     openModalWithExisting,
     restoreImageState,
     showToast: (...args) => toastController?.showToast(...args),
-    pickerInspector,
-    measurementController,
   };
   toastController = createToastController({ root, undoAction: (...args) => commentsController?.undoAction(...args) });
   commentsController = createCommentsController(featureContext);
@@ -1720,7 +1518,6 @@ export function createUIFeedback(options = {}) {
     toggle,
     exportMarkdown,
     getComments: () => [...state.comments],
-    updateTool,
     notify: showToast,
     dispose,
   };

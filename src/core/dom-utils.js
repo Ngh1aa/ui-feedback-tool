@@ -33,9 +33,10 @@ export function safeText(value, max = 180) {
 }
 
 export function isEditable(target) {
+  const editableSelector = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
   return typeof HTMLElement !== 'undefined' && target instanceof HTMLElement && (
-    target.matches('input, textarea, select, [contenteditable="true"]')
-    || Boolean(target.closest('input, textarea, select, [contenteditable="true"]'))
+    target.matches(editableSelector)
+    || Boolean(target.closest(editableSelector))
   );
 }
 
