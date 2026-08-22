@@ -1189,10 +1189,10 @@ button { cursor: pointer; }
 .ui-feedback-image-heading strong { color: var(--_text); font-size: 12px; }
 .ui-feedback-image-heading small { display: block; margin-top: 3px; color: var(--_text-muted); font-size: 10px; }
 .ui-feedback-image-state { flex-shrink: 0; border-radius: 99px; padding: 3px 7px; color: #166534; background: #dcfce7; font-size: 9px; font-weight: 800; }
-.ui-feedback-image-preview { position: relative; display: flex; align-items: center; justify-content: center; min-height: 180px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; cursor: grab; touch-action: none; }
+.ui-feedback-image-preview { position: relative; display: block; width: 100%; height: 180px; min-height: 180px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; cursor: grab; touch-action: none; isolation: isolate; }
 .ui-feedback-image-preview:active,
 .ui-feedback-image-preview.is-dragging { cursor: grabbing; }
-.ui-feedback-image-preview img { display: block; width: 100%; height: 180px; object-fit: cover; user-select: none; pointer-events: none; transform-origin: 50% 50%; transition: transform .12s ease, object-position .12s ease; }
+.ui-feedback-image-preview img.ui-feedback-image-preview__media { position: absolute; inset: 0; display: block; width: 100%; height: 100%; min-width: 100%; min-height: 100%; object-fit: cover; user-select: none; pointer-events: none; transform-origin: 50% 50%; transition: transform .12s ease, object-position .12s ease; }
 .ui-feedback-image-preview img[style*="transform"] { will-change: transform; }
 .ui-feedback-image-preview span { padding: 20px; color: var(--_text-muted); font-size: 11px; text-align: center; }
 .ui-feedback-image-canvas-hint { position: absolute; right: 8px; bottom: 8px; border-radius: 99px; padding: 4px 7px; color: #fff; background: rgba(0,0,0,.58); font-size: 9px; pointer-events: none; }
@@ -1205,6 +1205,7 @@ button { cursor: pointer; }
 .ui-feedback-image-position-controls button { min-height: 28px; border: 1px solid var(--_border); border-radius: 6px; padding: 4px 5px; color: var(--_text-secondary); background: var(--_bg-panel); font-size: 10px; font-weight: 700; }
 .ui-feedback-image-position-controls button:hover,
 .ui-feedback-image-position-controls button:focus-visible { color: var(--_text); border-color: var(--ui-feedback-accent); outline: none; }
+.ui-feedback-item__image-crop { color: var(--_text-secondary); font-size: 10px; }
 .ui-feedback-image-url { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 9px 10px; color: var(--_text); background: var(--_bg-input); outline: none; font-size: 11px; }
 .ui-feedback-image-url:focus { border-color: var(--ui-feedback-accent); }
 .ui-feedback-image-paste { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 8px; color: var(--_text-secondary); background: var(--_bg-panel); font-size: 11px; }
@@ -1492,6 +1493,20 @@ function createCommentsController(ctx) {
   function imageDisplayValue(item) {
     return item.imageSourceType === "upload" || String(item.value || "").startsWith("data:image/") ? "[\u1EA2nh upload local]" : item.value;
   }
+  function imageCropSummary(item) {
+    const state2 = item.newImageState || {};
+    const position = state2.position || (() => {
+      const raw = state2.objectPosition || state2.backgroundPosition || "";
+      const parts = String(raw).match(/(-?[0-9.]+)%\s+(-?[0-9.]+)%/);
+      return parts ? { x: Number(parts[1]), y: Number(parts[2]) } : null;
+    })();
+    const zoom = Number(state2.zoom);
+    if (!position && !Number.isFinite(zoom)) return "";
+    const x = Number.isFinite(Number(position?.x)) ? Math.round(Number(position.x)) : 50;
+    const y = Number.isFinite(Number(position?.y)) ? Math.round(Number(position.y)) : 50;
+    const zoomLabel = Number.isFinite(zoom) ? ` \xB7 zoom ${Math.round(zoom)}%` : "";
+    return `Crop: X ${x}% \xB7 Y ${y}%${zoomLabel}`;
+  }
   function getFilteredComments() {
     let items = state.comments;
     if (state.drawerTab === "comment") items = items.filter((item) => item.type === "comment");
@@ -1517,7 +1532,7 @@ function createCommentsController(ctx) {
     if (item.viewport) contextTags.push(`\u{1F4F1} ${item.viewport}`);
     if (item.scrollY !== void 0) contextTags.push(`\u2195\uFE0F ${item.scrollY}px`);
     const category = categoryLabel(item.category, item.type);
-    const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F N\u1ED9i dung mong mu\u1ED1n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? '<p class="ui-feedback-item__comment">\u2726 \u0110\xE3 ghi nh\u1EADn c\xE1c thu\u1ED9c t\xEDnh CSS thay \u0111\u1ED5i</p>' : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 H\xECnh \u1EA3nh mong mu\u1ED1n: <code>${escapeHtml(imageDisplayValue(item))}</code></p>` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
+    const content = item.type === "edit" ? `<p class="ui-feedback-item__comment">\u270F\uFE0F N\u1ED9i dung mong mu\u1ED1n: <code>${escapeHtml(item.value)}</code></p>` : item.type === "css" ? '<p class="ui-feedback-item__comment">\u2726 \u0110\xE3 ghi nh\u1EADn c\xE1c thu\u1ED9c t\xEDnh CSS thay \u0111\u1ED5i</p>' : item.type === "image" ? `<p class="ui-feedback-item__comment">\u25A7 H\xECnh \u1EA3nh mong mu\u1ED1n: <code>${escapeHtml(imageDisplayValue(item))}</code></p>${imageCropSummary(item) ? `<p class="ui-feedback-item__comment ui-feedback-item__image-crop">\u2316 ${escapeHtml(imageCropSummary(item))}</p>` : ""}` : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
     const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join("")}</div>` : ""}
       ${time ? `<div class="ui-feedback-item__time">${escapeHtml(time)}</div>` : ""}
@@ -1714,13 +1729,22 @@ function createMarkdownExporter(ctx) {
         lines.push(`- **CSS mong mu\u1ED1n:** \`${inlineCode(item.value || "Kh\xF4ng c\xF3 thay \u0111\u1ED5i")}\``, "");
       }
     } else if (item.type === "image") {
-      const position = item.newImageState?.objectPosition || item.newImageState?.backgroundPosition || "";
-      const transform = item.newImageState?.transform || "";
+      const imageState = item.newImageState || {};
+      const position = imageState.position || (() => {
+        const raw = imageState.objectPosition || imageState.backgroundPosition || "";
+        const parts = String(raw).match(/(-?[0-9.]+)%\s+(-?[0-9.]+)%/);
+        return parts ? { x: Number(parts[1]), y: Number(parts[2]) } : null;
+      })();
+      const positionValue = position ? `${Math.round(Number(position.x))}% ${Math.round(Number(position.y))}%` : imageState.objectPosition || imageState.backgroundPosition || "";
+      const zoomValue = Number.isFinite(Number(imageState.zoom)) ? `${Math.round(Number(imageState.zoom))}%` : "";
+      const transform = imageState.transform || "";
       lines.push("#### H\xECnh \u1EA3nh c\u1EA7n c\u1EADp nh\u1EADt", "");
       lines.push(`- **\u1EA2nh hi\u1EC7n t\u1EA1i:** ${proseValue(item.targetText || "Kh\xF4ng c\xF3")}`);
       lines.push(`- **\u1EA2nh mong mu\u1ED1n:** ${proseValue(exportImageValue(item))}`);
-      if (position) lines.push(`- **V\u1ECB tr\xED \u1EA3nh:** \`${inlineCode(position)}\``);
-      if (transform) lines.push(`- **Transform/zoom:** \`${inlineCode(transform)}\``);
+      if (positionValue) lines.push(`- **V\u1ECB tr\xED crop:** \`${inlineCode(positionValue)}\``);
+      if (zoomValue) lines.push(`- **M\u1EE9c thu ph\xF3ng crop:** \`${inlineCode(zoomValue)}\``);
+      if (imageState.crop?.frame) lines.push(`- **Khung crop:** \`${inlineCode(imageState.crop.frame)}\``);
+      if (transform) lines.push(`- **Transform gi\u1EEF l\u1EA1i:** \`${inlineCode(transform)}\``);
       lines.push("");
     } else {
       lines.push("#### \xDD \u0111\u1ECBnh thay \u0111\u1ED5i", "");
@@ -1873,6 +1897,13 @@ function createImageEditor() {
     const match = String(value || "").trim().match(/url\((?:"|')?(.*?)(?:"|')?\)/i);
     return match ? match[1] : "";
   }
+  function clampPercent(value, fallback = 50) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, number)) : fallback;
+  }
+  function normalizePosition(position = { x: 50, y: 50 }) {
+    return { x: clampPercent(position.x, 50), y: clampPercent(position.y, 50) };
+  }
   function parseImagePosition(value) {
     const parts = String(value || "").trim().toLowerCase().split(/\s+/).filter(Boolean);
     const convert = (part, fallback, axis) => {
@@ -1880,15 +1911,12 @@ function createImageEditor() {
       if (axis === "x" && part === "left" || axis === "y" && part === "top") return 0;
       if (part === "center") return 50;
       if (axis === "x" && part === "right" || axis === "y" && part === "bottom") return 100;
-      const numeric = parseFloat(part);
-      return Number.isFinite(numeric) ? Math.max(0, Math.min(100, numeric)) : fallback;
+      return clampPercent(parseFloat(part), fallback);
     };
     const horizontal = parts.find((part) => ["left", "right"].includes(part));
     const vertical = parts.find((part) => ["top", "bottom"].includes(part));
-    if (horizontal || vertical) {
-      return { x: convert(horizontal || "center", 50, "x"), y: convert(vertical || "center", 50, "y") };
-    }
-    return { x: convert(parts[0], 50, "x"), y: convert(parts[1], 50, "y") };
+    if (horizontal || vertical) return normalizePosition({ x: convert(horizontal || "center", 50, "x"), y: convert(vertical || "center", 50, "y") });
+    return normalizePosition({ x: convert(parts[0], 50, "x"), y: convert(parts[1], 50, "y") });
   }
   function isImageElement(element) {
     return element instanceof Element && (element instanceof HTMLImageElement || element.tagName.toLowerCase() === "img");
@@ -1897,32 +1925,54 @@ function createImageEditor() {
     return Math.max(30, Math.min(300, Number(value) || 100));
   }
   function parseImageZoom(value) {
-    const match = String(value || "").match(/scale\(\s*([0-9.]+)\s*\)/i);
+    const match = String(value || "").match(/scale(?:3d)?\(\s*([0-9.]+)/i);
     return match ? clampZoom(Number(match[1]) * 100) : 100;
   }
+  function parseBackgroundZoom(value) {
+    const match = String(value || "").trim().match(/([0-9.]+)%/);
+    return match ? clampZoom(Number(match[1])) : 100;
+  }
   function captureImageState(element) {
-    if (!(element instanceof Element)) return { kind: "background", src: "", srcset: "", backgroundImage: "", backgroundPosition: "", backgroundSize: "" };
-    if (isImageElement(element)) {
-      let computed2 = {};
-      try {
-        computed2 = getComputedStyle(element);
-      } catch {
-      }
-      return { kind: "src", src: element.getAttribute("src") || "", effectiveSrc: element.currentSrc || "", srcset: element.getAttribute("srcset") || "", backgroundImage: "", objectPosition: element.style.objectPosition || "", objectFit: element.style.objectFit || "", transform: element.style.transform || "", effectiveObjectPosition: computed2.objectPosition || "50% 50%", effectiveTransform: computed2.transform || "none" };
-    }
-    const backgroundImage = element.style.backgroundImage || (() => {
-      try {
-        return getComputedStyle(element).backgroundImage || "";
-      } catch {
-        return "";
-      }
-    })();
+    if (!(element instanceof Element)) return { kind: "background", src: "", srcset: "", backgroundImage: "", backgroundPosition: "", backgroundSize: "", position: { x: 50, y: 50 }, zoom: 100 };
     let computed = {};
     try {
       computed = getComputedStyle(element);
     } catch {
     }
-    return { kind: "background", src: imageBackgroundSource(backgroundImage), srcset: "", backgroundImage: element.style.backgroundImage || "", backgroundPosition: element.style.backgroundPosition || "", backgroundSize: element.style.backgroundSize || "", effectiveBackgroundPosition: computed.backgroundPosition || "50% 50%" };
+    if (isImageElement(element)) {
+      const objectPosition = element.style.objectPosition || computed.objectPosition || "50% 50%";
+      const transform = element.style.transform || "";
+      const effectiveTransform = computed.transform || "none";
+      return {
+        kind: "src",
+        src: element.getAttribute("src") || "",
+        effectiveSrc: element.currentSrc || "",
+        srcset: element.getAttribute("srcset") || "",
+        backgroundImage: "",
+        objectPosition,
+        objectFit: element.style.objectFit || computed.objectFit || "",
+        transform,
+        effectiveObjectPosition: computed.objectPosition || objectPosition,
+        effectiveTransform,
+        position: parseImagePosition(objectPosition),
+        zoom: transform ? parseImageZoom(transform) : parseImageZoom(effectiveTransform)
+      };
+    }
+    const backgroundImage = element.style.backgroundImage || computed.backgroundImage || "";
+    const backgroundPosition = element.style.backgroundPosition || computed.backgroundPosition || "50% 50%";
+    const backgroundSize = element.style.backgroundSize || computed.backgroundSize || "cover";
+    return {
+      kind: "background",
+      src: imageBackgroundSource(backgroundImage),
+      srcset: "",
+      backgroundImage: element.style.backgroundImage || "",
+      backgroundPosition,
+      backgroundSize,
+      effectiveBackgroundPosition: computed.backgroundPosition || backgroundPosition,
+      effectiveBackgroundSize: computed.backgroundSize || backgroundSize,
+      position: parseImagePosition(backgroundPosition),
+      zoom: parseBackgroundZoom(backgroundSize)
+    };
   }
   function applyImageSource(element, source) {
     if (!(element instanceof Element)) return;
@@ -1936,12 +1986,14 @@ function createImageEditor() {
   }
   function applyImagePosition(element, position = { x: 50, y: 50 }) {
     if (!(element instanceof Element)) return;
-    const x = Math.max(0, Math.min(100, Number(position.x) || 0));
-    const y = Math.max(0, Math.min(100, Number(position.y) || 0));
+    const normalized = normalizePosition(position);
+    const value = `${normalized.x}% ${normalized.y}%`;
     if (isImageElement(element)) {
       element.style.objectFit = "cover";
-      element.style.objectPosition = `${x}% ${y}%`;
-    } else element.style.backgroundPosition = `${x}% ${y}%`;
+      element.style.objectPosition = value;
+    } else {
+      element.style.backgroundPosition = value;
+    }
   }
   function applyImageZoom(element, zoom = 100, baseTransform = "") {
     if (!(element instanceof Element)) return;
@@ -1950,9 +2002,11 @@ function createImageEditor() {
       const base = String(baseTransform || "").trim();
       const withoutScale = base.replace(/\bscale(?:3d|x|y)?\([^)]*\)/gi, "").replace(/\s+/g, " ").trim();
       const preserved = withoutScale && withoutScale !== "none" ? `${withoutScale} ` : "";
+      element.style.transformOrigin = "50% 50%";
       element.style.transform = `${preserved}scale(${safeZoom / 100})`;
+      element.style.willChange = "transform";
     } else {
-      element.style.backgroundSize = safeZoom === 100 ? "cover" : `${safeZoom}%`;
+      element.style.backgroundSize = safeZoom === 100 ? "cover" : `${safeZoom}% auto`;
     }
   }
   function applyImageState(element, snapshot) {
@@ -1962,16 +2016,18 @@ function createImageEditor() {
       else element.removeAttribute("src");
       if (snapshot.srcset) element.setAttribute("srcset", snapshot.srcset);
       else element.removeAttribute("srcset");
-      if (snapshot.objectPosition) element.style.objectPosition = snapshot.objectPosition;
-      else if (snapshot.effectiveObjectPosition) element.style.objectPosition = snapshot.effectiveObjectPosition;
+      const position = snapshot.objectPosition || (snapshot.position ? `${clampPercent(snapshot.position.x)}% ${clampPercent(snapshot.position.y)}%` : snapshot.effectiveObjectPosition);
+      if (position) element.style.objectPosition = position;
       if (snapshot.objectFit) element.style.objectFit = snapshot.objectFit;
       if (snapshot.transform) element.style.transform = snapshot.transform;
+      else if (snapshot.zoom !== void 0 && Number(snapshot.zoom) !== 100) applyImageZoom(element, snapshot.zoom);
       else element.style.removeProperty("transform");
     } else {
       element.style.backgroundImage = snapshot.backgroundImage || (snapshot.src ? `url("${snapshot.src.replace(/"/g, '\\"')}")` : "");
-      if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition;
-      else if (snapshot.effectiveBackgroundPosition) element.style.backgroundPosition = snapshot.effectiveBackgroundPosition;
+      const position = snapshot.backgroundPosition || (snapshot.position ? `${clampPercent(snapshot.position.x)}% ${clampPercent(snapshot.position.y)}%` : snapshot.effectiveBackgroundPosition);
+      if (position) element.style.backgroundPosition = position;
       if (snapshot.backgroundSize) element.style.backgroundSize = snapshot.backgroundSize;
+      else if (snapshot.zoom !== void 0 && Number(snapshot.zoom) !== 100) applyImageZoom(element, snapshot.zoom);
     }
   }
   function restoreImageState(element, snapshot) {
@@ -1987,6 +2043,8 @@ function createImageEditor() {
       else element.style.removeProperty("object-fit");
       if (snapshot.transform) element.style.transform = snapshot.transform;
       else element.style.removeProperty("transform");
+      element.style.removeProperty("transform-origin");
+      element.style.removeProperty("will-change");
     } else {
       element.style.backgroundImage = snapshot.backgroundImage || "";
       if (snapshot.backgroundPosition) element.style.backgroundPosition = snapshot.backgroundPosition;
@@ -2013,7 +2071,7 @@ function createImageEditor() {
       return false;
     }
   }
-  return { parseImagePosition, parseImageZoom, captureImageState, applyImageSource, applyImagePosition, applyImageZoom, applyImageState, restoreImageState, validateImageSource };
+  return { parseImagePosition, parseImageZoom, captureImageState, applyImageSource, applyImagePosition, applyImageZoom, applyImageState, restoreImageState, validateImageSource, normalizePosition, clampZoom };
 }
 
 // src/features/picker.js
@@ -2578,10 +2636,10 @@ function createUIFeedback(options = {}) {
     state.modalSnapshot = mode === "css" ? { styleCssText: element?.style?.cssText || "" } : mode === "image" ? captureImageState(element) : null;
     focusBeforeModal = shadow.activeElement || document.activeElement;
     state.modalImageSource = mode === "image" ? state.modalSnapshot?.src || state.modalSnapshot?.effectiveSrc || "" : "";
-    const initialPosition = mode === "image" ? state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || "50% 50%" : "50% 50%";
-    state.modalImagePosition = mode === "image" ? parseImagePosition(initialPosition) : { x: 50, y: 50 };
+    const initialPosition = mode === "image" ? state.modalSnapshot?.position || state.modalSnapshot?.objectPosition || state.modalSnapshot?.effectiveObjectPosition || state.modalSnapshot?.backgroundPosition || state.modalSnapshot?.effectiveBackgroundPosition || "50% 50%" : "50% 50%";
+    state.modalImagePosition = mode === "image" ? imageEditor.normalizePosition(typeof initialPosition === "object" ? initialPosition : parseImagePosition(initialPosition)) : { x: 50, y: 50 };
     state.modalImageBaseTransform = mode === "image" ? state.modalSnapshot?.transform || state.modalSnapshot?.effectiveTransform || "" : "";
-    state.modalImageZoom = mode === "image" ? imageEditor.parseImageZoom(state.modalSnapshot?.transform || state.modalSnapshot?.effectiveTransform || "") : 100;
+    state.modalImageZoom = mode === "image" ? imageEditor.clampZoom(state.modalSnapshot?.zoom || imageEditor.parseImageZoom(state.modalSnapshot?.transform || state.modalSnapshot?.effectiveTransform || state.modalSnapshot?.backgroundSize || "")) : 100;
     state.modalCommitted = false;
     state.cssTab = mode === "css" ? "colors" : "advanced";
     state.cssTransformBase = mode === "css" ? String(element?.style?.transform || "").replace(/\btranslate(?:3d|x|y)?\([^)]*\)/gi, "").replace(/\s+/g, " ").trim() : "";
@@ -2756,11 +2814,11 @@ function createUIFeedback(options = {}) {
   function renderImageContent() {
     const snapshot = state.modalSnapshot || captureImageState(state.target);
     const source = state.modalImageSource || snapshot.src || snapshot.effectiveSrc || "";
-    const position = state.modalImagePosition || { x: 50, y: 50 };
-    const zoom = state.modalImageZoom || 100;
+    const position = imageEditor.normalizePosition(state.modalImagePosition || snapshot.position || { x: 50, y: 50 });
+    const zoom = imageEditor.clampZoom(state.modalImageZoom || snapshot.zoom || 100);
     const positionStyle = `object-position:${position.x}% ${position.y}%;transform:scale(${zoom / 100});transform-origin:50% 50%;`;
-    const preview = source ? `<img data-image-preview src="${escapeAttribute(source)}" alt="\u1EA2nh preview" style="${positionStyle}" />` : "<span data-image-preview>Ph\u1EA7n t\u1EED n\xE0y ch\u01B0a c\xF3 \u1EA3nh URL tr\u1EF1c ti\u1EBFp. H\xE3y nh\u1EADp URL ho\u1EB7c ch\u1ECDn file.</span>";
-    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>\u0110\u01B0\u1EDDng d\u1EABn \u1EA3nh \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? "\u0111\xE3 \u0111\u1ED5i" : "ch\u01B0a \u0111\u1ED5i"}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="K\xE9o \u1EA3nh \u0111\u1EC3 c\u0103n ch\u1EC9nh">${preview}<span class="ui-feedback-image-canvas-hint">K\xE9o \u1EA3nh \u0111\u1EC3 c\u0103n ch\u1EC9nh</span></div><div class="ui-feedback-image-zoom"><button type="button" data-image-zoom-step="-" aria-label="Thu nh\u1ECF \u1EA3nh">\u2212</button><input type="range" min="30" max="300" step="5" data-image-zoom value="${zoom}" aria-label="Zoom \u1EA3nh" /><button type="button" data-image-zoom-step="+" aria-label="Ph\xF3ng to \u1EA3nh">+</button><output data-image-zoom-output>${zoom}%</output></div><div class="ui-feedback-image-position"><span>V\u1ECB tr\xED \u1EA3nh</span><output data-image-position>${Math.round(position.x)}% \xB7 ${Math.round(position.y)}%</output></div><div class="ui-feedback-image-position-controls" role="group" aria-label="C\u0103n ch\u1EC9nh v\u1ECB tr\xED \u1EA3nh"><button type="button" data-image-position-step="left" aria-label="C\u0103n tr\xE1i">\u2190 Tr\xE1i</button><button type="button" data-image-position-step="right" aria-label="C\u0103n ph\u1EA3i">Ph\u1EA3i \u2192</button><button type="button" data-image-position-step="up" aria-label="C\u0103n l\xEAn">\u2191 L\xEAn</button><button type="button" data-image-position-step="down" aria-label="C\u0103n xu\u1ED1ng">Xu\u1ED1ng \u2193</button><button type="button" data-image-position-reset aria-label="\u0110\u1EB7t \u1EA3nh v\u1EC1 gi\u1EEFa">\u0110\u1EB7t gi\u1EEFa</button></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL \u1EA3nh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><button type="button" class="ui-feedback-image-paste" data-image-paste>D\xE1n \u1EA3nh t\u1EEB clipboard (Ctrl/Cmd + V)</button><label class="ui-feedback-label" for="ui-feedback-image-file">Ho\u1EB7c upload t\u1EEB m\xE1y</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL g\u1ED1c: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || "Kh\xF4ng c\xF3", 150))}</small><small class="ui-feedback-image-original">Upload local \u0111\u01B0\u1EE3c gi\u1EEF t\u1ED1i \u0111a 1 MB \u0111\u1EC3 tr\xE1nh l\xE0m \u0111\u1EA7y localStorage.</small></div>`;
+    const preview = source ? `<img class="ui-feedback-image-preview__media" data-image-preview src="${escapeAttribute(source)}" alt="\u1EA2nh preview" style="${positionStyle}" />` : "<span data-image-preview>Ph\u1EA7n t\u1EED n\xE0y ch\u01B0a c\xF3 \u1EA3nh URL tr\u1EF1c ti\u1EBFp. H\xE3y nh\u1EADp URL ho\u1EB7c ch\u1ECDn file.</span>";
+    return `<div class="ui-feedback-image-block"><div class="ui-feedback-image-heading"><div><strong>Block: ${escapeHtml(targetLabel(state.target))}</strong><small>\u0110\u01B0\u1EDDng d\u1EABn \u1EA3nh \xB7 ${escapeHtml(safeText(cssPath(state.target), 90))}</small></div><span class="ui-feedback-image-state">${source && source !== snapshot.src ? "\u0111\xE3 \u0111\u1ED5i" : "ch\u01B0a \u0111\u1ED5i"}</span></div><div class="ui-feedback-image-preview" data-image-canvas aria-label="K\xE9o \u1EA3nh \u0111\u1EC3 c\u0103n ch\u1EC9nh">${preview}<span class="ui-feedback-image-canvas-hint">K\xE9o \u1EA3nh \u0111\u1EC3 c\u0103n ch\u1EC9nh</span></div><div class="ui-feedback-image-zoom"><button type="button" data-image-zoom-step="-" aria-label="Thu nh\u1ECF \u1EA3nh">\u2212</button><input type="range" min="30" max="300" step="5" data-image-zoom value="${zoom}" aria-label="Zoom \u1EA3nh trong khung crop" /><button type="button" data-image-zoom-step="+" aria-label="Ph\xF3ng to \u1EA3nh">+</button><output data-image-zoom-output>${zoom}%</output></div><div class="ui-feedback-image-position"><span>V\u1ECB tr\xED crop</span><output data-image-position>${Math.round(position.x)}% \xB7 ${Math.round(position.y)}%</output></div><div class="ui-feedback-image-position-controls" role="group" aria-label="C\u0103n ch\u1EC9nh v\u1ECB tr\xED \u1EA3nh"><button type="button" data-image-position-step="left" aria-label="C\u0103n tr\xE1i">\u2190 Tr\xE1i</button><button type="button" data-image-position-step="right" aria-label="C\u0103n ph\u1EA3i">Ph\u1EA3i \u2192</button><button type="button" data-image-position-step="up" aria-label="C\u0103n l\xEAn">\u2191 L\xEAn</button><button type="button" data-image-position-step="down" aria-label="C\u0103n xu\u1ED1ng">Xu\u1ED1ng \u2193</button><button type="button" data-image-position-reset aria-label="\u0110\u1EB7t \u1EA3nh v\u1EC1 gi\u1EEFa">\u0110\u1EB7t gi\u1EEFa</button></div><label class="ui-feedback-label" for="ui-feedback-image-url">URL \u1EA3nh</label><input id="ui-feedback-image-url" class="ui-feedback-image-url" data-feedback-input data-image-url value="${escapeAttribute(source)}" placeholder="https://example.com/image.jpg" type="url" /><button type="button" class="ui-feedback-image-paste" data-image-paste>D\xE1n \u1EA3nh t\u1EEB clipboard (Ctrl/Cmd + V)</button><label class="ui-feedback-label" for="ui-feedback-image-file">Ho\u1EB7c upload t\u1EEB m\xE1y</label><input id="ui-feedback-image-file" class="ui-feedback-image-upload" data-image-file type="file" accept="image/*" /><small class="ui-feedback-image-original">URL g\u1ED1c: ${escapeHtml(safeText(snapshot.src || snapshot.backgroundImage || "Kh\xF4ng c\xF3", 150))}</small><small class="ui-feedback-image-original">Crop s\u1EBD l\u01B0u c\xF9ng feedback: X ${Math.round(position.x)}% \xB7 Y ${Math.round(position.y)}% \xB7 zoom ${zoom}%.</small><small class="ui-feedback-image-original">Upload local \u0111\u01B0\u1EE3c gi\u1EEF t\u1ED1i \u0111a 1 MB \u0111\u1EC3 tr\xE1nh l\xE0m \u0111\u1EA7y localStorage.</small></div>`;
   }
   function renderModal(existing = null) {
     const mount = root.querySelector("[data-ui-feedback-modal]");
@@ -2831,7 +2889,6 @@ function createUIFeedback(options = {}) {
     };
     state.modalImagePosition = position;
     applyPreviewImagePosition();
-    applyImagePosition(state.target, position);
   }
   function handleImagePointerDown(event) {
     if (state.mode !== "image" || !state.modalOpen || event.button !== 0) return;
@@ -2911,7 +2968,6 @@ function createUIFeedback(options = {}) {
     const preview = root.querySelector("[data-image-preview]");
     const zoom = state.modalImageZoom || 100;
     if (preview?.tagName?.toLowerCase() === "img") preview.style.transform = `scale(${zoom / 100})`;
-    if (state.target && state.mode === "image") applyImageZoom(state.target, zoom, state.modalImageBaseTransform);
     const output = root.querySelector("[data-image-zoom-output]");
     if (output) output.textContent = `${zoom}%`;
   }
@@ -2978,7 +3034,6 @@ function createUIFeedback(options = {}) {
       if (positionStep.dataset.imagePositionStep === "down") position.y += step;
       state.modalImagePosition = { x: Math.max(0, Math.min(100, position.x)), y: Math.max(0, Math.min(100, position.y)) };
       applyPreviewImagePosition();
-      applyImagePosition(state.target, state.modalImagePosition);
       return;
     }
     const imagePositionReset = event.target.closest("[data-image-position-reset]");
@@ -2986,7 +3041,6 @@ function createUIFeedback(options = {}) {
       event.stopPropagation();
       state.modalImagePosition = { x: 50, y: 50 };
       applyPreviewImagePosition();
-      applyImagePosition(state.target, state.modalImagePosition);
       return;
     }
     const zoomStep = event.target.closest("[data-image-zoom-step]");
@@ -3050,9 +3104,10 @@ function createUIFeedback(options = {}) {
       event.stopPropagation();
       restoreImageState(state.target, state.modalSnapshot);
       state.modalImageSource = state.modalSnapshot.src || state.modalSnapshot.effectiveSrc || "";
-      state.modalImagePosition = parseImagePosition(state.modalSnapshot.objectPosition || state.modalSnapshot.effectiveObjectPosition || state.modalSnapshot.backgroundPosition || state.modalSnapshot.effectiveBackgroundPosition || "50% 50%");
+      const restoredPosition = state.modalSnapshot.position || state.modalSnapshot.objectPosition || state.modalSnapshot.effectiveObjectPosition || state.modalSnapshot.backgroundPosition || state.modalSnapshot.effectiveBackgroundPosition || "50% 50%";
+      state.modalImagePosition = imageEditor.normalizePosition(typeof restoredPosition === "object" ? restoredPosition : parseImagePosition(restoredPosition));
       state.modalImageBaseTransform = state.modalSnapshot.transform || state.modalSnapshot.effectiveTransform || "";
-      state.modalImageZoom = imageEditor.parseImageZoom(state.modalSnapshot.transform || state.modalSnapshot.effectiveTransform || "");
+      state.modalImageZoom = imageEditor.clampZoom(state.modalSnapshot.zoom || imageEditor.parseImageZoom(state.modalSnapshot.transform || state.modalSnapshot.effectiveTransform || state.modalSnapshot.backgroundSize || ""));
       renderModal();
       return;
     }
@@ -3228,7 +3283,17 @@ function createUIFeedback(options = {}) {
       applyImageSource(state.target, source);
       applyImagePosition(state.target, state.modalImagePosition || { x: 50, y: 50 });
       applyImageZoom(state.target, state.modalImageZoom || 100, state.modalImageBaseTransform || "");
-      const newImageState = captureImageState(state.target);
+      const newImageState = {
+        ...captureImageState(state.target),
+        position: imageEditor.normalizePosition(state.modalImagePosition || { x: 50, y: 50 }),
+        zoom: imageEditor.clampZoom(state.modalImageZoom || 100),
+        crop: {
+          x: imageEditor.normalizePosition(state.modalImagePosition || { x: 50, y: 50 }).x,
+          y: imageEditor.normalizePosition(state.modalImagePosition || { x: 50, y: 50 }).y,
+          zoom: imageEditor.clampZoom(state.modalImageZoom || 100),
+          frame: "image-preview"
+        }
+      };
       delete newImageState.src;
       delete newImageState.effectiveSrc;
       delete newImageState.backgroundImage;

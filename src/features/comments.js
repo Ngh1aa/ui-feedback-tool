@@ -11,6 +11,21 @@ export function createCommentsController(ctx) {
       : item.value;
   }
 
+  function imageCropSummary(item) {
+    const state = item.newImageState || {};
+    const position = state.position || (() => {
+      const raw = state.objectPosition || state.backgroundPosition || '';
+      const parts = String(raw).match(/(-?[0-9.]+)%\s+(-?[0-9.]+)%/);
+      return parts ? { x: Number(parts[1]), y: Number(parts[2]) } : null;
+    })();
+    const zoom = Number(state.zoom);
+    if (!position && !Number.isFinite(zoom)) return '';
+    const x = Number.isFinite(Number(position?.x)) ? Math.round(Number(position.x)) : 50;
+    const y = Number.isFinite(Number(position?.y)) ? Math.round(Number(position.y)) : 50;
+    const zoomLabel = Number.isFinite(zoom) ? ` · zoom ${Math.round(zoom)}%` : '';
+    return `Crop: X ${x}% · Y ${y}%${zoomLabel}`;
+  }
+
   function getFilteredComments() {
     let items = state.comments;
     if (state.drawerTab === 'comment') items = items.filter((item) => item.type === 'comment');
@@ -44,7 +59,7 @@ export function createCommentsController(ctx) {
       : item.type === 'css'
         ? '<p class="ui-feedback-item__comment">✦ Đã ghi nhận các thuộc tính CSS thay đổi</p>'
         : item.type === 'image'
-          ? `<p class="ui-feedback-item__comment">▧ Hình ảnh mong muốn: <code>${escapeHtml(imageDisplayValue(item))}</code></p>`
+          ? `<p class="ui-feedback-item__comment">▧ Hình ảnh mong muốn: <code>${escapeHtml(imageDisplayValue(item))}</code></p>${imageCropSummary(item) ? `<p class="ui-feedback-item__comment ui-feedback-item__image-crop">⌖ ${escapeHtml(imageCropSummary(item))}</p>` : ''}`
           : `<p class="ui-feedback-item__comment">${escapeHtml(item.comment)}</p>`;
     const details = expanded ? `<div class="ui-feedback-item__details">
       ${contextTags.length ? `<div class="ui-feedback-item__context">${contextTags.map((tag) => `<span class="ui-feedback-context-tag">${escapeHtml(tag)}</span>`).join('')}</div>` : ''}

@@ -84,13 +84,22 @@ export function createMarkdownExporter(ctx) {
         lines.push(`- **CSS mong muốn:** \`${inlineCode(item.value || 'Không có thay đổi')}\``, '');
       }
     } else if (item.type === 'image') {
-      const position = item.newImageState?.objectPosition || item.newImageState?.backgroundPosition || '';
-      const transform = item.newImageState?.transform || '';
+      const imageState = item.newImageState || {};
+      const position = imageState.position || (() => {
+        const raw = imageState.objectPosition || imageState.backgroundPosition || '';
+        const parts = String(raw).match(/(-?[0-9.]+)%\s+(-?[0-9.]+)%/);
+        return parts ? { x: Number(parts[1]), y: Number(parts[2]) } : null;
+      })();
+      const positionValue = position ? `${Math.round(Number(position.x))}% ${Math.round(Number(position.y))}%` : (imageState.objectPosition || imageState.backgroundPosition || '');
+      const zoomValue = Number.isFinite(Number(imageState.zoom)) ? `${Math.round(Number(imageState.zoom))}%` : '';
+      const transform = imageState.transform || '';
       lines.push('#### Hình ảnh cần cập nhật', '');
       lines.push(`- **Ảnh hiện tại:** ${proseValue(item.targetText || 'Không có')}`);
       lines.push(`- **Ảnh mong muốn:** ${proseValue(exportImageValue(item))}`);
-      if (position) lines.push(`- **Vị trí ảnh:** \`${inlineCode(position)}\``);
-      if (transform) lines.push(`- **Transform/zoom:** \`${inlineCode(transform)}\``);
+      if (positionValue) lines.push(`- **Vị trí crop:** \`${inlineCode(positionValue)}\``);
+      if (zoomValue) lines.push(`- **Mức thu phóng crop:** \`${inlineCode(zoomValue)}\``);
+      if (imageState.crop?.frame) lines.push(`- **Khung crop:** \`${inlineCode(imageState.crop.frame)}\``);
+      if (transform) lines.push(`- **Transform giữ lại:** \`${inlineCode(transform)}\``);
       lines.push('');
     } else {
       lines.push('#### Ý định thay đổi', '');

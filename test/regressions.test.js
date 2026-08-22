@@ -193,3 +193,64 @@ test('GitHub Issue handoff includes location data without uploaded base64', () =
     globalThis.location = previousLocation;
   }
 });
+
+
+test('image crop state persists position and zoom for feedback and Markdown', () => {
+  const PreviousElement = globalThis.Element;
+  const PreviousImage = globalThis.HTMLImageElement;
+  class FakeElement {}
+  class FakeImage extends FakeElement {
+    constructor() {
+      super();
+      this.tagName = 'IMG';
+      this.attributes = { src: '/images/hero.jpg' };
+      this.currentSrc = '/images/hero.jpg';
+      this.style = {};
+    }
+    getAttribute(name) { return this.attributes[name] || ''; }
+    setAttribute(name, value) { this.attributes[name] = String(value); }
+    hasAttribute(name) { return Object.hasOwn(this.attributes, name); }
+    removeAttribute(name) { delete this.attributes[name]; }
+  }
+  globalThis.Element = FakeElement;
+  globalThis.HTMLImageElement = FakeImage;
+  try {
+    const editor = createImageEditor();
+    const image = new FakeImage();
+    editor.applyImagePosition(image, { x: 25, y: 75 });
+    editor.applyImageZoom(image, 160);
+    const saved = editor.captureImageState(image);
+    assert.deepEqual(saved.position, { x: 25, y: 75 });
+    assert.equal(saved.zoom, 160);
+    assert.equal(saved.objectPosition, '25% 75%');
+    assert.equal(saved.transform, 'scale(1.6)');
+
+    const state = {
+      comments: [{
+        type: 'image', tag: 'img.hero', selector: 'img.hero', page: '/', targetText: '/images/old.jpg', value: '/images/new.jpg',
+        newImageState: { ...saved, position: { x: 25, y: 75 }, zoom: 160, crop: { frame: 'image-preview', x: 25, y: 75, zoom: 160 } },
+        imageSourceType: 'url', updatedAt: '2026-08-23T00:00:00.000Z',
+      }],
+    };
+    const exporter = createMarkdownExporter({ state, getItemCodeLine: () => '' });
+    const markdown = exporter.buildMarkdown({ href: 'https://example.com', now: new Date('2026-08-23T01:00:00.000Z') });
+    assert.ok(markdown.includes('**Vị trí crop:** `25% 75%`'));
+    assert.ok(markdown.includes('**Mức thu phóng crop:** `160%`'));
+    assert.ok(markdown.includes('**Khung crop:** `image-preview`'));
+    const comments = createCommentsController({ state });
+    assert.ok(comments.renderItem(state.comments[0]).includes('Crop: X 25% · Y 75% · zoom 160%'));
+  } finally {
+    globalThis.Element = PreviousElement;
+    globalThis.HTMLImageElement = PreviousImage;
+  }
+});
+
+test('image preview zoom is scoped to the media and not the crop frame', () => {
+  const source = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8');
+  const stylesheet = fs.readFileSync(new URL('../src/stylesheet.js', import.meta.url), 'utf8');
+  assert.ok(source.includes('class="ui-feedback-image-preview__media"'));
+  assert.ok(source.includes('const preview = root.querySelector(\'[data-image-preview]\');'));
+  assert.ok(!source.includes('if (state.target && state.mode === \'image\') applyImageZoom(state.target, zoom, state.modalImageBaseTransform);'));
+  assert.ok(stylesheet.includes('height: 180px; min-height: 180px; overflow: hidden'));
+  assert.ok(stylesheet.includes('.ui-feedback-image-preview img.ui-feedback-image-preview__media'));
+});

@@ -870,10 +870,10 @@ button { cursor: pointer; }
 .ui-feedback-image-heading strong { color: var(--_text); font-size: 12px; }
 .ui-feedback-image-heading small { display: block; margin-top: 3px; color: var(--_text-muted); font-size: 10px; }
 .ui-feedback-image-state { flex-shrink: 0; border-radius: 99px; padding: 3px 7px; color: #166534; background: #dcfce7; font-size: 9px; font-weight: 800; }
-.ui-feedback-image-preview { position: relative; display: flex; align-items: center; justify-content: center; min-height: 180px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; cursor: grab; touch-action: none; }
+.ui-feedback-image-preview { position: relative; display: block; width: 100%; height: 180px; min-height: 180px; overflow: hidden; border: 1px dashed var(--_border); border-radius: 8px; background: repeating-conic-gradient(var(--_bg-alt) 0 25%, var(--_bg-hover) 0 50%) 50% / 16px 16px; cursor: grab; touch-action: none; isolation: isolate; }
 .ui-feedback-image-preview:active,
 .ui-feedback-image-preview.is-dragging { cursor: grabbing; }
-.ui-feedback-image-preview img { display: block; width: 100%; height: 180px; object-fit: cover; user-select: none; pointer-events: none; transform-origin: 50% 50%; transition: transform .12s ease, object-position .12s ease; }
+.ui-feedback-image-preview img.ui-feedback-image-preview__media { position: absolute; inset: 0; display: block; width: 100%; height: 100%; min-width: 100%; min-height: 100%; object-fit: cover; user-select: none; pointer-events: none; transform-origin: 50% 50%; transition: transform .12s ease, object-position .12s ease; }
 .ui-feedback-image-preview img[style*="transform"] { will-change: transform; }
 .ui-feedback-image-preview span { padding: 20px; color: var(--_text-muted); font-size: 11px; text-align: center; }
 .ui-feedback-image-canvas-hint { position: absolute; right: 8px; bottom: 8px; border-radius: 99px; padding: 4px 7px; color: #fff; background: rgba(0,0,0,.58); font-size: 9px; pointer-events: none; }
@@ -886,6 +886,7 @@ button { cursor: pointer; }
 .ui-feedback-image-position-controls button { min-height: 28px; border: 1px solid var(--_border); border-radius: 6px; padding: 4px 5px; color: var(--_text-secondary); background: var(--_bg-panel); font-size: 10px; font-weight: 700; }
 .ui-feedback-image-position-controls button:hover,
 .ui-feedback-image-position-controls button:focus-visible { color: var(--_text); border-color: var(--ui-feedback-accent); outline: none; }
+.ui-feedback-item__image-crop { color: var(--_text-secondary); font-size: 10px; }
 .ui-feedback-image-url { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 9px 10px; color: var(--_text); background: var(--_bg-input); outline: none; font-size: 11px; }
 .ui-feedback-image-url:focus { border-color: var(--ui-feedback-accent); }
 .ui-feedback-image-paste { width: 100%; border: 1px solid var(--_border); border-radius: 6px; padding: 8px; color: var(--_text-secondary); background: var(--_bg-panel); font-size: 11px; }

@@ -37,9 +37,16 @@ export function createGithubIssueController(ctx) {
         lines.push(`- **Old CSS:** \`${escapeMarkdown(item.targetText || '')}\``);
         lines.push(`- **New CSS:** \`${escapeMarkdown(item.value || '')}\``);
       } else if (item.type === 'image') {
+        const imageState = item.newImageState || {};
+        const position = imageState.position || (() => {
+          const match = String(imageState.objectPosition || imageState.backgroundPosition || '').match(/(-?[0-9.]+)%\s+(-?[0-9.]+)%/);
+          return match ? { x: Number(match[1]), y: Number(match[2]) } : null;
+        })();
         lines.push(`- **Old image:** ${escapeMarkdown(item.targetText || 'N/A')}`);
         lines.push(`- **New image:** ${escapeMarkdown(issueImageValue(item))}`);
         lines.push(`- **Source:** ${item.imageSourceType === 'upload' ? 'Local upload' : 'Website URL'}`);
+        if (position) lines.push(`- **Crop position:** ${Math.round(Number(position.x))}% ${Math.round(Number(position.y))}%`);
+        if (Number.isFinite(Number(imageState.zoom))) lines.push(`- **Crop zoom:** ${Math.round(Number(imageState.zoom))}%`);
       } else {
         lines.push(`- **Priority:** ${item.priority || 'medium'}`);
         lines.push(`- **Feedback:** ${escapeMarkdown(item.comment || '')}`);
