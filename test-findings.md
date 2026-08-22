@@ -33,4 +33,4 @@ Phiên bản sau sửa: `0.13.0`
 - `git diff --check`: đạt.
 - Static HTTP smoke test: `/`, `/demo/`, demo JS/CSS và bundle đều HTTP 200 đúng MIME type.
 
-Môi trường local không có binary Chromium để chạy Playwright trực tiếp. Flow trình duyệt được kiểm tra tiếp trên bundle của branch sau khi publish PR; CI là điều kiện trước khi merge.
+Môi trường local không có binary Chromium để chạy Playwright trực tiếp; Cloud Browser cũng chặn URL preview từ CDN/raw host. Vì vậy browser E2E chưa chạy được trong môi trường này. Các flow quan trọng được bảo vệ bằng 13 unit/regression test, static HTTP smoke test và CI của PR trước khi merge.
